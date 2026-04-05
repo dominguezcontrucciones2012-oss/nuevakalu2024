@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KALU 2.0 - Acceso al Sistema</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
@@ -68,6 +71,7 @@
             border-radius: 12px;
             padding: 12px 15px;
             transition: 0.3s;
+            font-family: Arial, Helvetica, sans-serif !important; /* Force standard font for inputs */
         }
 
         .form-control:focus {
@@ -135,21 +139,48 @@
                 <label class="form-label text-uppercase">Nombre de Usuario</label>
                 <div class="input-group">
                     <span class="input-group-text bg-transparent border-0 text-white-50"><i class="fas fa-user"></i></span>
-                    <input type="text" name="username" class="form-control" placeholder="Ej: admin" required autofocus>
+                    <input type="text" name="username" id="login_username" class="form-control" placeholder="Ej: admin o 0412..." required>
                 </div>
             </div>
             <div class="mb-4">
                 <label class="form-label text-uppercase">Contraseña</label>
                 <div class="input-group">
                     <span class="input-group-text bg-transparent border-0 text-white-50"><i class="fas fa-lock"></i></span>
-                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                    <input type="password" id="login_password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" class="btn btn-outline-secondary border-0 bg-transparent text-white-50" onclick="toggleLoginClave()" tabindex="-1">
+                        <i class="fas fa-eye" id="toggleLoginIcon"></i>
+                    </button>
                 </div>
             </div>
             <button type="submit" class="btn btn-kalu w-100 shadow">
                 <i class="fas fa-sign-in-alt me-2"></i> Iniciar Sesión
             </button>
         </form>
+
+        <div class="my-4 d-flex align-items-center">
+            <hr class="flex-grow-1 border-white-50 opacity-25">
+            <span class="mx-3 text-white-50 small text-uppercase">O entrar con</span>
+            <hr class="flex-grow-1 border-white-50 opacity-25">
+        </div>
+
+        <a href="{{ url_for('auth.login_google') }}" class="btn btn-light w-100 py-3 rounded-4 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 border-0 google-btn" style="background: white; color: #444; transition: 0.3s; border-radius: 12px !important;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" style="width: 20px;">
+            Continuar con Google
+        </a>
     </div>
+    <script>
+        function toggleLoginClave() {
+            const input = document.getElementById('login_password');
+            const icon = document.getElementById('toggleLoginIcon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+    </script>
 </body>
 
 </html>

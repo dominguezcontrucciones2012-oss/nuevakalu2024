@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.5);">
+            <i class="fas fa-camera-retro me-2"></i> Gestión de Publicidad (Mini App)
+        </h2>
+    </div>
+
+    <div class="row">
+        <!-- FORMULARIO PARA SUBIR -->
+        <div class="col-md-5 mb-4">
+            <div class="card p-4 h-100">
+                <h4 class="mb-3 text-primary"><i class="fas fa-cloud-upload-alt me-2"></i> Subir Contenido</h4>
+                <p class="text-muted small">Sube imágenes (JPG, PNG) o videos cortos (MP4) para que se muestren en la app de los clientes.</p>
+                <form action="{{ url_for('marketing.admin_publicidad') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="modo" value="subir">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Título o Promoción</label>
+                        <input type="text" name="titulo" class="form-control" placeholder="Ej: Oferta Queso Llanero" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Descripción (Opcional)</label>
+                        <input type="text" name="descripcion" class="form-control" placeholder="El texto que aparecerá abajo">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Archivos (Fotos o Videos)</label>
+                        <input type="file" name="archivos" class="form-control" accept="image/*,video/mp4,video/webm" multiple required>
+                        <small class="text-muted">Puedes seleccionar varios archivos a la vez.</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="fas fa-upload me-2"></i> SUBIR PUBLICIDAD
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- LISTADO DE PUBLICIDADES -->
+        <div class="col-md-7">
+            <div class="card p-4 h-100">
+                <h4 class="mb-3 text-success"><i class="fas fa-images me-2"></i> Archivos Activos</h4>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Vista Previa</th>
+                                <th>Detalle</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ad in anuncios %}
+                            <tr>
+                                <td style="width: 120px;">
+                                    {% if ad.tipo == 'video' %}
+                                        <video src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width: 100px; height: 60px; object-fit: cover; border-radius: 8px;" muted loop></video>
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width: 100px; height: 60px; object-fit: cover; border-radius: 8px;">
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ ad.titulo }}</strong><br>
+                                    <small class="text-muted">{{ ad.descripcion }}</small><br>
+                                    <span class="badge bg-secondary" style="font-size:0.6rem;">{{ ad.tipo|upper }}</span>
+                                </td>
+                                <td>
+                                    {% if ad.activo %}
+                                        <span class="badge bg-success">ACTIVO</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">INACTIVO</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('marketing.admin_publicidad') }}" method="POST" style="display:inline-block;">
+                                        <input type="hidden" name="modo" value="cambiar_estado">
+                                        <input type="hidden" name="publi_id" value="{{ ad.id }}">
+                                        <button type="submit" class="btn btn-sm btn-{{ 'warning' if ad.activo else 'success' }}" title="Cambiar Estado">
+                                            <i class="fas fa-{{ 'eye-slash' if ad.activo else 'eye' }}"></i>
+                                        </button>
+                                    </form>
+                                    <form action="{{ url_for('marketing.admin_publicidad') }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Seguro de eliminar este archivo?');">
+                                        <input type="hidden" name="modo" value="eliminar">
+                                        <input type="hidden" name="publi_id" value="{{ ad.id }}">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted p-4">No hay publicidad registrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

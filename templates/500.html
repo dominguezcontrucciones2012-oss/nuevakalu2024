@@ -1,0 +1,10 @@
+{% extends 'base.html' %} 
+{% block title %}500 - Error del Servidor{% endblock %}
+{% block content %}
+<div class="container-fluid text-center mt-5 pt-5">
+    <div class="error mx-auto" data-text="500" style="color:var(--danger);">500</div>
+    <p class="lead text-gray-800 mb-5">Parece que hubo un problema temporal</p>
+    <p class="text-gray-500 mb-4">Algo falló en el sistema. Hemos registrado el error. Por favor intenta hacer la acción de nuevo con cuidado.</p>
+    <a href="{{ url_for('pos.pos') }}" class="btn btn-primary">&larr; Volver a la Caja Segura</a>
+</div>
+{% endblock %}

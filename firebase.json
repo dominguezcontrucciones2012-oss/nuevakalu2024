@@ -1,0 +1,10 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "KALU Admin System",
+        "supportEmail": "ffernandocconde17@gmail.com"
+      }
+    }
+  }
+}

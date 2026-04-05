@@ -1,14 +1,20 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, session
-from models import db, TasaBCV, Producto, LiquidacionCiudad, Proveedor, MovimientoProductor, ahora_ve, hoy_ve
+from models import db, TasaBCV, Producto, LiquidacionCiudad, Proveedor, MovimientoProductor, ahora_ve, hoy_ve, User
 from datetime import datetime # Mantener para datetime.now() en set_tasa_bcv si es necesario
 from decimal import Decimal
 from sqlalchemy import func, desc
 from flask_migrate import Migrate
-from flask_login import LoginManager, login_required, current_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
+from authlib.integrations.flask_client import OAuth
 from routes.portal import portal_bp
 import logging
 import pytz
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno (para CLIENT_ID y CLIENT_SECRET de Google) 🔐
+load_dotenv()
 
 # Blueprints
 from routes.clientes import clientes_bp
@@ -28,6 +34,7 @@ from routes.usuarios import usuarios_bp
 from routes.caja import caja_bp
 from routes.dueno import dueno_bp
 from cargar_excel import cargar_bp
+from routes.marketing import marketing_bp
 
 # ============================================================
 # ⏰ ZONA HORARIA VENEZUELA
@@ -57,6 +64,20 @@ login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 login_manager.login_message = "⚠️ Por seguridad, debes iniciar sesión."
 login_manager.login_message_category = "warning"
+
+# ============================================================
+# 🌐 CONFIGURACIÓN GOOGLE OAUTH2 (Authlib)
+# ============================================================
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+    client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -93,10 +114,21 @@ app.register_blueprint(usuarios_bp)
 app.register_blueprint(caja_bp)
 app.register_blueprint(dueno_bp)
 app.register_blueprint(portal_bp)
+app.register_blueprint(marketing_bp)
 
 # ============================================================
-# RUTAS PRINCIPALES
+# RUTAS PRINCIPALES Y ERRORES
 # ============================================================
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback() # Prevenir bloqueos si hubo un error en DB
+    return render_template('500.html'), 500
+
 @app.route('/')
 def index():
     if not current_user.is_authenticated:

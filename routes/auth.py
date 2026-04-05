@@ -45,3 +45,54 @@ def logout():
     logout_user()
     flash("🔒 Sesión cerrada correctamente.", "info")
     return redirect(url_for('auth.login'))
+
+# ============================================================
+# 🌐 GOOGLE LOGIN ROUTES
+# ============================================================
+
+@auth_bp.route('/login/google')
+def login_google():
+    from app import google
+    # Forzamos HTTPS para el redirect_uri ya que el túnel usa SSL
+    # Esto soluciona el error de redirect_uri_mismatch
+    redirect_uri = url_for('auth.callback_google', _external=True, _scheme='https')
+    return google.authorize_redirect(redirect_uri)
+
+@auth_bp.route('/callback_google') # 👈 Nombre simplificado para la interna
+def callback_google():
+    from app import google
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo')
+        
+        if not user_info:
+            # Reintentar extraer de id_token si userinfo falla
+            user_info = google.parse_id_token(token, nonce=None)
+
+        if not user_info:
+            flash("❌ No se pudo extraer información del perfil de Google.", "danger")
+            return redirect(url_for('auth.login'))
+
+        email = user_info.get('email')
+        google_id = user_info.get('sub')
+
+        # Buscar usuario administrativo por email
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            user.google_id = google_id
+            db.session.commit()
+            
+            login_user(user)
+            flash(f"👋 Acceso seguro vía Google: {user.username}", "success")
+            
+            if user.role in ['admin', 'supervisor', 'cajero']:
+                return redirect(url_for('pos.pos'))
+            return redirect(url_for('portal.mi_deuda'))
+        else:
+            flash(f"🚫 El correo {email} no está vinculado a ninguna cuenta administrativa de KALU.", "warning")
+            return redirect(url_for('auth.login'))
+            
+    except Exception as e:
+        flash(f"❌ Error en la autenticación de Google: {str(e)}", "danger")
+        return redirect(url_for('auth.login'))

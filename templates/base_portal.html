@@ -5,36 +5,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}KALU APP{% endblock %}</title>
-    <!-- PWA Support -->
     {% if manifest_exists %}
     <link rel="manifest" href="/static/manifest.json">
     {% endif %}
-    <meta name="theme-color" content="#1a252f">
+    <meta name="theme-color" content="#075E54">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/static/logo_pwa.png">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='app_portal.css') }}">
-    <style>
-        /* Ajustes específicos para que el contenido no quede debajo de la barra */
-        .safe-area-bottom {
-            padding-bottom: 120px;
-        }
-    </style>
 </head>
 
 <body>
 
+    <!-- HEADER WHATSAPP STYLE -->
     <div class="top-nav">
         <div class="logo">
-            <i class="fas fa-store"></i> KALU MASTER
+            <i class="fas fa-store"></i> KALU
         </div>
-        <div style="display: flex; align-items:center; gap: 15px;">
-             <a href="{{ url_for('portal.mi_perfil') }}" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 20px;">
+        <div style="display:flex; align-items:center; gap:18px;">
+            <a href="{{ url_for('portal.mi_perfil') }}" style="color:rgba(255,255,255,0.8); font-size:22px;">
                 <i class="fas fa-user-circle"></i>
             </a>
-            <a href="{{ url_for('auth.logout') }}" style="color: #ff4757; text-decoration: none; font-size: 20px;">
+            <a href="{{ url_for('auth.logout') }}" style="color:#f15c6d; font-size:22px;">
                 <i class="fas fa-sign-out-alt"></i>
             </a>
         </div>
@@ -44,8 +36,9 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="card-kalu animate-fade-in" style="background: rgba({% if category == 'success' %}74, 222, 128{% else %}255, 71, 87{% endif %}, 0.15); border-color: rgba({% if category == 'success' %}74, 222, 128{% else %}255, 71, 87{% endif %}, 0.4); padding: 12px; font-size: 14px; margin-bottom: 15px; text-align: center;">
-            <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %}"></i> {{ message }}
+        <div class="flash-msg flash-{{ 'success' if category == 'success' else 'danger' }} animate-in">
+            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+            {{ message }}
         </div>
         {% endfor %}
         {% endif %}
@@ -54,39 +47,37 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- BARRA INFERIOR MODERNA -->
+    <!-- BOTTOM NAV ESTILO WHATSAPP -->
     <nav class="bottom-nav">
         <a href="{{ url_for('portal.mi_deuda') }}"
             class="nav-item {% if request.endpoint == 'portal.mi_deuda' %}active{% endif %}">
             <i class="fas fa-chart-pie"></i>
-            <span>Dashboard</span>
+            <span>Inicio</span>
         </a>
         <a href="#" onclick="event.preventDefault(); window.abrirCatalogo && window.abrirCatalogo();" class="nav-item">
-            <i class="fas fa-shopping-bag"></i>
+            <i class="fas fa-store"></i>
             <span>Tienda</span>
         </a>
-        <a href="#reportar" onclick="event.preventDefault(); document.getElementById('seccion-pagar')?.scrollIntoView({behavior:'smooth'});" class="nav-item">
-            <i class="fas fa-bolt"></i>
+        <a href="#pagar"
+            onclick="event.preventDefault(); document.getElementById('seccion-pagar')?.scrollIntoView({behavior:'smooth'});"
+            class="nav-item">
+            <i class="fas fa-paper-plane"></i>
             <span>Pagar</span>
         </a>
-         <a href="{{ url_for('portal.mi_perfil') }}" class="nav-item {% if request.endpoint == 'portal.mi_perfil' %}active{% endif %}">
+        <a href="{{ url_for('portal.mi_perfil') }}"
+            class="nav-item {% if request.endpoint == 'portal.mi_perfil' %}active{% endif %}">
             <i class="fas fa-cog"></i>
-            <span>Mi App</span>
+            <span>Perfil</span>
         </a>
     </nav>
 
-    <!-- Scripts Base -->
     <script>
-        // Efecto haptico simple
-        document.querySelectorAll('.nav-item, .btn-app').forEach(btn => {
+        document.querySelectorAll('.nav-item').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (window.navigator && window.navigator.vibrate) {
-                    window.navigator.vibrate(5);
-                }
+                if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(8);
             });
         });
     </script>
-
 </body>
 
 </html>

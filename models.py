@@ -348,6 +348,12 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default='cajero')
+    
+    # Nuevos campos para Seguridad y Google Sign-In 🔒
+    email = db.Column(db.String(100), unique=True, nullable=True)
+    google_id = db.Column(db.String(100), unique=True, nullable=True)
+    nombre_completo = db.Column(db.String(150), nullable=True)
+    avatar_url = db.Column(db.String(255), nullable=True)
 
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=True)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=True)
@@ -396,3 +402,28 @@ class DetallePedido(db.Model):
     producto_id = db.Column(db.Integer, db.ForeignKey('productos.id'), nullable=False)
     cantidad = db.Column(db.Numeric(12, 3), nullable=False)
     producto = db.relationship('Producto', backref='items_pedidos', lazy=True)
+
+
+# ==========================================================
+#   SISTEMA DE PUBLICIDAD Y FEEDBACK / QUEJAS (MINI-APPS)
+# ==========================================================
+
+class Publicidad(db.Model):
+    __tablename__ = 'publicidades'
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(150), default='Publicidad')
+    descripcion = db.Column(db.String(255))
+    archivo_url = db.Column(db.String(255), nullable=False)
+    tipo = db.Column(db.String(20), default='imagen') # 'imagen', 'video'
+    activo = db.Column(db.Boolean, default=True)
+    fecha_creacion = db.Column(db.DateTime, default=ahora_ve)
+
+class QuejaSugerencia(db.Model):
+    __tablename__ = 'quejas_sugerencias'
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Puede ser anonimo en caso extremo, pero referenciará al cliente
+    tipo = db.Column(db.String(50), default='Queja') # 'Queja', 'Sugerencia', 'Otro'
+    mensaje = db.Column(db.Text, nullable=False)
+    fecha = db.Column(db.DateTime, default=ahora_ve)
+    leido = db.Column(db.Boolean, default=False)
+    usuario = db.relationship('User', backref='quejas_enviadas')

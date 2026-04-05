@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-white" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.5);">
+            <i class="fas fa-envelope-open-text me-2"></i> Buzón de Quejas y Sugerencias
+        </h2>
+    </div>
+
+    <div class="card p-4">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Mensaje</th>
+                        <th>Enviado Por (ID)</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in quejas %}
+                    <tr class="{{ 'fw-bold' if not q.leido else 'text-muted' }}">
+                        <td>{{ q.fecha.strftime('%d/%m/%Y %I:%M %p') if q.fecha else '' }}</td>
+                        <td>
+                            <span class="badge {{ 'bg-danger' if q.tipo == 'Queja' else 'bg-info' }}">
+                                {{ q.tipo }}
+                            </span>
+                        </td>
+                        <td style="max-width: 300px; white-space: pre-wrap;">{{ q.mensaje }}</td>
+                        <td>{{ q.usuario_id or 'Anónimo' }}</td>
+                        <td>
+                            {% if q.leido %}
+                                <span class="badge bg-secondary">Leído</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not q.leido %}
+                            <form action="{{ url_for('marketing.admin_quejas') }}" method="POST">
+                                <input type="hidden" name="queja_id" value="{{ q.id }}">
+                                <button type="submit" class="btn btn-sm btn-success">Marcar Leída</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center p-4">Todo está tranquilo. No hay quejas ni sugerencias.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

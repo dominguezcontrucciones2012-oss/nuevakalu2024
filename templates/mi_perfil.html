@@ -1,44 +1,70 @@
 {% extends 'base_portal.html' %}
+{% block title %}Mi Perfil — KALU{% endblock %}
 
 {% block content %}
-<h2 class="section-title">⚙️ Mi Perfil de Acceso</h2>
 
-<div class="notice-box" style="margin-bottom: 20px; background-color: #fff3cd; border-color: #ffe69c; color: #664d03;">
-    <h3 style="color: #664d03;"><i class="fas fa-shield-alt"></i> Seguridad KALU</h3>
-    <p>Desde aquí puedes cambiar tu nombre de usuario y tu clave secreta para entrar a tu cuenta. <br><b>Nota:</b> Si dejas el campo de clave en blanco, tu clave actual no cambiará.</p>
+<div class="wa-section-label"><i class="fas fa-shield-alt" style="margin-right:6px;"></i>Seguridad de la Cuenta</div>
+
+<div class="card-kalu animate-in"
+    style="border-left:3px solid #fbbf24; background:rgba(251,191,36,0.08); margin-bottom:16px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <i class="fas fa-lock" style="color:#fbbf24; font-size:18px;"></i>
+        <strong style="font-size:15px;">Cambiar acceso</strong>
+    </div>
+    <p style="margin:0; font-size:13px; color:var(--wa-subtext);">
+        Puedes cambiar tu usuario y clave aquí. Si dejas la clave en blanco, la actual no cambiará.
+    </p>
 </div>
 
-<div class="form-box" style="background: white; border: 1px solid #e9ecef; border-radius: 14px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+<div class="wa-form-card animate-in">
     <form action="{{ url_for('portal.mi_perfil') }}" method="POST">
-        <label style="font-weight: bold; margin-bottom: 8px; display: block; color: #212529;">Nombre de Usuario (Login)</label>
-        <input type="text" name="username" class="form-control" value="{{ current_user.username }}" required
-            style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;">
-        
-        <label style="font-weight: bold; margin-bottom: 8px; display: block; color: #212529;">Nueva Clave <small style="color:#777; font-weight:normal;">(Déjalo en blanco si no quieres cambiarla)</small></label>
-        <div style="position: relative; margin-bottom: 30px;">
-            <input type="password" name="password" id="password" class="form-control" placeholder="Escribe tu nueva clave"
-                style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;">
-            <i class="fas fa-eye" id="togglePassword" style="position: absolute; right: 15px; top: 15px; cursor: pointer; color: #666;" onclick="toggleClave()"></i>
+        <div style="display:grid; gap:18px;">
+
+            <div>
+                <label class="wa-label">
+                    <i class="fas fa-user" style="margin-right:6px;"></i>Nombre de usuario
+                </label>
+                <input type="text" name="username" class="wa-input" value="{{ current_user.username }}" required
+                    autocomplete="username" style="color:#e9edef;">
+            </div>
+
+            <div>
+                <label class="wa-label">
+                    <i class="fas fa-key" style="margin-right:6px;"></i>Nueva clave
+                    <span
+                        style="font-weight:400; color:var(--wa-subtext); text-transform:none; letter-spacing:0; font-size:11px; margin-left:6px;">(dejar
+                        en blanco = sin cambios)</span>
+                </label>
+                <div style="position:relative;">
+                    <input type="password" name="password" id="password" class="wa-input"
+                        placeholder="Escribe tu nueva clave" autocomplete="new-password"
+                        style="color:#e9edef; padding-right:48px;">
+                    <button type="button" onclick="toggleClave()"
+                        style="position:absolute; right:14px; top:50%; transform:translateY(-50%);
+                               background:none; border:none; color:var(--wa-subtext); font-size:18px; cursor:pointer; padding:0;">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-app" style="margin-top:4px;">
+                <i class="fas fa-save"></i> GUARDAR CAMBIOS
+            </button>
+
         </div>
-        
-        <button type="submit" class="pay-button" style="background: #198754; box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25); text-decoration:none; border:none; display:flex; justify-content:center; align-items:center; width:100%; border-radius:12px; padding:15px; color:white; font-weight:bold; cursor:pointer;">
-            <i class="fas fa-save" style="margin-right:8px;"></i> GUARDAR CAMBIOS
-        </button>
     </form>
 </div>
 
 <script>
     function toggleClave() {
         const input = document.getElementById('password');
-        const icon = document.getElementById('togglePassword');
+        const icon = document.getElementById('toggleIcon');
         if (input.type === 'password') {
             input.type = 'text';
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
         } else {
             input.type = 'password';
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
         }
     }
 </script>

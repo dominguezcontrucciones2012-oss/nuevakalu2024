@@ -680,3 +680,39 @@ def cambiar_estado_pago_reportado(pago_id):
         flash(f'❌ Error actualizando estado: {str(e)}', 'danger')
 
     return redirect(url_for('clientes.pagos_reportados'))
+
+@clientes_bp.route('/pagos_reportados/<int:pago_id>/eliminar', methods=['POST'])
+@login_required
+def eliminar_pago_reportado(pago_id):
+    import os
+    from flask import current_app
+    
+    rol = (getattr(current_user, 'role', '') or '').lower()
+    if rol not in ['admin', 'superadmin']:
+        flash('⛔ No tienes permiso para eliminar pagos reportados.', 'danger')
+        return redirect(url_for('clientes.pagos_reportados'))
+
+    pago = PagoReportado.query.get_or_404(pago_id)
+    
+    # Prevenir eliminar si ya fue aplicado y el cliente recibió el abono
+    if pago.estado in ['aprobado', 'revisado']:
+        flash('⚠️ No puedes eliminar un pago que ya fue ingresado a caja. Devuelve el abono manualmente si fue un error.', 'warning')
+        return redirect(url_for('clientes.pagos_reportados'))
+
+    try:
+        if pago.imagen_comprobante:
+            file_path = os.path.join(current_app.root_path, 'static', 'comprobantes', pago.imagen_comprobante)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"⚠️ No se pudo eliminar la imagen física: {e}")
+                    
+        db.session.delete(pago)
+        db.session.commit()
+        flash(f'🗑️ Pago reportado #{pago_id} y su imagen eliminados de la base de datos.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ Error al eliminar el pago: {str(e)}', 'danger')
+
+    return redirect(url_for('clientes.pagos_reportados'))

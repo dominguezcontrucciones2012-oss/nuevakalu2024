@@ -9,6 +9,17 @@
     </div>
   </div>
 
+  <div class="row mb-3">
+    <div class="col-md-6 mb-2">
+      <div class="input-group">
+        <div class="input-group-prepend">
+          <span class="input-group-text bg-white"><i class="fas fa-search text-primary"></i></span>
+        </div>
+        <input type="text" id="buscador-productos" class="form-control" placeholder="Buscar por producto (ej: Suero, Queso)...">
+      </div>
+    </div>
+  </div>
+
   <div class="card shadow mb-4">
     <div class="card-header py-3 bg-primary text-white">
       <h6 class="m-0 font-weight-bold">Registro de Operaciones</h6>
@@ -16,7 +27,7 @@
     <div class="card-body">
       <div class="table-responsive">
         <table
-          class="table table-striped table-hover"
+          class="table table-hover"
           id="tabla_historial"
           width="100%"
           cellspacing="0"
@@ -28,38 +39,39 @@
               <th>Total $</th>
               <th>Método</th>
               <th>Estado</th>
-              <th>Acciones</th>
+              <th>Detalles</th>
             </tr>
           </thead>
           <tbody>
             {% for venta in ventas %}
-            <tr>
-              <td>{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-              <td>
-                {{ venta.cliente.nombre if venta.cliente else 'Cliente General'
-                }}
+            {% set ns = namespace(productos="") %}
+            {% for d in venta.detalles %}
+               {% set ns.productos = ns.productos ~ " " ~ (d.producto.nombre|lower if d.producto else "") %}
+            {% endfor %}
+            <tr data-productos="{{ ns.productos }}">
+              <td class="align-middle" style="white-space:nowrap;">{{ venta.fecha.strftime('%d/%m/%Y %I:%M %p') }}</td>
+              <td class="align-middle">
+                {{ venta.cliente.nombre if venta.cliente else 'Cliente General' }}
               </td>
-              <td class="font-weight-bold text-primary">
+              <td class="font-weight-bold text-primary align-middle">
                 ${{ "%.2f"|format(venta.total_usd) }}
               </td>
 
               <!-- ⚡ CABLE 1: MÉTODO DE PAGO ARREGLADO -->
-              <td>
+              <td class="align-middle">
                 {% if venta.es_fiado %}
                 <span class="badge badge-danger">FIADO</span>
-                {% else %} {% if venta.pago_efectivo_usd > 0 %}
-                <span class="badge badge-success">Efec $</span>
-                {% endif %} {% if venta.pago_efectivo_bs > 0 %}
-                <span class="badge badge-primary">Efec Bs</span>
-                {% endif %} {% if venta.pago_movil_bs > 0 %}
-                <span class="badge badge-info">P.Móvil</span>
-                {% endif %} {% if venta.biopago_bdv > 0 %}
-                <span class="badge badge-dark">BioPago</span>
-                {% endif %} {% endif %}
+                {% else %} 
+                  {% if venta.pago_efectivo_usd > 0 %}<span class="badge badge-success">Efec $</span>{% endif %} 
+                  {% if venta.pago_efectivo_bs > 0 %}<span class="badge badge-primary">Efec Bs</span>{% endif %} 
+                  {% if venta.pago_movil_bs > 0 %}<span class="badge badge-info">P.Móvil</span>{% endif %} 
+                  {% if venta.pago_transferencia_bs > 0 %}<span class="badge badge-secondary">Transf</span>{% endif %} 
+                  {% if venta.biopago_bdv > 0 %}<span class="badge badge-dark">BioPago</span>{% endif %} 
+                {% endif %}
               </td>
 
               <!-- ⚡ CABLE 2: ESTADO ARREGLADO -->
-              <td>
+              <td class="align-middle">
                 {% if venta.es_fiado %}
                 <span class="badge badge-warning text-dark">PENDIENTE</span>
                 {% else %}
@@ -67,17 +79,113 @@
                 {% endif %}
               </td>
 
-              <td>
-                <button class="btn btn-sm btn-light border" title="Ver detalle">
-                  <i class="fas fa-search-plus"></i>
+              <td class="align-middle">
+                <button class="btn btn-sm btn-outline-primary" type="button" data-toggle="collapse" data-target="#detalle-{{ venta.id }}" title="Ver detalle">
+                  <i class="fas fa-list"></i> Productos
                 </button>
               </td>
+            </tr>
+            <tr class="collapse-row p-0 m-0 border-0" data-productos="{{ ns.productos }}">
+               <td colspan="6" class="p-0 border-0">
+                  <div class="collapse" id="detalle-{{ venta.id }}">
+                     <div class="card card-body m-2 py-2" style="background:#f8f9fc;">
+                        <table class="table table-sm m-0" style="font-size:13px;">
+                           <thead style="color:#4e73df;">
+                              <tr>
+                                 <th>Producto</th>
+                                 <th>Cant.</th>
+                                 <th>Precio Unit.</th>
+                                 <th>Subtotal</th>
+                              </tr>
+                           </thead>
+                           <tbody class="text-dark font-weight-bold">
+                              {% for d in venta.detalles %}
+                              <tr>
+                                 <td>{{ d.producto.nombre if d.producto else '??' }}</td>
+                                 <td>{{ "%.2f"|format(d.cantidad) }}</td>
+                                 <td>${{ "%.2f"|format(d.precio_unitario_usd) }}</td>
+                                 <td>${{ "%.2f"|format(d.cantidad * d.precio_unitario_usd) }}</td>
+                              </tr>
+                              {% endfor %}
+                           </tbody>
+                        </table>
+                     </div>
+                  </div>
+               </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+        {% if not ventas %}
+        <div class="text-center p-4 text-muted">
+           <i class="fas fa-folder-open mb-2" style="font-size:30px;"></i>
+           <p>No hay ventas registradas aún.</p>
+        </div>
+        {% endif %}
+
+        {% if ventas_paginadas and ventas_paginadas.pages > 1 %}
+        <nav aria-label="Navegación de páginas de historial" class="mt-4">
+          <ul class="pagination justify-content-center">
+            
+            <li class="page-item {% if not ventas_paginadas.has_prev %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('historial.ver_historial', page=ventas_paginadas.prev_num) }}" tabindex="-1">Anterior</a>
+            </li>
+
+            {% for page_num in ventas_paginadas.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+              {% if page_num %}
+                <li class="page-item {% if ventas_paginadas.page == page_num %}active{% endif %}">
+                  <a class="page-link" href="{{ url_for('historial.ver_historial', page=page_num) }}">{{ page_num }}</a>
+                </li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+              {% endif %}
+            {% endfor %}
+
+            <li class="page-item {% if not ventas_paginadas.has_next %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('historial.ver_historial', page=ventas_paginadas.next_num) }}">Siguiente</a>
+            </li>
+
+          </ul>
+        </nav>
+        {% endif %}
       </div>
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('buscador-productos');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#tabla_historial tbody tr');
+        
+        // El historial ahora tiene 2 filas por Venta (la principal y el collapse).
+        // Recorremos todas y mostramos/ocultamos basándonos en 'data-productos'.
+        rows.forEach(row => {
+            const productos = row.getAttribute('data-productos') || '';
+            if (query === '') {
+                row.style.display = '';
+            } else if (productos.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+                
+                // Si la fila es principal, cerrarle el collapse si está abierto
+                const btn = row.querySelector('[data-toggle="collapse"]');
+                if(btn) {
+                   const targetSelector = btn.getAttribute('data-target');
+                   const collapseDiv = document.querySelector(targetSelector);
+                   if (collapseDiv && collapseDiv.classList.contains('show')) {
+                       // Usa jQuery porque AdminSB2 usa Bootstrap 4
+                       $(collapseDiv).collapse('hide');
+                   }
+                }
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

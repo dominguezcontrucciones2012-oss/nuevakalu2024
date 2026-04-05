@@ -20,6 +20,8 @@ from models import (
     Pedido,
     DetallePedido,
     User,
+    Publicidad,
+    QuejaSugerencia,
     db
 )
 
@@ -48,6 +50,7 @@ def mi_deuda():
     abonos = HistorialPago.query.filter_by(cliente_id=cliente.id).order_by(desc(HistorialPago.fecha)).all()
     productos = Producto.query.order_by(Producto.nombre.asc()).all()
     pagos_reportados = PagoReportado.query.filter_by(cliente_id=cliente.id).order_by(desc(PagoReportado.fecha_reporte)).all()
+    publicidades = Publicidad.query.filter_by(activo=True).order_by(desc(Publicidad.fecha_creacion)).all()
 
     total_deuda_usd = float(cliente.saldo_usd or 0)
     total_deuda_bs = float(cliente.saldo_bs or 0)
@@ -66,7 +69,8 @@ def mi_deuda():
         productos=productos,
         pagos_reportados=pagos_reportados,
         total_deuda_usd=total_deuda_usd,
-        total_deuda_bs=total_deuda_bs
+        total_deuda_bs=total_deuda_bs,
+        publicidades=publicidades
     )
 
 
@@ -85,7 +89,23 @@ def reportar_pago():
 
     monto_usd = request.form.get('monto_usd', 0) or 0
     monto_bs = request.form.get('monto_bs', 0) or 0
+    
+    try:
+        monto_usd = float(monto_usd)
+        monto_bs = float(monto_bs)
+    except ValueError:
+        monto_usd = 0
+        monto_bs = 0
+
+    if monto_usd <= 0 and monto_bs <= 0:
+        flash('⚠️ Debes ingresar un monto mayor a cero (USD o Bs).', 'warning')
+        return redirect(url_for('portal.mi_deuda'))
+
     metodo_pago = request.form.get('metodo_pago', '').strip()
+    if not metodo_pago:
+        flash('⚠️ Debes seleccionar un método de pago.', 'warning')
+        return redirect(url_for('portal.mi_deuda'))
+
     referencia = request.form.get('referencia', '').strip()
     banco = request.form.get('banco', '').strip()
     observacion = request.form.get('observacion', '').strip()
@@ -137,7 +157,6 @@ def reportar_pago():
     flash('✅ Tu pago fue reportado correctamente y quedó pendiente por validación.', 'success')
     return redirect(url_for('portal.mi_deuda'))
 
-
 @portal_bp.route('/mi_libreta')
 @login_required
 def mi_libreta():
@@ -169,6 +188,7 @@ def mi_libreta():
     total_kilos = sum(float(m.kilos or 0) for m in movimientos)
 
     productos = Producto.query.order_by(Producto.nombre.asc()).all()
+    publicidades = Publicidad.query.filter_by(activo=True).order_by(desc(Publicidad.fecha_creacion)).all()
 
     return render_template(
         'mi_libreta.html',
@@ -179,7 +199,8 @@ def mi_libreta():
         total_debe=total_debe,
         total_haber=total_haber,
         total_kilos=total_kilos,
-        productos=productos
+        productos=productos,
+        publicidades=publicidades
     )
 
 # ============================================================
@@ -233,6 +254,27 @@ def crear_pedido():
 
     db.session.commit()
     return jsonify({'success': True, 'message': '✅ ¡Pedido enviado! El cajero lo procesará pronto.'})
+
+@portal_bp.route('/api/enviar_queja', methods=['POST'])
+@login_required
+def enviar_queja():
+    tipo = request.form.get('tipo', 'Queja')
+    mensaje = request.form.get('mensaje', '').strip()
+    
+    if not mensaje:
+        flash('⚠️ El mensaje no puede estar vacío.', 'warning')
+        return redirect(request.referrer or url_for('index'))
+        
+    nueva_queja = QuejaSugerencia(
+        usuario_id=current_user.id,
+        tipo=tipo,
+        mensaje=mensaje
+    )
+    db.session.add(nueva_queja)
+    db.session.commit()
+    
+    flash('✅ Tu mensaje ha sido enviado exitosamente. Gracias por ayudarnos a mejorar.', 'success')
+    return redirect(request.referrer or url_for('index'))
 
 @portal_bp.route('/mi_perfil', methods=['GET', 'POST'])
 @login_required

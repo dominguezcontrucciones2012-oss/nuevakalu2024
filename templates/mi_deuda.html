@@ -1,375 +1,255 @@
 {% extends 'base_portal.html' %}
-
-{% block title %}Mi Deuda{% endblock %}
+{% block title %}Mi Deuda — KALU{% endblock %}
 
 {% block content %}
-<style>
-    .hero {
-        background: linear-gradient(135deg, #198754, #20c997);
-        color: white;
-        border-radius: 18px;
-        padding: 24px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-    }
 
-    .hero h2 {
-        margin: 0 0 8px 0;
-        font-size: 28px;
-    }
-
-    .hero p {
-        margin: 0;
-        opacity: 0.95;
-        font-size: 15px;
-    }
-
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-        gap: 16px;
-        margin-bottom: 22px;
-    }
-
-    .card {
-        background: #ffffff;
-        border-radius: 16px;
-        padding: 18px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    }
-
-    .card h3 {
-        margin: 0 0 10px 0;
-        font-size: 16px;
-        color: #198754;
-    }
-
-    .big {
-        font-size: 28px;
-        font-weight: bold;
-        margin: 10px 0 0 0;
-        color: #222;
-    }
-
-    .section-title {
-        margin: 26px 0 14px;
-        font-size: 21px;
-        color: #222;
-    }
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin: 25px 0 15px;
-    }
-
-    .section-header h4 {
-        margin: 0;
-        font-size: 18px;
-        color: #222;
-    }
-
-    .promo {
-        background: linear-gradient(135deg, #fff8e1, #fff3cd);
-        border-left: 6px solid #ffc107;
-    }
-
-    .btn-main {
-        display: inline-block;
-        background: #198754;
-        color: white;
-        text-decoration: none;
-        padding: 12px 18px;
-        border-radius: 10px;
-        font-weight: bold;
-        margin-top: 10px;
-    }
-
-    .btn-main:hover {
-        background: #157347;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 14px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-    }
-
-    th,
-    td {
-        padding: 12px;
-        border-bottom: 1px solid #eeeeee;
-        text-align: left;
-        font-size: 14px;
-    }
-
-    th {
-        background: #198754;
-        color: white;
-    }
-
-    .empty {
-        background: #f8f9fa;
-        padding: 16px;
-        border-radius: 12px;
-        color: #666;
-    }
-
-    .products-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 15px;
-    }
-
-    .product-card {
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 14px;
-        padding: 15px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .product-card h4 {
-        margin: 0 0 8px 0;
-        color: #198754;
-        font-size: 17px;
-    }
-
-    .price {
-        font-size: 18px;
-        font-weight: bold;
-        color: #212529;
-    }
-
-    .offer {
-        color: #dc3545;
-        font-weight: bold;
-    }
-
-    .small {
-        color: #777;
-        font-size: 13px;
-        margin-top: 4px;
-    }
-
-    .form-box {
-        background: white;
-        padding: 18px;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        margin-top: 10px;
-    }
-
-    .form-control {
-        width: 100%;
-        padding: 12px;
-        border: 1px solid #dcdcdc;
-        border-radius: 10px;
-        font-size: 14px;
-        box-sizing: border-box;
-        margin-top: 6px;
-    }
-
-    .pay-button {
-        background: #198754;
-        color: white;
-        padding: 15px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        text-decoration: none;
-        font-weight: bold;
-        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25);
-        width: 100%;
-        border: none;
-        cursor: pointer;
-    }
-
-    .report-card {
-        background: white;
-        padding: 14px;
-        border-radius: 12px;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .status-badge {
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: bold;
-    }
-
-    .status-aprobado {
-        background: #d1e7dd;
-        color: #0f5132;
-    }
-
-    .status-rechazado {
-        background: #f8d7da;
-        color: #842029;
-    }
-
-    .status-pendiente {
-        background: #fff3cd;
-        color: #664d03;
-    }
-</style>
-
-<div class="hero">
-    <h2>💳 Hola, {{ cliente.nombre }}</h2>
-    <p>Desde aquí puedes revisar tu deuda, ver tus pagos, consultar precios y mantenerte al día con KALU.</p>
-</div>
-
-<div class="grid">
-    <div class="card">
-        <h3>Saldo pendiente USD</h3>
-        <p class="big">${{ '%.2f'|format(total_deuda_usd or 0) }}</p>
-    </div>
-
-    <div class="card">
-        <h3>Saldo pendiente Bs</h3>
-        <p class="big">Bs {{ '%.2f'|format(total_deuda_bs or 0) }}</p>
-    </div>
-
-    <div class="card">
-        <h3>Mis datos</h3>
-        <p><strong>Cédula:</strong> {{ cliente.cedula }}</p>
-        <p><strong>Teléfono:</strong> {{ cliente.telefono or 'No registrado' }}</p>
-        <p><strong>Dirección:</strong> {{ cliente.direccion or 'No registrada' }}</p>
-    </div>
-
-    <div class="card promo">
-        <h3>📢 Promoción / Aviso</h3>
-        <p>Consulta nuestros productos disponibles y precios especiales del día.</p>
-        <a href="#productos" class="btn-main">Ver productos</a>
+<!-- HERO BALANCE -->
+<div class="hero-balance animate-in">
+    <h2>💳 Saldo Pendiente</h2>
+    <div class="amount">${{ '%.2f'|format(total_deuda_usd or 0) }}</div>
+    <div class="amount-bs">Bs {{ '%.2f'|format(total_deuda_bs or 0) }}</div>
+    <div style="margin-top:12px; font-size:13px; color:rgba(255,255,255,0.6);">
+        Hola, <strong style="color:#fff;">{{ cliente.nombre }}</strong>
     </div>
 </div>
 
-<h3 class="section-title">📌 Ventas con saldo pendiente</h3>
+<!-- DATOS RÁPIDOS -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+    <div class="card-kalu animate-in" style="text-align:center; padding:16px 12px;">
+        <div style="font-size:11px; color:var(--wa-subtext); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Cédula</div>
+        <div style="font-weight:700; font-size:15px;">{{ cliente.cedula }}</div>
+    </div>
+    <div class="card-kalu animate-in" style="text-align:center; padding:16px 12px;">
+        <div style="font-size:11px; color:var(--wa-subtext); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Teléfono</div>
+        <div style="font-weight:700; font-size:15px;">{{ cliente.telefono or '—' }}</div>
+    </div>
+</div>
+
+{% if publicidades %}
+<!-- PUBLICIDAD / PROMOCIÓN DINÁMICA -->
+<div id="carouselPublicidad" class="carousel slide animate-in" data-bs-ride="carousel" style="margin-bottom:20px; border-radius:18px; overflow:hidden; box-shadow:0 8px 16px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+    <div class="carousel-inner">
+        {% for ad in publicidades %}
+        <div class="carousel-item {% if loop.first %}active{% endif %}" style="height:180px; position:relative; background:#0b141a;">
+            {% if ad.tipo == 'video' %}
+                <video src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.8);" autoplay muted loop playsinline></video>
+            {% else %}
+                <img src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.8);" alt="{{ ad.titulo }}">
+            {% endif %}
+            
+            <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(11,20,26,0.9) 0%, rgba(11,20,26,0.1) 70%); display:flex; flex-direction:column; justify-content:flex-end; padding:16px;">
+                <div style="color:#fff; font-weight:800; font-size:18px; text-shadow:0 2px 4px rgba(0,0,0,0.6); line-height:1.2;">
+                    {{ ad.titulo }}
+                </div>
+                {% if ad.descripcion %}
+                <div style="color:rgba(255,255,255,0.85); font-size:12px; margin-top:4px; font-weight:500;">
+                    {{ ad.descripcion }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if publicidades|length > 1 %}
+    <button class="carousel-control-prev" type="button" data-bs-target="#carouselPublicidad" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Anterior</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#carouselPublicidad" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Siguiente</span>
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- BOTON QUEJAS Y SUGERENCIAS -->
+<button class="btn-app animate-in" style="margin-bottom:16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1);" onclick="document.getElementById('modalQuejas').style.display='block'; document.body.style.overflow='hidden';">
+    <i class="fas fa-envelope-open-text" style="color:#f39c12;"></i> BUZÓN DE QUEJAS Y SUGERENCIAS
+</button>
+
+<!-- MODAL QUEJAS -->
+<div id="modalQuejas" class="catalog-overlay" style="display:none; z-index: 10000;">
+    <div class="catalog-header-bar" style="background:#111b21;">
+        <button onclick="document.getElementById('modalQuejas').style.display='none'; document.body.style.overflow='';" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer; padding:0;">
+            <i class="fas fa-times"></i>
+        </button>
+        <h4><i class="fas fa-envelope-open-text" style="color:#f39c12; margin-right:6px;"></i> Enviar Mensaje</h4>
+    </div>
+    <div style="padding: 20px;">
+        <div class="wa-form-card">
+            <form method="POST" action="{{ url_for('portal.enviar_queja') }}">
+                <div style="margin-bottom:15px;">
+                    <label class="wa-label">Tipo de mensaje</label>
+                    <select name="tipo" class="wa-input" required>
+                        <option value="Queja">Queja / Reclamo</option>
+                        <option value="Sugerencia">Sugerencia de Mejora</option>
+                        <option value="Consulta">Consulta / Otro</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label class="wa-label">Tu Mensaje</label>
+                    <textarea name="mensaje" class="wa-input" rows="4" placeholder="Escribe aquí tu queja, sugerencia o detalle..." required></textarea>
+                </div>
+                <button type="submit" class="btn-app" style="background:#f39c12; color:#000;">
+                    <i class="fas fa-paper-plane"></i> ENVIAR AL DUEÑO
+                </button>
+            </form>
+        </div>
+        <p style="text-align:center; margin-top:15px; font-size:12px; color:var(--wa-subtext);">Tu mensaje será enviado directamente y de forma privada a la administración de KALU.</p>
+    </div>
+</div>
+
+<!-- VENTAS PENDIENTES -->
+<div class="wa-section-label"><i class="fas fa-clock" style="margin-right:6px;"></i>Ventas con saldo pendiente</div>
+
+<div class="card-kalu animate-in" style="padding:0; overflow:hidden;">
 {% if ventas_pendientes %}
-<table>
-    <thead>
-        <tr>
-            <th>Fecha</th>
-            <th>Total USD</th>
-            <th>Saldo pendiente</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for venta in ventas_pendientes %}
-        <tr>
-            <td>{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-            <td>${{ '%.2f'|format(venta.total_usd or 0) }}</td>
-            <td>${{ '%.2f'|format(venta.saldo_pendiente_usd or 0) }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <table class="wa-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Total USD</th>
+                <th>Pendiente</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for venta in ventas_pendientes %}
+            <tr>
+                <td style="font-size:12px;">{{ venta.fecha.strftime('%d/%m/%y %H:%M') }}</td>
+                <td>${{ '%.2f'|format(venta.total_usd or 0) }}</td>
+                <td><span class="badge-wa badge-red">${{ '%.2f'|format(venta.saldo_pendiente_usd or 0) }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% else %}
-<div class="empty">✅ No tienes ventas pendientes.</div>
+    <div class="wa-empty">
+        <i class="fas fa-check-circle" style="color:var(--wa-green); opacity:1;"></i>
+        ¡No tienes ventas pendientes!
+    </div>
 {% endif %}
+</div>
 
-<h3 class="section-title">🧾 Historial de abonos</h3>
+<!-- HISTORIAL ABONOS -->
+<div class="wa-section-label"><i class="fas fa-history" style="margin-right:6px;"></i>Historial de abonos</div>
+
+<div class="card-kalu animate-in" style="padding:0; overflow:hidden;">
 {% if abonos %}
-<table>
-    <thead>
-        <tr>
-            <th>Fecha</th>
-            <th>Método</th>
-            <th>Monto USD</th>
-            <th>Monto Bs</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for abono in abonos %}
-        <tr>
-            <td>{{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-            <td>{{ abono.metodo_pago or 'N/A' }}</td>
-            <td>${{ '%.2f'|format(abono.monto_usd or 0) }}</td>
-            <td>Bs {{ '%.2f'|format(abono.monto_bs or 0) }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <table class="wa-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Método</th>
+                <th>USD</th>
+                <th>Bs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for abono in abonos %}
+            <tr>
+                <td style="font-size:12px;">{{ abono.fecha.strftime('%d/%m/%y') }}</td>
+                <td><span class="badge-wa badge-green">{{ abono.metodo_pago or 'N/A' }}</span></td>
+                <td style="color:var(--wa-green); font-weight:700;">${{ '%.2f'|format(abono.monto_usd or 0) }}</td>
+                <td style="color:rgba(255,255,255,0.6);">Bs {{ '%.2f'|format(abono.monto_bs or 0) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% else %}
-<div class="empty">No hay abonos registrados.</div>
+    <div class="wa-empty">
+        <i class="fas fa-receipt"></i>
+        No hay abonos registrados.
+    </div>
 {% endif %}
+</div>
 
-<h3 class="section-title" id="productos">🛒 Productos y precios</h3>
+<!-- CATÁLOGO -->
+<div class="wa-section-label" id="productos"><i class="fas fa-store" style="margin-right:6px;"></i>Tienda KALU</div>
+
 {% if productos %}
-<p style="color: #666; font-size: 14px; margin-top: -10px;">Encuentra y agrega lo que necesitas para tu compra.</p>
-<button class="pay-button" style="background: #0d6efd; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25);" onclick="abrirCatalogo()">
+<button class="btn-app animate-in" style="margin-bottom:16px;" onclick="abrirCatalogo()">
     <i class="fas fa-search"></i> VER CATÁLOGO DE PRODUCTOS
 </button>
 
-<!-- MODAL CATÁLOGO DE PRODUCTOS -->
-<div id="modalCatalogo" class="form-box"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1005; border-radius:0; margin:0; overflow-y:auto; background: #f0f2f5;">
-    
-    <div style="background: white; padding: 15px; position: sticky; top: 0; z-index: 1006; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-            <h4 style="margin:0; color:#198754;"><i class="fas fa-store"></i> Catálogo KALU</h4>
-            <button onclick="cerrarCatalogo()" style="background:none; border:none; font-size:28px; color:#dc3545; cursor:pointer; line-height:1;">&times;</button>
-        </div>
-        <input type="text" id="buscadorProductos" class="form-control" placeholder="Buscar por nombre o categoría..." onkeyup="filtrarProductos()">
+<!-- MODAL CATÁLOGO -->
+<div id="modalCatalogo" class="catalog-overlay">
+    <div class="catalog-header-bar">
+        <button onclick="cerrarCatalogo()" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer; padding:0;">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <h4><i class="fas fa-store" style="color:var(--wa-green);"></i> Catálogo KALU</h4>
     </div>
-
-    <div style="padding: 15px; padding-bottom: 100px;">
-        <div class="products-grid" id="lista_catalogo">
-            {% for producto in productos %}
-            <div class="product-card item-producto" data-nombre="{{ producto.nombre|lower }}" data-categoria="{{ (producto.categoria or '')|lower }}">
-                <h4>{{ producto.nombre }}</h4>
-                <div class="price">Normal: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
-                <div class="offer">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
-                <div class="small">Categoría: {{ producto.categoria or 'General' }}</div>
-                <button class="btn-main w-100 mt-2 py-2"
-                    onclick="agregarAlPedido('{{ producto.id }}', `{{ producto.nombre }}`, {{ producto.precio_oferta_usd or producto.precio_normal_usd }}); cerrarCatalogo();">
-                    <i class="fas fa-plus"></i> Añadir a la lista
-                </button>
-            </div>
-            {% endfor %}
+    <input type="text" id="buscadorProductos" class="wa-search" placeholder="🔍 Buscar producto o categoría..." onkeyup="filtrarProductos()">
+    <div style="padding: 0 16px 100px; display:grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap:12px;" id="lista_catalogo">
+        {% for producto in productos %}
+        <div class="product-card-wa item-producto"
+             data-nombre="{{ producto.nombre|lower }}"
+             data-categoria="{{ (producto.categoria or '')|lower }}">
+            <h4>{{ producto.nombre }}</h4>
+            <div class="price-normal">Normal: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
+            <div class="price-offer">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
+            <div style="font-size:12px; color:var(--wa-subtext);">{{ producto.categoria or 'General' }}</div>
+            <button class="btn-app" style="margin-top:8px; font-size:13px; padding:10px;"
+                onclick="agregarAlPedido('{{ producto.id }}', `{{ producto.nombre }}`, {{ producto.precio_oferta_usd or producto.precio_normal_usd }}); cerrarCatalogo();">
+                <i class="fas fa-plus"></i> Añadir
+            </button>
         </div>
+        {% endfor %}
     </div>
 </div>
 
-<!-- BOTÓN FLOTANTE DE PEDIDO -->
-<div id="btn_flotante_pedido" style="display:none; position: fixed; bottom: 85px; right: 20px; z-index: 999;">
-    <button class="pay-button shadow-lg" onclick="verMiLista()">
-        <i class="fas fa-shopping-basket"></i> MI LISTA (<span id="cant_items_pedido">0</span>)
+<!-- BOTÓN FLOTANTE CARRITO -->
+<div id="btn_flotante_pedido" style="display:none; position:fixed; bottom:90px; right:20px; z-index:999;">
+    <button class="fab-cart" onclick="verMiLista()">
+        <i class="fas fa-shopping-basket"></i>
+        MI LISTA (<span id="cant_items_pedido">0</span>)
     </button>
 </div>
+
+<!-- MODAL CARRITO (bottom sheet) -->
+<div id="modalLista" class="cart-modal" onclick="if(event.target===this){this.style.display='none';}">
+    <div class="cart-backdrop"></div>
+    <div class="cart-sheet">
+        <h4><i class="fas fa-shopping-basket" style="color:var(--wa-green);"></i> Mi Lista de Pedido</h4>
+        <div id="items_lista" style="margin-bottom:16px;"></div>
+        <button class="btn-app" onclick="enviarPedido()" style="margin-bottom:10px;">
+            <i class="fas fa-paper-plane"></i> ENVIAR PEDIDO AL CAJERO
+        </button>
+        <button class="btn-app btn-secondary-app" onclick="document.getElementById('modalLista').style.display='none'">
+            Cerrar
+        </button>
+    </div>
+</div>
 {% else %}
-<div class="empty">No hay productos disponibles en este momento.</div>
+<div class="wa-empty card-kalu">
+    <i class="fas fa-box-open"></i>
+    No hay productos disponibles.
+</div>
 {% endif %}
 
-<div class="section-header" id="pagar">
-    <h4>📤 Reportar Pago</h4>
-</div>
+<!-- SECCIÓN REPORTAR PAGO -->
+<div class="wa-section-label" id="seccion-pagar"><i class="fas fa-paper-plane" style="margin-right:6px;"></i>Reportar Pago</div>
 
-<div class="form-box">
+<div class="wa-form-card animate-in">
     <form method="POST" action="{{ url_for('portal.reportar_pago') }}" enctype="multipart/form-data">
-        <div style="display: grid; gap: 12px;">
-            <div>
-                <label><strong>Monto en USD</strong></label>
-                <input type="number" step="0.01" name="monto_usd" class="form-control" placeholder="Ejemplo: 10.00">
+        <div style="display:grid; gap:14px;">
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <label class="wa-label">Monto USD</label>
+                    <input type="number" step="0.01" name="monto_usd" class="wa-input" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="wa-label">Monto Bs</label>
+                    <input type="number" step="0.01" name="monto_bs" class="wa-input" placeholder="0.00">
+                </div>
             </div>
 
             <div>
-                <label><strong>Monto en Bs</strong></label>
-                <input type="number" step="0.01" name="monto_bs" class="form-control" placeholder="Ejemplo: 360.00">
-            </div>
-
-            <div>
-                <label><strong>Método de pago</strong></label>
-                <select name="metodo_pago" class="form-control">
-                    <option value="">Seleccione</option>
+                <label class="wa-label">Método de pago (Obligatorio)</label>
+                <select name="metodo_pago" class="wa-input" required>
+                    <option value="">Seleccione un método</option>
                     <option value="Pago Móvil">Pago Móvil</option>
                     <option value="Transferencia">Transferencia</option>
                     <option value="Efectivo USD">Efectivo USD</option>
@@ -379,184 +259,148 @@
                 </select>
             </div>
 
-            <div>
-                <label><strong>Banco</strong></label>
-                <input type="text" name="banco" class="form-control" placeholder="Ejemplo: Banesco">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <label class="wa-label">Banco</label>
+                    <input type="text" name="banco" class="wa-input" placeholder="Ej: Banesco">
+                </div>
+                <div>
+                    <label class="wa-label">Referencia</label>
+                    <input type="text" name="referencia" class="wa-input" placeholder="Últimos dígitos">
+                </div>
             </div>
 
             <div>
-                <label><strong>Referencia</strong></label>
-                <input type="text" name="referencia" class="form-control"
-                    placeholder="Últimos números o referencia del pago">
+                <label class="wa-label">Fecha del pago</label>
+                <input type="date" name="fecha_pago" class="wa-input">
             </div>
 
             <div>
-                <label><strong>Fecha del pago</strong></label>
-                <input type="date" name="fecha_pago" class="form-control">
+                <label class="wa-label">Observación</label>
+                <textarea name="observacion" class="wa-input" rows="2" placeholder="Detalles del pago..."></textarea>
             </div>
 
             <div>
-                <label><strong>Observación</strong></label>
-                <textarea name="observacion" class="form-control" rows="3"
-                    placeholder="Escribe algún detalle del pago si hace falta"></textarea>
+                <label class="wa-label">Comprobante (foto/imagen)</label>
+                <input type="file" name="comprobante" class="wa-input" accept=".png,.jpg,.jpeg,.webp,image/*"
+                       style="padding:10px;">
             </div>
 
-            <div>
-                <label><strong>Capture / comprobante</strong></label>
-                <input type="file" name="comprobante" class="form-control" accept=".png,.jpg,.jpeg,.webp,image/*">
-            </div>
-
-            <div>
-                <button type="submit" class="pay-button">
-                    <i class="fas fa-camera"></i> ENVIAR REPORTE DE PAGO
-                </button>
-            </div>
+            <button type="submit" class="btn-app">
+                <i class="fas fa-paper-plane"></i> ENVIAR REPORTE
+            </button>
         </div>
     </form>
 </div>
 
-<div class="section-header">
-    <h4>🧾 Pagos reportados</h4>
-</div>
+<!-- PAGOS REPORTADOS -->
+<div class="wa-section-label"><i class="fas fa-list-check" style="margin-right:6px;"></i>Mis pagos reportados</div>
 
 {% if pagos_reportados %}
-{% for pago in pagos_reportados[:5] %}
-<div class="report-card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong>{{ pago.metodo_pago or 'Pago reportado' }}</strong>
-
-        {% if pago.estado == 'aprobado' %}
-        <span class="status-badge status-aprobado">{{ pago.estado|upper }}</span>
-        {% elif pago.estado == 'rechazado' %}
-        <span class="status-badge status-rechazado">{{ pago.estado|upper }}</span>
-        {% else %}
-        <span class="status-badge status-pendiente">{{ pago.estado|upper }}</span>
-        {% endif %}
-    </div>
-
-    <div style="font-size:14px; color:#444;">
-        <div><strong>Fecha:</strong> {{ pago.fecha_pago.strftime('%d/%m/%Y') if pago.fecha_pago else 'No indicada' }}
+    {% for pago in pagos_reportados[:5] %}
+    <div class="card-kalu animate-in" style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <strong style="font-size:15px;">{{ pago.metodo_pago or 'Pago' }}</strong>
+            {% if pago.estado == 'aprobado' %}
+                <span class="badge-wa badge-green"><i class="fas fa-check"></i> APROBADO</span>
+            {% elif pago.estado == 'rechazado' %}
+                <span class="badge-wa badge-red"><i class="fas fa-times"></i> RECHAZADO</span>
+            {% else %}
+                <span class="badge-wa badge-yellow"><i class="fas fa-clock"></i> PENDIENTE</span>
+            {% endif %}
         </div>
-        <div><strong>USD:</strong> ${{ '%.2f'|format(pago.monto_usd or 0) }}</div>
-        <div><strong>Bs:</strong> Bs {{ '%.2f'|format(pago.monto_bs or 0) }}</div>
-        <div><strong>Referencia:</strong> {{ pago.referencia or 'Sin referencia' }}</div>
-        <div><strong>Banco:</strong> {{ pago.banco or 'No indicado' }}</div>
-
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; color:var(--wa-subtext);">
+            <div>📅 {{ pago.fecha_pago.strftime('%d/%m/%Y') if pago.fecha_pago else '—' }}</div>
+            <div>💵 ${{ '%.2f'|format(pago.monto_usd or 0) }}</div>
+            <div>🏦 {{ pago.banco or '—' }}</div>
+            <div>📋 {{ pago.referencia or '—' }}</div>
+        </div>
         {% if pago.imagen_comprobante %}
-        <div style="margin-top:8px;">
-            <a href="{{ url_for('static', filename='comprobantes/' ~ pago.imagen_comprobante) }}" target="_blank"
-                style="color:#198754; font-weight:bold;">
-                Ver capture
-            </a>
-        </div>
+        <a href="{{ url_for('static', filename='comprobantes/' ~ pago.imagen_comprobante) }}" target="_blank"
+           style="display:inline-flex; align-items:center; gap:6px; margin-top:10px; color:var(--wa-green); font-size:13px; font-weight:600; text-decoration:none;">
+            <i class="fas fa-image"></i> Ver comprobante
+        </a>
         {% endif %}
     </div>
-</div>
-{% endfor %}
+    {% endfor %}
 {% else %}
-<div class="empty">Todavía no has reportado pagos.</div>
+    <div class="wa-empty card-kalu">
+        <i class="fas fa-inbox"></i>
+        Aún no has reportado pagos.
+    </div>
 {% endif %}
 
-<!-- MODAL MI LISTA (CARRITO CLIENTE) -->
-<div id="modalLista" class="form-box"
-    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; width:90%; max-width:400px; border:2px solid #198754;">
-    <h4 class="text-center">🛒 Mi Lista de Pedido</h4>
-    <div id="items_lista" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
-    <button class="pay-button" onclick="enviarPedido()"><i class="fas fa-paper-plane"></i> ENVIAR PEDIDO AL
-        CAJERO</button>
-    <button class="btn-main w-100 mt-2" style="background:#666;"
-        onclick="document.getElementById('modalLista').style.display='none'">CERRAR</button>
-</div>
-
 <script>
-    let miPedido = [];
+window.abrirCatalogo = function() {
+    document.getElementById('modalCatalogo').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+};
 
-    function abrirCatalogo() {
-        document.getElementById('modalCatalogo').style.display = 'block';
-    }
-    
-    function cerrarCatalogo() {
-        document.getElementById('modalCatalogo').style.display = 'none';
-        document.getElementById('buscadorProductos').value = '';
-        filtrarProductos();
-    }
+function cerrarCatalogo() {
+    document.getElementById('modalCatalogo').style.display = 'none';
+    document.body.style.overflow = '';
+    document.getElementById('buscadorProductos').value = '';
+    filtrarProductos();
+}
 
-    function filtrarProductos() {
-        let input = document.getElementById('buscadorProductos').value.toLowerCase();
-        let items = document.querySelectorAll('.item-producto');
-        
-        items.forEach(item => {
-            let nombre = item.getAttribute('data-nombre');
-            let categoria = item.getAttribute('data-categoria');
-            if (nombre.includes(input) || categoria.includes(input)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-    }
+function filtrarProductos() {
+    const q = document.getElementById('buscadorProductos').value.toLowerCase();
+    document.querySelectorAll('.item-producto').forEach(item => {
+        const match = item.dataset.nombre.includes(q) || item.dataset.categoria.includes(q);
+        item.style.display = match ? '' : 'none';
+    });
+}
 
-    function agregarAlPedido(id, nombre, precio) {
-        const existe = miPedido.find(i => i.id === id);
-        if (existe) {
-            existe.cantidad++;
-        } else {
-            miPedido.push({ id, nombre, precio, cantidad: 1 });
-        }
-        actualizarBotonFlotante();
-        alert(`✅ ${nombre} añadido.`);
-    }
+let miPedido = [];
 
-    function actualizarBotonFlotante() {
-        const btn = document.getElementById('btn_flotante_pedido');
-        const cant = document.getElementById('cant_items_pedido');
-        if (miPedido.length > 0) {
-            btn.style.display = 'block';
-            cant.innerText = miPedido.reduce((acc, item) => acc + item.cantidad, 0);
-        } else {
-            btn.style.display = 'none';
-        }
-    }
+function agregarAlPedido(id, nombre, precio) {
+    const existe = miPedido.find(i => i.id === id);
+    if (existe) existe.cantidad++;
+    else miPedido.push({ id, nombre, precio, cantidad: 1 });
+    actualizarFAB();
+}
 
-    function verMiLista() {
-        const container = document.getElementById('items_lista');
-        container.innerHTML = miPedido.map((item, index) => `
-        <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
-            <span>${item.nombre} x${item.cantidad}</span>
-            <strong>$${(item.precio * item.cantidad).toFixed(2)}</strong>
-            <button onclick="miPedido.splice(${index},1); verMiLista(); actualizarBotonFlotante();" style="border:none; background:none; color:red;">×</button>
-        </div>
-    `).join('');
-        document.getElementById('modalLista').style.display = 'block';
-    }
+function actualizarFAB() {
+    const btn = document.getElementById('btn_flotante_pedido');
+    const total = miPedido.reduce((a, i) => a + i.cantidad, 0);
+    document.getElementById('cant_items_pedido').innerText = total;
+    btn.style.display = total > 0 ? 'block' : 'none';
+}
 
-    function enviarPedido() {
-        if (miPedido.length === 0) return;
-
-        fetch('/api/crear_pedido', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: miPedido })
-        })
-            .then(r => {
-                if (!r.ok) throw new Error("Error en el servidor");
-                return r.json();
-            })
-            .then(res => {
-                if (res.success) {
-                    alert(res.message);
-                    miPedido = [];
-                    actualizarBotonFlotante();
-                    document.getElementById('modalLista').style.display = 'none';
-                } else {
-                    alert("⚠️ " + res.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert("❌ No se pudo enviar el pedido. Verifique su conexión.");
-            });
+function verMiLista() {
+    const c = document.getElementById('items_lista');
+    if (!miPedido.length) { c.innerHTML = '<div class="wa-empty">Tu lista está vacía</div>'; }
+    else {
+        c.innerHTML = miPedido.map((item, i) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <div>
+                <div style="font-weight:600; font-size:14px; color:#fff;">${item.nombre}</div>
+                <div style="font-size:12px; color:var(--wa-green);">$${(item.precio * item.cantidad).toFixed(2)}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="background:rgba(255,255,255,0.1); padding:2px 10px; border-radius:20px; font-size:13px;">x${item.cantidad}</span>
+                <button onclick="miPedido.splice(${i},1); verMiLista(); actualizarFAB();"
+                        style="background:var(--wa-danger); border:none; color:#fff; border-radius:50%; width:26px; height:26px; cursor:pointer;">×</button>
+            </div>
+        </div>`).join('');
     }
+    document.getElementById('modalLista').style.display = 'flex';
+}
+
+function enviarPedido() {
+    if (!miPedido.length) return;
+    fetch('/api/crear_pedido', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: miPedido })
+    })
+    .then(r => r.json())
+    .then(res => {
+        alert(res.success ? res.message : '⚠️ ' + res.message);
+        if (res.success) { miPedido = []; actualizarFAB(); document.getElementById('modalLista').style.display = 'none'; }
+    })
+    .catch(() => alert('❌ Error de conexión.'));
+}
 </script>
 
 {% endblock %}

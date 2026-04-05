@@ -1,390 +1,315 @@
-{% extends 'base_portal.html' %}
-
-{% block title %}Mi Libreta{% endblock %}
+-{% extends 'base_portal.html' %}
+{% block title %}Mi Libreta — KALU{% endblock %}
 
 {% block content %}
-<style>
-    .banner {
-        background: linear-gradient(135deg, #0d6efd, #198754);
-        color: white;
-        border-radius: 18px;
-        padding: 22px;
-        margin-bottom: 18px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-    }
 
-    .banner h2 {
-        margin: 0 0 6px 0;
-        font-size: 26px;
-    }
-
-    .banner p {
-        margin: 0;
-        opacity: 0.95;
-        font-size: 14px;
-    }
-
-    .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 14px;
-        margin-bottom: 22px;
-    }
-
-    .card {
-        background: white;
-        border-radius: 16px;
-        padding: 16px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    }
-
-    .card h3 {
-        margin: 0 0 8px 0;
-        font-size: 14px;
-        color: #666;
-    }
-
-    .value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #222;
-    }
-
-    .profile-card {
-        background: white;
-        border-radius: 16px;
-        padding: 18px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-    }
-
-    .profile-card h3 {
-        margin-top: 0;
-        color: #198754;
-    }
-
-    .profile-card p {
-        margin: 6px 0;
-        font-size: 14px;
-    }
-
-    .section-title {
-        margin: 24px 0 12px;
-        font-size: 20px;
-        color: #222;
-    }
-
-    .movement-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .movement-item {
-        background: white;
-        border-radius: 14px;
-        padding: 14px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-        border-left: 5px solid #198754;
-    }
-
-    .movement-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    .movement-date {
-        font-size: 13px;
-        color: #666;
-    }
-
-    .movement-type {
-        font-size: 12px;
-        font-weight: bold;
-        background: #e9f7ef;
-        color: #198754;
-        padding: 4px 8px;
-        border-radius: 20px;
-    }
-
-    .movement-desc {
-        font-size: 14px;
-        margin-bottom: 10px;
-        color: #333;
-    }
-
-    .movement-values {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
-        font-size: 13px;
-    }
-
-    .movement-values div {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 8px;
-        text-align: center;
-    }
-
-    .movement-values span {
-        display: block;
-        color: #777;
-        font-size: 11px;
-        margin-bottom: 4px;
-    }
-
-    .empty {
-        background: #f8f9fa;
-        padding: 16px;
-        border-radius: 12px;
-        color: #666;
-    }
-
-    .notice-box {
-        background: linear-gradient(135deg, #fff3cd, #ffe69c);
-        border-left: 5px solid #ffc107;
-        border-radius: 16px;
-        padding: 18px;
-        margin-top: 22px;
-    }
-
-    .notice-box h3 {
-        margin-top: 0;
-    }
-
-    @media (max-width: 600px) {
-        .movement-values {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-</style>
-
-<div class="banner">
+<!-- HERO PRODUCTOR -->
+<div class="hero-balance animate-in" {% if (saldo_actual or 0) < 0 %}style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);"{% endif %}>
     <h2>📒 Mi Libreta Digital</h2>
-    <p>Consulta tus movimientos, pagos, kilos y saldo actual.</p>
-</div>
-
-<div class="profile-card">
-    <h3>{{ proveedor.nombre }}</h3>
-    <p><strong>RIF / Cédula:</strong> {{ proveedor.rif or 'No registrado' }}</p>
-    <p><strong>Teléfono:</strong> {{ proveedor.telefono or 'No registrado' }}</p>
-</div>
-
-<div class="summary-grid">
-    <div class="card">
-        <h3>Saldo actual</h3>
-        <div class="value">${{ '%.2f'|format(saldo_actual or 0) }}</div>
+    <div class="amount">${{ '%.2f'|format((saldo_actual or 0)|abs) }}</div>
+    <div class="amount-bs" style="font-weight:700; letter-spacing:1px; margin-top:5px;">
+        {% if (saldo_actual or 0) < 0 %}
+            ⚠️ ESTADO: FIADO / DEUDA
+        {% elif (saldo_actual or 0) > 0 %}
+            ✅ ESTADO: SALDO A FAVOR
+        {% else %}
+            ESTADO: SOLVENTE (CERO)
+        {% endif %}
     </div>
-
-    <div class="card">
-        <h3>Total kilos</h3>
-        <div class="value">{{ '%.2f'|format(total_kilos or 0) }}</div>
-    </div>
-
-    <div class="card">
-        <h3>Total debe</h3>
-        <div class="value">${{ '%.2f'|format(total_debe or 0) }}</div>
-    </div>
-
-    <div class="card">
-        <h3>Total haber</h3>
-        <div class="value">${{ '%.2f'|format(total_haber or 0) }}</div>
+    <div style="margin-top:12px; font-size:13px; color:rgba(255,255,255,0.9);">
+        <strong style="color:#fff; font-size:16px;">{{ proveedor.nombre }}</strong>
     </div>
 </div>
 
-<h3 class="section-title">📋 Movimientos recientes</h3>
+<!-- RESUMEN 4 TARJETAS -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+    <div class="card-kalu animate-in" style="text-align:center; padding:16px 10px;">
+        <div style="font-size:11px; color:var(--wa-subtext); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Total Kilos (Histórico)</div>
+        <div style="font-size:22px; font-weight:800; color:var(--wa-green);">{{ '%.2f'|format(total_kilos or 0) }}</div>
+        <div style="font-size:11px; color:var(--wa-subtext);">kg</div>
+    </div>
+    <div class="card-kalu animate-in" style="text-align:center; padding:16px 10px;">
+        <div style="font-size:11px; color:var(--wa-subtext); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Adelantos (Histórico)</div>
+        <div style="font-size:22px; font-weight:800; color:var(--wa-danger);">${{ '%.2f'|format(total_debe or 0) }}</div>
+    </div>
+    <div class="card-kalu animate-in" style="text-align:center; padding:16px 10px;">
+        <div style="font-size:11px; color:var(--wa-subtext); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Leche Aportada (Histórico)</div>
+        <div style="font-size:22px; font-weight:800; color:#60a5fa;">${{ '%.2f'|format(total_haber or 0) }}</div>
+    </div>
+    <div class="card-kalu animate-in" style="text-align:center; padding:16px 10px;">
+        <div style="font-size:11px; color:var(--wa-subtext); margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">RIF / Cédula</div>
+        <div style="font-size:14px; font-weight:700;">{{ proveedor.rif or '—' }}</div>
+    </div>
+</div>
+
+{% if publicidades %}
+<!-- PUBLICIDAD / PROMOCIÓN DINÁMICA -->
+<div id="carouselPublicidad" class="carousel slide animate-in" data-bs-ride="carousel" style="margin-bottom:20px; border-radius:18px; overflow:hidden; box-shadow:0 8px 16px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+    <div class="carousel-inner">
+        {% for ad in publicidades %}
+        <div class="carousel-item {% if loop.first %}active{% endif %}" style="height:180px; position:relative; background:#0b141a;">
+            {% if ad.tipo == 'video' %}
+                <video src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.8);" autoplay muted loop playsinline></video>
+            {% else %}
+                <img src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.8);" alt="{{ ad.titulo }}">
+            {% endif %}
+            
+            <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(11,20,26,0.9) 0%, rgba(11,20,26,0.1) 70%); display:flex; flex-direction:column; justify-content:flex-end; padding:16px;">
+                <div style="color:#fff; font-weight:800; font-size:18px; text-shadow:0 2px 4px rgba(0,0,0,0.6); line-height:1.2;">
+                    {{ ad.titulo }}
+                </div>
+                {% if ad.descripcion %}
+                <div style="color:rgba(255,255,255,0.85); font-size:12px; margin-top:4px; font-weight:500;">
+                    {{ ad.descripcion }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if publicidades|length > 1 %}
+    <button class="carousel-control-prev" type="button" data-bs-target="#carouselPublicidad" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Anterior</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#carouselPublicidad" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Siguiente</span>
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- BOTON QUEJAS Y SUGERENCIAS -->
+<button class="btn-app animate-in" style="margin-bottom:16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1);" onclick="document.getElementById('modalQuejas').style.display='block'; document.body.style.overflow='hidden';">
+    <i class="fas fa-envelope-open-text" style="color:#f39c12;"></i> BUZÓN DE QUEJAS Y SUGERENCIAS
+</button>
+
+<!-- MODAL QUEJAS -->
+<div id="modalQuejas" class="catalog-overlay" style="display:none; z-index: 10000;">
+    <div class="catalog-header-bar" style="background:#111b21;">
+        <button onclick="document.getElementById('modalQuejas').style.display='none'; document.body.style.overflow='';" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer; padding:0;">
+            <i class="fas fa-times"></i>
+        </button>
+        <h4><i class="fas fa-envelope-open-text" style="color:#f39c12; margin-right:6px;"></i> Enviar Mensaje</h4>
+    </div>
+    <div style="padding: 20px;">
+        <div class="wa-form-card">
+            <form method="POST" action="{{ url_for('portal.enviar_queja') }}">
+                <div style="margin-bottom:15px;">
+                    <label class="wa-label">Tipo de mensaje</label>
+                    <select name="tipo" class="wa-input" required>
+                        <option value="Queja">Queja / Reclamo</option>
+                        <option value="Sugerencia">Sugerencia de Mejora</option>
+                        <option value="Consulta">Consulta / Otro</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label class="wa-label">Tu Mensaje</label>
+                    <textarea name="mensaje" class="wa-input" rows="4" placeholder="Escribe aquí tu queja, sugerencia o detalle..." required></textarea>
+                </div>
+                <button type="submit" class="btn-app" style="background:#f39c12; color:#000;">
+                    <i class="fas fa-paper-plane"></i> ENVIAR AL DUEÑO
+                </button>
+            </form>
+        </div>
+        <p style="text-align:center; margin-top:15px; font-size:12px; color:var(--wa-subtext);">Tu mensaje será enviado directamente y de forma privada a la administración de KALU.</p>
+    </div>
+</div>
+
+<!-- MOVIMIENTOS -->
+<div class="wa-section-label"><i class="fas fa-list" style="margin-right:6px;"></i>Movimientos recientes</div>
 
 {% if movimientos %}
-<div class="movement-list">
+<div class="card-kalu animate-in" style="padding:0 16px;">
     {% for mov in movimientos[:10] %}
-    <div class="movement-item">
-        <div class="movement-top">
-            <div class="movement-date">
-                {{ mov.fecha.strftime('%d/%m/%Y %I:%M %p') if mov.fecha else 'Sin fecha' }}
-            </div>
-            <div class="movement-type">
-                {{ mov.tipo or 'MOVIMIENTO' }}
+    <div class="activity-item">
+        <div
+            class="icon-box {% if (mov.haber or 0) > 0 %}success{% elif (mov.debe or 0) > 0 %}danger{% else %}info{% endif %}">
+            <i
+                class="fas fa-{% if (mov.haber or 0) > 0 %}arrow-down{% elif (mov.debe or 0) > 0 %}arrow-up{% else %}circle{% endif %}"></i>
+        </div>
+        <div class="activity-details">
+            <h5>{{ mov.descripcion or mov.tipo or 'Movimiento' }}</h5>
+            <span>{{ mov.fecha.strftime('%d/%m/%Y %I:%M %p') if mov.fecha else 'Sin fecha' }}</span>
+            <div style="font-size:11px; margin-top:3px;">
+                <span class="badge-wa badge-green" style="margin-right:4px;">{{ '%.2f'|format(mov.kilos or 0) }}
+                    kg</span>
+                {% if mov.tipo %}
+                <span class="badge-wa badge-yellow">{{ mov.tipo }}</span>
+                {% endif %}
             </div>
         </div>
-
-        <div class="movement-desc">
-            {{ mov.descripcion or 'Sin descripción' }}
-        </div>
-
-        <div class="movement-values">
-            <div>
-                <span>Kilos</span>
-                {{ '%.2f'|format(mov.kilos or 0) }}
-            </div>
-            <div>
-                <span>Debe</span>
-                ${{ '%.2f'|format(mov.debe or 0) }}
-            </div>
-            <div>
-                <span>Haber</span>
-                ${{ '%.2f'|format(mov.haber or 0) }}
-            </div>
-            <div>
-                <span>Saldo</span>
-                ${{ '%.2f'|format(mov.saldo or 0) }}
-            </div>
+        <div style="text-align:right;">
+            {% if (mov.haber or 0) > 0 %}
+            <div style="color:var(--wa-green); font-weight:800; font-size:14px;">+${{ '%.2f'|format(mov.haber) }}</div>
+            {% endif %}
+            {% if (mov.debe or 0) > 0 %}
+            <div style="color:var(--wa-danger); font-weight:800; font-size:14px;">-${{ '%.2f'|format(mov.debe) }}</div>
+            {% endif %}
+            <div style="font-size:11px; color:var(--wa-subtext); margin-top:2px;">Saldo: ${{ '%.2f'|format(mov.saldo or
+                0) }}</div>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="empty">No hay movimientos registrados en tu libreta.</div>
+<div class="wa-empty card-kalu">
+    <i class="fas fa-book-open"></i>
+    No hay movimientos en tu libreta.
+</div>
 {% endif %}
 
-<div class="notice-box" style="margin-bottom: 20px;">
-    <h3>📢 Avisos Especiales</h3>
-    <p>Revisión semanal de leche. Pagos pendientes confirmados para el viernes.</p>
+<!-- AVISO -->
+<div class="card-kalu animate-in"
+    style="border-left: 3px solid #fbbf24; background:rgba(251,191,36,0.08); margin-top:6px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <i class="fas fa-bullhorn" style="color:#fbbf24; font-size:18px;"></i>
+        <strong style="font-size:15px;">Avisos KALU</strong>
+    </div>
+    <p style="margin:0; font-size:14px; color:var(--wa-subtext);">Revisión semanal de leche. Pagos pendientes
+        confirmados para el viernes.</p>
 </div>
 
-<h3 class="section-title" id="productos">🛒 Productos y Ofertas KALU</h3>
+<!-- CATÁLOGO PRODUCTORES -->
+<div class="wa-section-label" id="productos"><i class="fas fa-store" style="margin-right:6px;"></i>Productos y Ofertas
+    KALU</div>
+
 {% if productos %}
-<p style="color: #666; font-size: 14px; margin-top: -10px;">Encuentra y agrega lo que necesitas comprar para que el cajero lo prepare (se puede cargar a tu libreta).</p>
-<button class="pay-button" style="background: #0d6efd; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25); text-decoration:none; border:none; display:flex; justify-content:center; align-items:center; width:100%; border-radius:12px; padding:15px; color:white; font-weight:bold; cursor:pointer;" onclick="abrirCatalogo()">
-    <i class="fas fa-search" style="margin-right:8px;"></i> VER CATÁLOGO DE PRODUCTOS
+<p style="font-size:13px; color:var(--wa-subtext); margin:0 0 12px;">Agrega lo que necesitas — se puede cargar a tu
+    libreta.</p>
+<button class="btn-app animate-in" style="margin-bottom:16px;" onclick="abrirCatalogo()">
+    <i class="fas fa-search"></i> VER CATÁLOGO DE PRODUCTOS
 </button>
 
-<!-- MODAL CATÁLOGO DE PRODUCTOS -->
-<div id="modalCatalogo" class="form-box"
-    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1005; border-radius:0; margin:0; overflow-y:auto; background: #f0f2f5;">
-    
-    <div style="background: white; padding: 15px; position: sticky; top: 0; z-index: 1006; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-            <h4 style="margin:0; color:#198754;"><i class="fas fa-store"></i> Catálogo KALU</h4>
-            <button onclick="cerrarCatalogo()" style="background:none; border:none; font-size:28px; color:#dc3545; cursor:pointer; line-height:1;">&times;</button>
-        </div>
-        <input type="text" id="buscadorProductos" class="form-control" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;" placeholder="Buscar por nombre o categoría..." onkeyup="filtrarProductos()">
+<!-- MODAL CATÁLOGO -->
+<div id="modalCatalogo" class="catalog-overlay">
+    <div class="catalog-header-bar">
+        <button onclick="cerrarCatalogo()"
+            style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer; padding:0;">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <h4><i class="fas fa-store" style="color:var(--wa-green);"></i> Catálogo KALU</h4>
     </div>
-
-    <div style="padding: 15px; padding-bottom: 100px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 15px;" id="lista_catalogo">
-            {% for producto in productos %}
-            <div class="product-card item-producto" data-nombre="{{ producto.nombre|lower }}" data-categoria="{{ (producto.categoria or '')|lower }}" style="background: white; border: 1px solid #e9ecef; border-radius: 14px; padding: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
-                <h4 style="margin:0 0 8px 0; color:#198754; font-size:17px;">{{ producto.nombre }}</h4>
-                <div style="font-size: 18px; font-weight: bold; color: #212529;">Normal: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
-                <div style="color:#dc3545; font-weight:bold;">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
-                <div style="color:#777; font-size:13px; margin-top:4px;">Categoría: {{ producto.categoria or 'General' }}</div>
-                <button style="background:#198754; color:white; border:none; padding:10px; border-radius:8px; width:100%; margin-top:10px; font-weight:bold; cursor:pointer;"
-                    onclick="agregarAlPedido('{{ producto.id }}', `{{ producto.nombre }}`, {{ producto.precio_oferta_usd or producto.precio_normal_usd }}); cerrarCatalogo();">
-                    <i class="fas fa-plus"></i> Añadir a la lista
-                </button>
-            </div>
-            {% endfor %}
+    <input type="text" id="buscadorProductos" class="wa-search" placeholder="🔍 Buscar producto o categoría..."
+        onkeyup="filtrarProductos()">
+    <div style="padding:0 16px 100px; display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:12px;"
+        id="lista_catalogo">
+        {% for producto in productos %}
+        <div class="product-card-wa item-producto" data-nombre="{{ producto.nombre|lower }}"
+            data-categoria="{{ (producto.categoria or '')|lower }}">
+            <h4>{{ producto.nombre }}</h4>
+            <div class="price-normal">Normal: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
+            <div class="price-offer">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
+            <div style="font-size:12px; color:var(--wa-subtext);">{{ producto.categoria or 'General' }}</div>
+            <button class="btn-app" style="margin-top:8px; font-size:13px; padding:10px;"
+                onclick="agregarAlPedido('{{ producto.id }}', `{{ producto.nombre }}`, {{ producto.precio_oferta_usd or producto.precio_normal_usd }}); cerrarCatalogo();">
+                <i class="fas fa-plus"></i> Añadir
+            </button>
         </div>
+        {% endfor %}
     </div>
 </div>
 
-<!-- BOTÓN FLOTANTE DE PEDIDO -->
-<div id="btn_flotante_pedido" style="display:none; position: fixed; bottom: 85px; right: 20px; z-index: 999;">
-    <button style="background: #198754; color: white; padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25); border: none; cursor: pointer;" onclick="verMiLista()">
-        <i class="fas fa-shopping-basket"></i> MI LISTA (<span id="cant_items_pedido">0</span>)
+<!-- BOTÓN FLOTANTE -->
+<div id="btn_flotante_pedido" style="display:none; position:fixed; bottom:90px; right:20px; z-index:999;">
+    <button class="fab-cart" onclick="verMiLista()">
+        <i class="fas fa-shopping-basket"></i>
+        MI LISTA (<span id="cant_items_pedido">0</span>)
     </button>
 </div>
 
-<!-- MODAL MI LISTA (CARRITO CLIENTE) -->
-<div id="modalLista" class="form-box"
-    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; width:90%; max-width:400px; border:2px solid #198754; background:white; padding:20px; border-radius:15px;">
-    <h4 style="text-align:center; margin-top:0;">🛒 Mi Lista de Pedido</h4>
-    <div id="items_lista" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
-    <button style="background:#198754; color:white; border:none; padding:12px; border-radius:10px; width:100%; font-weight:bold; margin-bottom:10px; cursor:pointer;" onclick="enviarPedido()"><i class="fas fa-paper-plane"></i> ENVIAR PEDIDO A KALU</button>
-    <button style="background:#666; color:white; border:none; padding:12px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;" onclick="document.getElementById('modalLista').style.display='none'">CERRAR</button>
+<!-- MODAL CARRITO -->
+<div id="modalLista" class="cart-modal" onclick="if(event.target===this){this.style.display='none';}">
+    <div class="cart-backdrop"></div>
+    <div class="cart-sheet">
+        <h4><i class="fas fa-shopping-basket" style="color:var(--wa-green);"></i> Mi Lista de Pedido</h4>
+        <div id="items_lista" style="margin-bottom:16px;"></div>
+        <button class="btn-app" onclick="enviarPedido()" style="margin-bottom:10px;">
+            <i class="fas fa-paper-plane"></i> ENVIAR PEDIDO A KALU
+        </button>
+        <button class="btn-app btn-secondary-app" onclick="document.getElementById('modalLista').style.display='none'">
+            Cerrar
+        </button>
+    </div>
 </div>
+
 {% else %}
-<div class="empty">No hay productos disponibles en este momento.</div>
+<div class="wa-empty card-kalu">
+    <i class="fas fa-box-open"></i>
+    No hay productos disponibles.
+</div>
 {% endif %}
 
 <script>
-    let miPedido = [];
-
-    function abrirCatalogo() {
+    window.abrirCatalogo = function () {
         document.getElementById('modalCatalogo').style.display = 'block';
-    }
-    
+        document.body.style.overflow = 'hidden';
+    };
+
     function cerrarCatalogo() {
         document.getElementById('modalCatalogo').style.display = 'none';
+        document.body.style.overflow = '';
         document.getElementById('buscadorProductos').value = '';
         filtrarProductos();
     }
 
     function filtrarProductos() {
-        let input = document.getElementById('buscadorProductos').value.toLowerCase();
-        let items = document.querySelectorAll('.item-producto');
-        
-        items.forEach(item => {
-            let nombre = item.getAttribute('data-nombre');
-            let categoria = item.getAttribute('data-categoria');
-            if (nombre.includes(input) || categoria.includes(input)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
+        const q = document.getElementById('buscadorProductos').value.toLowerCase();
+        document.querySelectorAll('.item-producto').forEach(item => {
+            item.style.display = (item.dataset.nombre.includes(q) || item.dataset.categoria.includes(q)) ? '' : 'none';
         });
     }
 
+    let miPedido = [];
+
     function agregarAlPedido(id, nombre, precio) {
         const existe = miPedido.find(i => i.id === id);
-        if (existe) {
-            existe.cantidad++;
-        } else {
-            miPedido.push({ id, nombre, precio, cantidad: 1 });
-        }
-        actualizarBotonFlotante();
-        alert(`✅ ${nombre} añadido.`);
+        if (existe) existe.cantidad++;
+        else miPedido.push({ id, nombre, precio, cantidad: 1 });
+        actualizarFAB();
     }
 
-    function actualizarBotonFlotante() {
-        const btn = document.getElementById('btn_flotante_pedido');
-        const cant = document.getElementById('cant_items_pedido');
-        if (miPedido.length > 0) {
-            btn.style.display = 'block';
-            cant.innerText = miPedido.reduce((acc, item) => acc + item.cantidad, 0);
-        } else {
-            btn.style.display = 'none';
-        }
+    function actualizarFAB() {
+        const total = miPedido.reduce((a, i) => a + i.cantidad, 0);
+        document.getElementById('cant_items_pedido').innerText = total;
+        document.getElementById('btn_flotante_pedido').style.display = total > 0 ? 'block' : 'none';
     }
 
     function verMiLista() {
-        const container = document.getElementById('items_lista');
-        container.innerHTML = miPedido.map((item, index) => `
-        <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
-            <span>${item.nombre} x${item.cantidad}</span>
-            <strong>$${(item.precio * item.cantidad).toFixed(2)}</strong>
-            <button onclick="miPedido.splice(${index},1); verMiLista(); actualizarBotonFlotante();" style="border:none; background:none; color:red; cursor:pointer;">×</button>
-        </div>
-    `).join('');
-        document.getElementById('modalLista').style.display = 'block';
+        const c = document.getElementById('items_lista');
+        if (!miPedido.length) { c.innerHTML = '<div class="wa-empty">Tu lista está vacía</div>'; }
+        else {
+            c.innerHTML = miPedido.map((item, i) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
+            <div>
+                <div style="font-weight:600; font-size:14px; color:#fff;">${item.nombre}</div>
+                <div style="font-size:12px; color:var(--wa-green);">$${(item.precio * item.cantidad).toFixed(2)}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="background:rgba(255,255,255,0.1); padding:2px 10px; border-radius:20px; font-size:13px;">x${item.cantidad}</span>
+                <button onclick="miPedido.splice(${i},1); verMiLista(); actualizarFAB();"
+                        style="background:var(--wa-danger); border:none; color:#fff; border-radius:50%; width:26px; height:26px; cursor:pointer;">×</button>
+            </div>
+        </div>`).join('');
+        }
+        document.getElementById('modalLista').style.display = 'flex';
     }
 
     function enviarPedido() {
-        if (miPedido.length === 0) return;
-
+        if (!miPedido.length) return;
         fetch('/api/crear_pedido', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: miPedido })
         })
-        .then(r => r.json())
-        .then(res => {
-            if (res.success) {
-                alert(res.message);
-                miPedido = [];
-                actualizarBotonFlotante();
-                document.getElementById('modalLista').style.display = 'none';
-            } else {
-                alert("⚠️ " + res.message);
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert("❌ No se pudo enviar el pedido al servidor.");
-        });
+            .then(r => r.json())
+            .then(res => {
+                alert(res.success ? res.message : '⚠️ ' + res.message);
+                if (res.success) { miPedido = []; actualizarFAB(); document.getElementById('modalLista').style.display = 'none'; }
+            })
+            .catch(() => alert('❌ Error de conexión.'));
     }
 </script>
+
 {% endblock %}

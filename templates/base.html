@@ -258,6 +258,12 @@
       <i class="fas fa-book-open me-2"></i> LIBRETA QUESO
     </a>
 
+    {% if current_user.role in ['admin', 'cajero'] %}
+    <div class="menu-label" style="color: #f39c12;">Marketing y Portal</div>
+    <a href="{{ url_for('marketing.admin_publicidad') }}"><i class="fas fa-camera-retro me-2"></i> PUBLICIDAD INFO</a>
+    <a href="{{ url_for('marketing.admin_quejas') }}"><i class="fas fa-envelope-open-text me-2"></i> BUZÓN DE QUEJAS</a>
+    {% endif %}
+
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
     <div class="menu-label-admin">⚙️ Panel Administrador</div>
     <a href="{{ url_for('usuarios.lista_usuarios') }}" class="admin-link"><i class="fas fa-user-shield me-2"></i>

@@ -70,7 +70,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th class="ps-4">#</th>
-                        <th><i class="bi bi-person me-1"></i>Usuario</th>
+                        <th><i class="bi bi-person me-1"></i>Usuario / Email</th>
                         <th><i class="bi bi-shield-lock me-1"></i>Rol</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -84,9 +84,18 @@
                                 <div class="avatar-circle bg-primary text-white">
                                     {{ u.username[0].upper() }}
                                 </div>
-                                <span class="fw-semibold">{{ u.username }}</span>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-semibold">{{ u.username }}</span>
+                                    {% if u.email %}
+                                    <small class="text-primary" style="font-size: 0.75rem;">
+                                        <i class="bi bi-google me-1"></i>{{ u.email }}
+                                    </small>
+                                    {% else %}
+                                    <small class="text-muted" style="font-size: 0.75rem;">Sin correo vinculado</small>
+                                    {% endif %}
+                                </div>
                                 {% if u.username == current_user.username %}
-                                <span class="badge bg-success">Tú</span>
+                                <span class="badge bg-success ms-1">Tú</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -123,6 +132,12 @@
                                     <i class="bi bi-key-fill"></i> Reset
                                 </button>
                                 {% endif %}
+
+                                <!-- Botón Editar Perfil -->
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                    data-bs-target="#modalEdit{{ u.id }}">
+                                    <i class="bi bi-pencil-square"></i> Perfil
+                                </button>
 
                                 <!-- Botón Eliminar -->
                                 {% if u.username != 'admin' %}
@@ -172,6 +187,51 @@
                         </div>
                     </div>
 
+                    <!-- Modal Editar Usuario -->
+                    <div class="modal fade" id="modalEdit{{ u.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-pencil-square me-2"></i>Editar Perfil — {{ u.username }}
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('usuarios.actualizar_usuario', id=u.id) }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">
+                                                <i class="bi bi-envelope me-1"></i>Correo Gmail (OAuth2)
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-google"></i></span>
+                                                <input type="email" name="email" class="form-control" 
+                                                    value="{{ u.email or '' }}" placeholder="ej: nombre@gmail.com">
+                                            </div>
+                                            <small class="text-muted">Si vinculas un Gmail, el usuario podrá entrar sin clave.</small>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">
+                                                <i class="bi bi-shield me-1"></i>Rol del Usuario
+                                            </label>
+                                            <select name="role" class="form-select" required>
+                                                <option value="cajero" {% if u.role == 'cajero' %}selected{% endif %}>🧾 Cajero</option>
+                                                <option value="supervisor" {% if u.role == 'supervisor' %}selected{% endif %}>👁️ Supervisor</option>
+                                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>🛡️ Admin</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                        <button type="submit" class="btn btn-primary fw-bold">
+                                            <i class="bi bi-save me-1"></i>Guardar Cambios
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
                     {% else %}
                     <tr>
                         <td colspan="4" class="text-center text-muted py-4">
@@ -209,6 +269,16 @@
                                 required>
                         </div>
                         <small class="text-muted">Solo letras, números y guión bajo. Sin espacios.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-envelope me-1"></i>Correo Gmail (Opcional)
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-google"></i></span>
+                            <input type="email" name="email" class="form-control" placeholder="ej: nombre@gmail.com">
+                        </div>
+                        <small class="text-muted">Necesario para entrar con Google Sign-In.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">

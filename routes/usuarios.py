@@ -43,30 +43,35 @@ def lista_usuarios():
 @login_required
 @solo_admin_maestro
 def crear_usuario():
-    username = request.form.get('username').strip().lower()
+    username = request.form.get('username')
     password = request.form.get('password')
-    role     = request.form.get('role')
+    role     = request.form.get('role', 'cajero')
+    email    = request.form.get('email', '').strip()
 
     if not username or not password:
         flash("⚠️ Usuario y contraseña son obligatorios.", "warning")
         return redirect(url_for('usuarios.lista_usuarios'))
 
     # Verificar si ya existe
-    existe = User.query.filter_by(username=username).first()
-    if existe:
+    if User.query.filter_by(username=username).first():
         flash(f"❌ El usuario '{username}' ya existe.", "danger")
+        return redirect(url_for('usuarios.lista_usuarios'))
+        
+    if email and User.query.filter_by(email=email).first():
+        flash(f"❌ El correo '{email}' ya está en uso.", "danger")
         return redirect(url_for('usuarios.lista_usuarios'))
 
     nuevo = User(
         username = username,
         password = generate_password_hash(password, method='pbkdf2:sha256'),
-        role     = role
+        role     = role,
+        email    = email if email else None
     )
     
     db.session.add(nuevo)
     db.session.commit()
     
-    flash(f"✅ Usuario '{username}' creado como {role.upper()} exitosamente.", "success")
+    flash(f"✅ Usuario '{username}' creado exitosamente. {'(Vinculado a ' + email + ')' if email else ''}", "success")
     return redirect(url_for('usuarios.lista_usuarios'))
 
 # ============================================================
@@ -87,6 +92,35 @@ def reset_password(id):
     db.session.commit()
     
     flash(f"🔑 Contraseña de '{user.username}' actualizada.", "success")
+    return redirect(url_for('usuarios.lista_usuarios'))
+
+# ============================================================
+# 📧 ACTUALIZAR PERFIL (Email y Rol)
+# ============================================================
+@usuarios_bp.route('/usuarios/actualizar/<int:id>', methods=['POST'])
+@login_required
+@solo_admin_maestro
+def actualizar_usuario(id):
+    user = User.query.get_or_404(id)
+    email = request.form.get('email', '').strip()
+    role = request.form.get('role', user.role)
+
+    if user.username == 'admin' and current_user.username != 'admin':
+        flash("🚫 No puedes modificar al Admin Maestro.", "danger")
+        return redirect(url_for('usuarios.lista_usuarios'))
+
+    # Verificar disponibilidad de email
+    if email:
+        exist_email = User.query.filter(User.email == email, User.id != id).first()
+        if exist_email:
+            flash(f"❌ El correo '{email}' ya lo usa otro usuario.", "danger")
+            return redirect(url_for('usuarios.lista_usuarios'))
+
+    user.email = email if email else None
+    user.role = role
+    db.session.commit()
+    
+    flash(f"✅ Perfil de '{user.username}' actualizado.", "success")
     return redirect(url_for('usuarios.lista_usuarios'))
 
 # ============================================================
