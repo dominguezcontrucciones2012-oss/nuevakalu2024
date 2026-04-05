@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- ENCABEZADO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0 fw-bold">
+                <i class="bi bi-people-fill text-primary me-2"></i>Gestión de Usuarios
+            </h2>
+            <small class="text-muted">Solo el Administrador Maestro puede gestionar usuarios</small>
+        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
+            <i class="bi bi-person-plus-fill me-1"></i> Nuevo Usuario
+        </button>
+    </div>
+
+    <!-- BUZÓN DE PAGOS PENDIENTES -->
+    {% if pagos_clientes or pagos_productores %}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-warning text-dark fw-bold">
+            <i class="bi bi-bell-fill me-2"></i>
+            PAGOS POR VERIFICAR
+            <span class="badge bg-dark ms-2">{{ pagos_clientes|length + pagos_productores|length }}</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Fecha</th>
+                        <th>Quién Paga</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pago in pagos_clientes %}
+                    <tr>
+                        <td class="ps-3">{{ pago.fecha.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <span class="badge bg-success me-1">Cliente</span>
+                            <strong>{{ pago.cliente.nombre }}</strong>
+                        </td>
+                        <td class="text-success fw-bold">${{ "%.2f"|format(pago.monto_usd) }}</td>
+                        <td><span class="badge bg-warning text-dark">⏳ Pendiente</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% for pago in pagos_productores %}
+                    <tr>
+                        <td class="ps-3">{{ pago.fecha.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <span class="badge bg-primary me-1">Productor</span>
+                            <strong>{{ pago.proveedor.nombre }}</strong>
+                        </td>
+                        <td class="text-success fw-bold">${{ "%.2f"|format(pago.monto_usd) }}</td>
+                        <td><span class="badge bg-warning text-dark">⏳ Pendiente</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- TABLA DE USUARIOS -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-4">#</th>
+                        <th><i class="bi bi-person me-1"></i>Usuario</th>
+                        <th><i class="bi bi-shield-lock me-1"></i>Rol</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                    <tr>
+                        <td class="ps-4 text-muted">{{ u.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-circle bg-primary text-white">
+                                    {{ u.username[0].upper() }}
+                                </div>
+                                <span class="fw-semibold">{{ u.username }}</span>
+                                {% if u.username == current_user.username %}
+                                <span class="badge bg-success">Tú</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if u.role == 'admin' %}
+                            <span class="badge bg-danger fs-6">
+                                <i class="bi bi-shield-fill-check me-1"></i>Admin
+                            </span>
+                            {% elif u.role == 'supervisor' %}
+                            <span class="badge bg-warning text-dark fs-6">
+                                <i class="bi bi-eye-fill me-1"></i>Supervisor
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary fs-6">
+                                <i class="bi bi-cash-register me-1"></i>Cajero
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-2">
+
+                                <!-- ✅ BOTÓN WHATSAPP (separado y correcto) -->
+                                {% if u.cliente %}
+                                <a href="https://wa.me/58{{ u.cliente.telefono | replace('-','') | replace(' ','') }}?text=Hola%20{{ u.cliente.nombre | urlencode }}%2C%20ya%20puedes%20ver%20tu%20cuenta%20en%20KALU%20%F0%9F%9B%92%0A%0A%F0%9F%94%97%20Link%3A%20http%3A%2F%2Ftu-link.com%0A%F0%9F%91%A4%20Usuario%3A%20{{ u.username }}%0A%F0%9F%94%91%20Clave%3A%20{{ u.cliente.telefono[-4:] }}"
+                                    class="btn btn-sm btn-success" target="_blank" title="Enviar acceso por WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                                {% endif %}
+
+                                <!-- Botón Reset Password -->
+                                {% if u.username != 'admin' or current_user.username == 'admin' %}
+                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
+                                    data-bs-target="#modalReset{{ u.id }}">
+                                    <i class="bi bi-key-fill"></i> Reset
+                                </button>
+                                {% endif %}
+
+                                <!-- Botón Eliminar -->
+                                {% if u.username != 'admin' %}
+                                <a href="{{ url_for('usuarios.eliminar_usuario', id=u.id) }}"
+                                    class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('⚠️ ¿Seguro que quieres eliminar a {{ u.username }}?')">
+                                    <i class="bi bi-trash-fill"></i> Eliminar
+                                </a>
+                                {% else %}
+                                <button class="btn btn-sm btn-outline-danger" disabled>
+                                    <i class="bi bi-lock-fill"></i> Protegido
+                                </button>
+                                {% endif %}
+
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Modal Reset Password -->
+                    <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header bg-warning text-dark">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-key-fill me-2"></i>Reset Contraseña — {{ u.username }}
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('usuarios.reset_password', id=u.id) }}">
+                                    <div class="modal-body">
+                                        <label class="form-label fw-semibold">Nueva Contraseña</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                                            <input type="password" name="nueva_password" class="form-control"
+                                                placeholder="Mínimo 6 caracteres" required minlength="6">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-warning text-dark fw-bold">
+                                            <i class="bi bi-check-circle me-1"></i>Actualizar
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <i class="bi bi-people fs-3 d-block mb-2"></i>
+                            No hay usuarios registrados todavía.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL CREAR NUEVO USUARIO -->
+<div class="modal fade" id="modalCrearUsuario" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-plus-fill me-2"></i>Crear Nuevo Usuario
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('usuarios.crear_usuario') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-person me-1"></i>Nombre de Usuario
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-at"></i></span>
+                            <input type="text" name="username" class="form-control" placeholder="ej: maria_cajera"
+                                required>
+                        </div>
+                        <small class="text-muted">Solo letras, números y guión bajo. Sin espacios.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-lock me-1"></i>Contraseña
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                            <input type="password" name="password" id="passInput" class="form-control"
+                                placeholder="Mínimo 6 caracteres" required minlength="6">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePass()">
+                                <i class="bi bi-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-shield me-1"></i>Rol del Usuario
+                        </label>
+                        <select name="role" class="form-select" required>
+                            <option value="" disabled selected>-- Selecciona un rol --</option>
+                            <option value="cajero">🧾 Cajero — Solo POS y Clientes</option>
+                            <option value="supervisor">👁️ Supervisor — Inventario y Ventas</option>
+                            <option value="admin">🛡️ Admin — Acceso Total</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-info py-2 mb-0">
+                        <small>
+                            <strong>🧾 Cajero:</strong> Solo puede hacer ventas y ver clientes.<br>
+                            <strong>👁️ Supervisor:</strong> Puede ver inventario y reportes básicos.<br>
+                            <strong>🛡️ Admin:</strong> Acceso total al sistema.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold">
+                        <i class="bi bi-person-check-fill me-1"></i>Crear Usuario
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+</style>
+
+<script>
+    function togglePass() {
+        const input = document.getElementById('passInput');
+        const icon = document.getElementById('eyeIcon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
+        }
+    }
+</script>
+
+{% endblock %}

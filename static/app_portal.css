@@ -1,0 +1,279 @@
+/* --- SISTEMA DE DISEÑO APP KALU (PORTAL) --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+:root {
+    --kalu-primary: #4ade80;
+    --kalu-secondary: #3498db;
+    --kalu-danger: #ff4757;
+    --kalu-bg-dark: rgba(0, 0, 0, 0.7);
+    --glass-bg: rgba(255, 255, 255, 0.1);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-blur: blur(20px);
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: url('/static/fondo_negocio_jpg.png') no-repeat center center fixed !important;
+    background-size: cover !important;
+    margin: 0;
+    padding-bottom: 90px;
+    color: white !important;
+    overflow-x: hidden;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.65); /* Capa oscura para mejor contraste */
+    z-index: -1;
+}
+
+/* --- HEADER --- */
+.top-nav {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.top-nav .logo {
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--kalu-primary) !important;
+    letter-spacing: -1px;
+}
+
+/* --- APP CONTAINER --- */
+.app-container {
+    padding: 20px;
+    max-width: 550px;
+    margin: 0 auto;
+}
+
+/* --- CARDS GLASSMORPHISM --- */
+.card-kalu {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    color: white;
+}
+
+.hero-balance {
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(52, 152, 219, 0.2));
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.hero-balance h2 {
+    font-weight: 300;
+    font-size: 16px;
+    margin-bottom: 5px;
+    opacity: 0.8;
+}
+
+.hero-balance .amount {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--kalu-primary);
+    line-height: 1;
+}
+
+.hero-balance .amount-bs {
+    font-size: 18px;
+    opacity: 0.7;
+    margin-top: 5px;
+}
+
+/* --- BUTTONS --- */
+.btn-app {
+    background: var(--kalu-primary);
+    color: #111 !important;
+    border: none;
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-weight: 800;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none !important;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px rgba(74, 222, 128, 0.2);
+    width: 100%;
+}
+
+.btn-app:active {
+    transform: scale(0.95);
+}
+
+.btn-secondary-app {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: white !important;
+    box-shadow: none;
+}
+
+/* --- BOTTOM NAV --- */
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    background: rgba(20, 20, 20, 0.8);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 5px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+}
+
+.nav-item {
+    text-decoration: none !important;
+    color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    gap: 4px;
+    transition: 0.3s;
+}
+
+.nav-item.active {
+    color: var(--kalu-primary);
+}
+
+.nav-item i {
+    font-size: 22px;
+}
+
+/* --- PROGRESS BARS (CLUB VECINO) --- */
+.points-container {
+    margin-top: 15px;
+}
+
+.points-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.progress-kalu {
+    height: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar-kalu {
+    height: 100%;
+    background: linear-gradient(90deg, var(--kalu-primary), var(--kalu-secondary));
+    border-radius: 10px;
+    transition: width 1s ease-in-out;
+}
+
+/* --- LISTS & TABLES --- */
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.icon-box {
+    width: 45px;
+    height: 45px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.icon-box.success { color: var(--kalu-primary); }
+.icon-box.danger { color: var(--kalu-danger); }
+
+.activity-details {
+    flex: 1;
+}
+
+.activity-details h5 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.activity-details span {
+    font-size: 12px;
+    opacity: 0.5;
+}
+
+.activity-amount {
+    text-align: right;
+    font-weight: 800;
+    font-size: 16px;
+}
+
+/* --- CATALOG MODAL --- */
+.catalog-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 3000;
+    padding: 20px;
+    display: none;
+    overflow-y: auto;
+}
+
+.catalog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.search-app {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 12px 20px;
+    color: white;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+/* Animaciones */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fadeInUp 0.6s ease-out forwards;
+}

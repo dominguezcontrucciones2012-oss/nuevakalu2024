@@ -1,0 +1,210 @@
+{% extends 'base.html' %} {% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold text-primary">
+    <i class="fas fa-users"></i> GESTIÓN DE CLIENTES
+  </h2>
+  <button class="btn btn-success btn-lg shadow" data-bs-toggle="modal" data-bs-target="#modalCliente">
+    <i class="fas fa-user-plus"></i> NUEVO CLIENTE
+  </button>
+</div>
+
+<!-- ALERTAS DE CUMPLEAÑOS -->
+{% if cumpleaneros %}
+<div class="alert alert-warning shadow-sm border-0 mb-4">
+  <i class="fas fa-birthday-cake"></i> <strong>¡Cumpleañeros de hoy!</strong>:
+  {{ cumpleaneros|join(', ') }}
+</div>
+{% endif %}
+
+<div class="mb-3">
+  <div class="input-group shadow-sm rounded-pill overflow-hidden border-primary" style="border: 2px solid #4e73df;">
+    <span class="input-group-text bg-white border-0 text-primary"><i class="fas fa-search"></i></span>
+    <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe nombre, teléfono, cédula..." style="box-shadow: none;">
+  </div>
+</div>
+
+<div class="card shadow border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>NOMBRE</th>
+            <th>TELÉFONO / CÉDULA</th>
+            <th>PUNTOS CLUB</th>
+            <th>DEUDA ($)</th>
+            <th class="text-center">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clientes %}
+          <tr>
+            <td class="fw-bold">{{ c.nombre }}</td>
+            <td>
+              <small class="text-muted d-block">Telf: {{ c.telefono or 'N/A' }}</small>
+              <small class="text-muted">Cédula: {{ c.cedula or 'N/A' }}</small>
+            </td>
+            <td>
+              <span class="badge bg-info text-dark fs-6">
+                <i class="fas fa-star"></i> {{ c.puntos }} pts
+              </span>
+            </td>
+            <td>
+              {% if c.saldo_usd > 0 %}
+              <span class="text-danger fw-bold fs-5">
+                ${{ "%.2f"|format(c.saldo_usd) }}
+              </span>
+              {% else %}
+              <span class="text-success fw-bold">
+                <i class="fas fa-check-circle"></i> Al Día
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <!-- BOTÓN EDITAR -->
+              <a href="/editar_cliente/{{ c.id }}" class="btn btn-outline-primary btn-sm border-0 me-2">
+                <i class="fas fa-edit"></i> Editar
+              </a>
+
+              <!-- BOTÓN BORRAR -->
+              <a href="/eliminar_cliente/{{ c.id }}" class="btn btn-outline-danger btn-sm border-0"
+                onclick="return confirm('¿Seguro que quieres borrar a {{ c.nombre }}?')">
+                <i class="fas fa-trash-alt"></i> Borrar
+              </a>
+
+              <!-- BOTÓN EDITAR PUNTOS (SIN VALIDACIÓN PARA QUE SALGA SIEMPRE) -->
+              <button class="btn btn-outline-warning btn-sm border-0 ms-1"
+                onclick="abrirModalPuntos('{{ c.id }}', '{{ c.nombre }}', {{ c.puntos }})">
+                <i class="fas fa-star"></i> Puntos
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA NUEVO CLIENTE -->
+<div class="modal fade" id="modalCliente" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold">REGISTRAR NUEVO CLIENTE</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/guardar_cliente" method="POST">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Nombre Completo:</label>
+            <input type="text" name="nombre" class="form-control" placeholder="Ej: Juan Kalu" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Cédula / RIF:</label>
+            <input type="text" name="cedula" class="form-control" placeholder="V-12345678" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Teléfono:</label>
+            <input type="text" name="telefono" class="form-control" placeholder="0424-1234567" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Dirección:</label>
+            <textarea name="direccion" class="form-control" rows="2"
+              placeholder="Dirección del cliente (opcional)"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Fecha de Nacimiento:</label>
+            <input type="date" name="fecha_nacimiento" class="form-control" />
+            <small class="text-muted">Para las alertas del Club del Vecino</small>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">GUARDAR CLIENTE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR PUNTOS (SOLO ADMIN) -->
+<div class="modal fade" id="modalPuntos" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title fw-bold">
+          <i class="fas fa-star"></i> Editar Puntos del Club del Vecino
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <h5 id="puntos_cliente_nombre" class="text-center text-primary fw-bold mb-3"></h5>
+        <div class="alert alert-info text-center">
+          Puntos actuales: <strong><span id="puntos_actuales"></span> pts</strong>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Nuevos Puntos:</label>
+          <input type="number" id="nuevos_puntos" class="form-control form-control-lg" min="0" placeholder="Ej: 150" />
+          <small class="text-muted">🏆 Premio cada 200 puntos. El sobrante queda para el siguiente.</small>
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning fw-bold px-4" onclick="guardarPuntos()">
+          <i class="fas fa-save"></i> GUARDAR PUNTOS
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let clientePuntosId = null;
+
+  function abrirModalPuntos(id, nombre, puntos) {
+    clientePuntosId = id;
+    document.getElementById('puntos_cliente_nombre').innerText = nombre;
+    document.getElementById('puntos_actuales').innerText = puntos;
+    document.getElementById('nuevos_puntos').value = puntos;
+    new bootstrap.Modal(document.getElementById('modalPuntos')).show();
+  }
+
+  function guardarPuntos() {
+    const nuevos = parseInt(document.getElementById('nuevos_puntos').value);
+    if (isNaN(nuevos) || nuevos < 0) {
+      alert('⚠️ Ingresa un número válido de puntos.');
+      return;
+    }
+    fetch('/actualizar_puntos/' + clientePuntosId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ puntos: nuevos })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          alert('✅ Puntos actualizados correctamente.');
+          location.reload();
+        } else {
+          alert('❌ Error: ' + data.message);
+        }
+      });
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+      const buscador = document.getElementById("buscador_kalu");
+      if(buscador) {
+          buscador.addEventListener("keyup", function() {
+              const query = this.value.toLowerCase();
+              const rows = document.querySelectorAll("table tbody tr");
+              rows.forEach(row => {
+                  row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+              });
+          });
+      }
+  });
+</script>
+
+{% endblock %}

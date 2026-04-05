@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Estado de Caja{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+    <!-- ENCABEZADO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">💰 Estado de Caja</h4>
+        <div>
+            <span class="badge bg-info fs-6">Tasa BCV: {{ tasa }} Bs/$</span>
+            <a href="{{ url_for('caja.registrar_gasto') }}" class="btn btn-danger ms-2">
+                ➖ Registrar Egreso
+            </a>
+            <button class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#modalIngreso">
+                ➕ Ingreso Manual
+            </button>
+        </div>
+    </div>
+
+    <!-- ====================================================
+       TARJETAS DE SALDO
+  ===================================================== -->
+    <div class="row g-3 mb-4">
+
+        <!-- CAJA USD -->
+        <div class="col-12 col-md-4">
+            <div class="card border-success shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="fs-1">💵</div>
+                    <h6 class="text-muted">Efectivo Dólares</h6>
+                    <h2 class="text-success fw-bold">${{ "%.2f"|format(saldo_usd) }}</h2>
+                    <small class="text-muted">≈ {{ "%.2f"|format(saldo_usd * tasa) }} Bs</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- CAJA BS -->
+        <div class="col-12 col-md-4">
+            <div class="card border-warning shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="fs-1">💸</div>
+                    <h6 class="text-muted">Efectivo Bolívares</h6>
+                    <h2 class="text-warning fw-bold">{{ "%.2f"|format(saldo_bs) }} Bs</h2>
+                    <small class="text-muted">≈ ${{ "%.2f"|format(saldo_bs / tasa) }}</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- BANCO -->
+        <div class="col-12 col-md-4">
+            <div class="card border-primary shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="fs-1">🏦</div>
+                    <h6 class="text-muted">Banco (Digital)</h6>
+                    <h2 class="text-primary fw-bold">{{ "%.2f"|format(saldo_banco) }} Bs</h2>
+                    <small class="text-muted">≈ ${{ "%.2f"|format(saldo_banco / tasa) }}</small>
+                    <!-- Desglose banco -->
+                    <hr class="my-2">
+                    <div class="text-start small">
+                        {% for metodo, monto in banco_desglosado.items() %}
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">{{ metodo }}</span>
+                            <span class="fw-bold">{{ "%.2f"|format(monto) }} Bs</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ====================================================
+       TOTAL DISPONIBLE PARA PAGAR FACTURAS
+  ===================================================== -->
+    <div class="card bg-dark text-white shadow mb-4">
+        <div class="card-body text-center py-4">
+            <h5 class="text-white-50 mb-1">💼 TOTAL DISPONIBLE PARA PAGAR FACTURAS</h5>
+            <h1 class="display-4 fw-bold text-success">${{ "%.2f"|format(total_usd) }}</h1>
+            <p class="text-white-50 mb-0">
+                (Suma de Caja $ + Caja Bs + Banco convertidos a USD con tasa {{ tasa }})
+            </p>
+        </div>
+    </div>
+
+    <!-- ====================================================
+       ÚLTIMOS MOVIMIENTOS
+  ===================================================== -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+            <span>📋 Últimos 30 Movimientos</span>
+            <a href="{{ url_for('caja.saldo_caja') }}" class="btn btn-sm btn-light">🔄 Actualizar</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Caja</th>
+                            <th>Tipo</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in movimientos %}
+                        <tr class="{{ 'table-success' if mov.tipo_movimiento == 'INGRESO' else 'table-danger' }}">
+                            <td>{{ mov.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td><span class="badge bg-secondary">{{ mov.tipo_caja }}</span></td>
+                            <td>
+                                {% if mov.tipo_movimiento == 'INGRESO' %}
+                                <span class="badge bg-success">⬆ INGRESO</span>
+                                {% else %}
+                                <span class="badge bg-danger">⬇ EGRESO</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ mov.categoria }}</td>
+                            <td class="text-muted small">{{ mov.descripcion }}</td>
+                            <td class="text-end fw-bold">
+                                {% if mov.tipo_caja == 'Caja USD' %}
+                                ${{ "%.2f"|format(mov.monto) }}
+                                {% else %}
+                                {{ "%.2f"|format(mov.monto) }} Bs
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No hay movimientos registrados aún.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ====================================================
+     MODAL: INGRESO MANUAL
+===================================================== -->
+<div class="modal fade" id="modalIngreso" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">➕ Registrar Ingreso Manual</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('caja.registrar_ingreso') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Caja Destino</label>
+                        <select name="tipo_caja" class="form-select" required>
+                            <option value="Caja USD">💵 Efectivo Dólares</option>
+                            <option value="Caja Bs">💸 Efectivo Bolívares</option>
+                            <option value="Banco">🏦 Banco (Digital)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Monto</label>
+                        <input type="number" name="monto" class="form-control" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Concepto</label>
+                        <input type="text" name="concepto" class="form-control"
+                            placeholder="Ej: Fondo de caja inicial, Depósito, etc." required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">✅ Registrar Ingreso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

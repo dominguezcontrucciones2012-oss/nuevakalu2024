@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-3 mb-5">
+    <!-- CABECERA -->
+    <div class="card shadow-sm border-0 mb-3"
+        style="background: linear-gradient(135deg, #007bff, #0056b3); color: white;">
+        <div class="card-body text-center">
+            <h4 class="mb-0">🧀 Panel de Productor: {{ proveedor.nombre }}</h4>
+            <small class="opacity-75">RIF: {{ proveedor.rif }}</small>
+        </div>
+    </div>
+
+    <!-- RESUMEN QUESERO -->
+    <div class="row g-2 mb-4">
+        <div class="col-6">
+            <div class="card border-0 shadow-sm text-center p-3 h-100" style="background-color: #e7f3ff;">
+                <small class="text-muted d-block mb-1">QUESO ENTREGADO</small>
+                <h3 class="text-primary mb-0 font-weight-bold">
+                    {% set total_kilos = movimientos | selectattr('tipo', 'equalto', 'RECEPCION_QUESO') |
+                    map(attribute='kilos') | sum %}
+                    {{ "%.2f"|format(total_kilos) }} kg
+                </h3>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm text-center p-3 h-100" style="background-color: #e6fffa;">
+                <small class="text-muted d-block mb-1">SALDO A FAVOR</small>
+                <h3 class="text-success mb-0 font-weight-bold">
+                    ${{ "%.2f"|format(proveedor.saldo_pendiente_usd * -1 if proveedor.saldo_pendiente_usd < 0 else 0) }}
+                        </h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN REPORTAR PAGO (Si te debe insumos) -->
+    {% if proveedor.saldo_pendiente_usd > 0 %}
+    <div class="alert alert-warning border-0 shadow-sm d-flex justify-content-between align-items-center">
+        <div>
+            <strong>Deuda de Insumos:</strong><br>
+            Debes ${{ "%.2f"|format(proveedor.saldo_pendiente_usd) }}
+        </div>
+        <button class="btn btn-warning text-white font-weight-bold" data-toggle="modal"
+            data-target="#modalPago">PAGAR</button>
+    </div>
+    {% endif %}
+
+    <!-- LIBRETA DIGITAL -->
+    <h6 class="text-muted mb-3 px-2">LIBRETA DIGITAL (MOVIMIENTOS)</h6>
+    <div class="list-group shadow-sm border-0">
+        {% for mov in movimientos | sort(attribute='fecha', reverse=True) %}
+        <div class="list-group-item border-0 mb-1 py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <div class="d-flex align-items-center">
+                    {% if mov.tipo == 'RECEPCION_QUESO' %} 🧀 {% elif mov.tipo == 'PAGO_RECIBIDO' %} 💰 {% else %} 📦 {%
+                    endif %}
+                    <strong class="text-dark ml-2">{{ mov.descripcion }}</strong>
+                </div>
+                <small class="text-muted">{{ mov.fecha.strftime('%d/%m/%Y') }}</small>
+            </div>
+            <div class="text-right">
+                {% if mov.haber > 0 %}
+                <span class="text-success font-weight-bold">+${{ "%.2f"|format(mov.haber) }}</span>
+                {% else %}
+                <span class="text-danger font-weight-bold">-${{ "%.2f"|format(mov.debe) }}</span>
+                {% endif %}
+                {% if mov.kilos > 0 %}<br><small class="text-muted">{{ mov.kilos }} kg</small>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- MODAL PAGO (Igual al anterior) -->
+<div class="modal fade" id="modalPago" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">Reportar Pago de Insumos</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form action="{{ url_for('usuarios.subir_pago') }}" method="POST">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Monto Pagado ($)</label>
+                        <input type="number" step="0.01" name="monto" class="form-control form-control-lg" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary btn-block btn-lg">ENVIAR REPORTE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

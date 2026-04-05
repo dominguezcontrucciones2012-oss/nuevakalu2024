@@ -1,0 +1,618 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-shopping-cart text-success"></i> Carga Rápida de Mercancía
+        </h1>
+    </div>
+
+    <!-- ESCANEAR PRODUCTOS -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success text-white">
+            <h6 class="m-0 font-weight-bold">Escanear Productos</h6>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label>Proveedor</label>
+                    <select id="proveedor_select" class="form-control form-control-lg" required>
+                        <option value="">-- Seleccione proveedor --</option>
+                        {% for p in proveedores %}
+                        <option value="{{ p.id }}">{{ p.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label>N° Factura</label>
+                    <input type="text" id="factura_input" class="form-control form-control-lg"
+                        placeholder="Ej: 001234" />
+                </div>
+            </div>
+            <!-- BUSCADOR POR NOMBRE -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="font-weight-bold text-primary">Buscar por nombre:</label>
+                    <input type="text" id="nombre_search_input" class="form-control form-control-lg"
+                        placeholder="Escribe parte del nombre y selecciona..." autocomplete="off" />
+                    <div id="nombre_suggestions" class="list-group" style="position:relative; z-index:1000;"></div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <label class="font-weight-bold text-success">ESCANEE O ESCRIBA CÓDIGO:</label>
+                    <input type="text" id="codigo_input" class="form-control form-control-lg"
+                        placeholder="Código de Barras" autofocus />
+                </div>
+                <div class="col-md-4">
+                    <label class="font-weight-bold">Cantidad:</label>
+                    <input type="number" id="cantidad_input" class="form-control form-control-lg" value="1" min="1" />
+                </div>
+            </div>
+
+            <!-- ✅ PANEL CONFIRMAR PRODUCTO EXISTENTE -->
+            <div id="area_confirmar" class="card border-success mb-3 p-3" style="display:none; background:#f0fff4;">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <small class="text-muted">Producto encontrado en inventario:</small>
+                        <div>
+                            <span class="badge badge-secondary mr-2" id="panel_prod_codigo"></span>
+                            <span class="font-weight-bold text-success" style="font-size:1.1rem;"
+                                id="panel_prod_nombre"></span>
+                        </div>
+                        <input type="hidden" id="panel_prod_id">
+                        <input type="hidden" id="panel_prod_cantidad">
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text font-weight-bold text-danger">Costo $</span>
+                            </div>
+                            <input type="number" id="panel_costo_input"
+                                class="form-control form-control-lg font-weight-bold text-danger" step="0.01"
+                                onkeydown="if(event.key==='Enter') confirmarAgregarProducto()">
+                            <div class="input-group-append">
+                                <button class="btn btn-success btn-lg font-weight-bold"
+                                    onclick="confirmarAgregarProducto()">
+                                    <i class="fas fa-plus"></i> AGREGAR
+                                </button>
+                                <button class="btn btn-secondary btn-lg" onclick="cancelarPanel()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ✅ ALERTA FLOTANTE -->
+            <div id="alerta_compras" class="alert mt-2" style="display:none;"></div>
+
+            <div class="table-responsive mt-4">
+                <table class="table table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cant.</th>
+                            <th class="text-warning">Costo Compra ($)</th>
+                            <th>Subtotal</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla_items">
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">
+                                <i class="fas fa-barcode fa-3x mb-2"></i>
+                                <p>Escanee el primer producto para empezar</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="4" class="text-right">TOTAL FACTURA PROVEEDOR:</th>
+                            <th id="total_compra" class="text-success" style="font-size: 1.3rem">$0.00</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- SELECTOR DE PAGO -->
+            <div class="card bg-light mb-3 p-3">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="font-weight-bold"><i class="fas fa-wallet"></i> Método de Pago</label>
+                        <select id="metodo_pago" class="form-control" onchange="toggleCaja()">
+                            <option value="Credito">Crédito (Cuenta por Pagar)</option>
+                            <option value="Contado USD">Contado (Dólares)</option>
+                            <option value="Contado Bs">Contado (Bolívares)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6" id="div_caja" style="display: none;">
+                        <label class="font-weight-bold"><i class="fas fa-cash-register"></i> Caja de Origen</label>
+                        <select id="caja_origen" class="form-control">
+                            <option value="Caja USD">Caja Principal $</option>
+                            <option value="Caja Bs">Caja Principal Bs</option>
+                            <option value="Banco">Banco (Transferencia/PM)</option>
+                        </select>
+                        <small class="text-muted">El dinero se descontará de esta caja.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-right mt-3">
+                <button class="btn btn-success btn-lg" id="btn_finalizar" onclick="finalizarCompra()" disabled>
+                    <i class="fas fa-check-circle"></i> FINALIZAR COMPRA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-secondary text-white">
+            <h6 class="m-0 font-weight-bold">Historial de Compras</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th>Factura</th>
+                            <th>Total ($)</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Ver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in compras %}
+                        <tr style="cursor:pointer;" onclick="window.location='/compras/{{ c.id }}/detalle'">
+                            <td>{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ c.proveedor.nombre if c.proveedor else '(Sin proveedor)' }}</td>
+                            <td>{{ c.numero_factura or '—' }}</td>
+                            <td class="text-success font-weight-bold">${{ "%.2f"|format(c.total_usd) }}</td>
+                            <td class="text-center">
+                                {% if c.estado == 'Pagada' %}
+                                <span class="badge badge-success">Pagada</span>
+                                {% elif c.estado == 'Parcial' %}
+                                <span class="badge badge-warning text-dark">Parcial</span>
+                                {% else %}
+                                <span class="badge badge-danger">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center"><i class="fas fa-eye text-primary"></i></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PRODUCTO NUEVO -->
+<div class="modal fade" id="modalCrearRapido" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content border-left-warning shadow">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle"></i> ¡Producto Nuevo Detectado!
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold">Código</label>
+                        <input type="text" id="nuevo_codigo" class="form-control bg-light" readonly />
+                    </div>
+                    <div class="col-md-8 form-group">
+                        <label class="font-weight-bold">Nombre del Producto <span class="text-danger">*</span></label>
+                        <input type="text" id="nuevo_nombre" class="form-control form-control-lg"
+                            placeholder="Ej: Harina PAN 1kg" />
+                    </div>
+                </div>
+                <hr />
+                <div class="row">
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold text-danger">💲 Costo ($) <small class="text-muted">Lo que
+                                pagó</small></label>
+                        <input type="number" id="nuevo_costo" class="form-control border-danger form-control-lg"
+                            step="0.01" value="0.00" oninput="calcularPreciosRapido()" />
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold text-success">% Ganancia Deseada</label>
+                        <div class="input-group">
+                            <input type="number" id="nuevo_margen" class="form-control form-control-lg" value="30"
+                                min="0" max="200" oninput="calcularPreciosRapido()" />
+                            <div class="input-group-append">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold text-primary">📦 Stock Inicial</label>
+                        <input type="number" id="nuevo_stock" class="form-control form-control-lg" value="0" min="0" />
+                        <small class="text-muted">Se sumará a la cantidad escaneada</small>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold">Precio Full ($)</label>
+                        <input type="number" id="nuevo_precio_full" class="form-control form-control-lg bg-light"
+                            step="0.01" value="0.00" oninput="recalcularDesdeFull()" />
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold text-info">% Desc. Oferta</label>
+                        <div class="input-group">
+                            <input type="number" id="nuevo_desc_oferta" class="form-control form-control-lg" value="15"
+                                min="0" max="100" oninput="calcularPreciosRapido()" />
+                            <div class="input-group-append">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 form-group">
+                        <label class="font-weight-bold text-success">Precio Oferta ($)</label>
+                        <input type="number" id="nuevo_precio_oferta" class="form-control form-control-lg" step="0.01"
+                            value="0.00" oninput="detectarOfertaManual()" />
+                        <small id="margen_real_label" class="text-success font-weight-bold"></small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <!-- ✅ BOTÓN CORREGIDO PARA BOOTSTRAP 5 -->
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+
+                <button type="button" class="btn btn-warning btn-lg" onclick="guardarProductoRapido()">
+                    <i class="fas fa-save"></i> Guardar y Agregar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let carrito = [];
+
+    function toggleCaja() {
+        const metodo = document.getElementById('metodo_pago').value;
+        document.getElementById('div_caja').style.display =
+            metodo.startsWith('Contado') ? 'block' : 'none';
+    }
+
+    document.getElementById("codigo_input").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); buscarYAgregar(); }
+    });
+
+    document.getElementById("cantidad_input").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); document.getElementById("codigo_input").focus(); }
+    });
+
+    function buscarYAgregar() {
+        const codigo = document.getElementById("codigo_input").value.trim();
+        const cantidad = parseFloat(document.getElementById("cantidad_input").value) || 1;
+        if (!codigo) { alert("Escanee o escriba un código"); return; }
+
+        fetch(`/buscar_producto/${codigo}`)
+            .then((r) => r.json())
+            .then((prod) => {
+                if (prod.id) {
+                    let existe = carrito.find((item) => item.id === prod.id);
+                    if (existe) {
+                        existe.cantidad += cantidad;
+                        renderizarCarrito();
+                        mostrarAlerta(`✅ <b>${prod.nombre}</b> — cantidad actualizada a <b>${existe.cantidad}</b>`, "success");
+                        document.getElementById("codigo_input").value = "";
+                        document.getElementById("cantidad_input").value = 1;
+                        document.getElementById("codigo_input").focus();
+                        return;
+                    }
+                    document.getElementById("panel_prod_nombre").innerText = prod.nombre;
+                    document.getElementById("panel_prod_codigo").innerText = prod.codigo;
+                    document.getElementById("panel_costo_input").value = prod.costo ? prod.costo.toFixed(2) : "0.00";
+                    document.getElementById("panel_prod_id").value = prod.id;
+                    document.getElementById("panel_prod_cantidad").value = cantidad;
+                    document.getElementById("area_confirmar").style.display = "block";
+                    document.getElementById("panel_costo_input").focus();
+                    document.getElementById("panel_costo_input").select();
+                    document.getElementById("codigo_input").value = "";
+                } else {
+                    abrirModalCrearRapido(codigo);
+                }
+            });
+    }
+
+    function confirmarAgregarProducto() {
+        const id = document.getElementById("panel_prod_id").value;
+        const codigo = document.getElementById("panel_prod_codigo").innerText;
+        const nombre = document.getElementById("panel_prod_nombre").innerText;
+        const costo = parseFloat(document.getElementById("panel_costo_input").value) || 0;
+
+        // AQUÍ ESTÁ EL ARREGLO: Leemos la cantidad DIRECTO del cuadro donde escribiste el 40
+        const cantidad = parseFloat(document.getElementById("cantidad_input").value) || 1;
+
+        if (costo <= 0) { alert("⚠️ El costo no puede ser $0"); return; }
+
+        // Buscamos si ya está en el carrito para sumarlo o agregarlo nuevo
+        let existe = carrito.find((item) => item.id === parseInt(id));
+        if (existe) {
+            existe.cantidad += cantidad;
+            existe.costo = costo; // Actualizamos el costo por si lo cambiaste en el panel
+        } else {
+            carrito.push({ id: parseInt(id), codigo, nombre, cantidad, costo });
+        }
+
+        renderizarCarrito();
+        document.getElementById("area_confirmar").style.display = "none";
+        document.getElementById("cantidad_input").value = 1; // Esto lo limpia para el SIGUIENTE producto
+        document.getElementById("codigo_input").focus();
+        mostrarAlerta(`✅ <b>${nombre}</b> agregado al carrito`, "success");
+    }
+
+    function cancelarPanel() {
+        document.getElementById("area_confirmar").style.display = "none";
+        document.getElementById("codigo_input").focus();
+    }
+
+    function mostrarAlerta(msg, tipo) {
+        let div = document.getElementById("alerta_compras");
+        div.className = `alert alert-${tipo} mt-2`;
+        div.innerHTML = msg;
+        div.style.display = "block";
+        setTimeout(() => div.style.display = "none", 3000);
+    }
+
+    function renderizarCarrito() {
+        const tbody = document.getElementById("tabla_items");
+        tbody.innerHTML = "";
+        if (carrito.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted"><i class="fas fa-barcode fa-2x mb-2"></i><p>Carrito vacío</p></td></tr>';
+            document.getElementById("btn_finalizar").disabled = true;
+            document.getElementById("total_compra").textContent = "$0.00";
+            return;
+        }
+        let total = 0;
+        carrito.forEach((item, index) => {
+            const subtotal = item.cantidad * item.costo;
+            total += subtotal;
+            tbody.innerHTML += `
+        <tr>
+          <td>${item.codigo}</td>
+          <td>${item.nombre}</td>
+          <td>${item.cantidad}</td>
+          <td>
+            <div class="input-group input-group-sm">
+              <div class="input-group-prepend"><span class="input-group-text text-danger font-weight-bold">$</span></div>
+              <input type="number" class="form-control form-control-sm font-weight-bold text-danger"
+                value="${item.costo.toFixed(2)}" step="0.01"
+                onchange="actualizarCosto(${index}, this.value)" style="width:90px;">
+            </div>
+          </td>
+          <td class="text-success font-weight-bold" id="sub_${index}">$${subtotal.toFixed(2)}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="eliminarItem(${index})"><i class="fas fa-trash"></i></button></td>
+        </tr>`;
+        });
+        document.getElementById("total_compra").textContent = `$${total.toFixed(2)}`;
+        document.getElementById("btn_finalizar").disabled = false;
+    }
+
+    function actualizarCosto(index, valor) {
+        carrito[index].costo = parseFloat(valor) || 0;
+        document.getElementById(`sub_${index}`).textContent =
+            `$${(carrito[index].cantidad * carrito[index].costo).toFixed(2)}`;
+        let total = 0;
+        carrito.forEach((item) => (total += item.cantidad * item.costo));
+        document.getElementById("total_compra").textContent = `$${total.toFixed(2)}`;
+    }
+
+    function eliminarItem(index) { carrito.splice(index, 1); renderizarCarrito(); }
+
+    function finalizarCompra() {
+        const prov_id = document.getElementById("proveedor_select").value;
+        const factura = document.getElementById("factura_input").value;
+        const metodo = document.getElementById("metodo_pago").value;
+        const caja = document.getElementById("caja_origen").value;
+
+        // ✅ Usamos comillas para que el editor no se confunda con las llaves
+        const tasa_bcv = parseFloat("{{ tasa_bcv | default(1) }}");
+
+        if (!prov_id) { alert("⚠️ Seleccione un proveedor"); return; }
+        if (carrito.length === 0) { alert("⚠️ Escanee al menos un producto"); return; }
+
+        fetch("/procesar_compra_rapida", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                proveedor_id: prov_id,
+                numero_factura: factura,
+                items: carrito,
+                metodo_pago: metodo,
+                caja_origen: (metodo === 'Credito') ? null : caja,
+                tasa_bcv: tasa_bcv
+            }),
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                if (data.status === "success") {
+                    alert("✅ Compra registrada correctamente.");
+                    location.reload();
+                } else {
+                    alert("❌ Error: " + data.message);
+                }
+            })
+            .catch((err) => alert("❌ Error de red: " + err));
+    }
+
+    let ofertaManual = false;
+
+    function calcularPreciosRapido() {
+        const costo = parseFloat(document.getElementById("nuevo_costo").value) || 0;
+        const margen = parseFloat(document.getElementById("nuevo_margen").value) || 0;
+        const desc = parseFloat(document.getElementById("nuevo_desc_oferta").value) || 0;
+        const precioFull = costo * (1 + margen / 100);
+        document.getElementById("nuevo_precio_full").value = precioFull.toFixed(2);
+        if (!ofertaManual) {
+            document.getElementById("nuevo_precio_oferta").value = (precioFull * (1 - desc / 100)).toFixed(2);
+        }
+        actualizarMargenReal();
+    }
+
+    function recalcularDesdeFull() {
+        const costo = parseFloat(document.getElementById("nuevo_costo").value) || 0;
+        const full = parseFloat(document.getElementById("nuevo_precio_full").value) || 0;
+        const desc = parseFloat(document.getElementById("nuevo_desc_oferta").value) || 0;
+        if (costo > 0) {
+            document.getElementById("nuevo_margen").value = (((full - costo) / costo) * 100).toFixed(1);
+        }
+        if (!ofertaManual) {
+            document.getElementById("nuevo_precio_oferta").value = (full * (1 - desc / 100)).toFixed(2);
+        }
+        actualizarMargenReal();
+    }
+
+    function detectarOfertaManual() { ofertaManual = true; actualizarMargenReal(); }
+
+    function actualizarMargenReal() {
+        const costo = parseFloat(document.getElementById("nuevo_costo").value) || 0;
+        const oferta = parseFloat(document.getElementById("nuevo_precio_oferta").value) || 0;
+        if (costo > 0 && oferta > 0) {
+            document.getElementById("margen_real_label").textContent =
+                `💡 Margen Real: ${(((oferta - costo) / costo) * 100).toFixed(1)}%`;
+        }
+    }
+
+    // ✅ REPARADO: Abrir modal con JS Puro
+    function abrirModalCrearRapido(codigo) {
+        ofertaManual = false;
+        document.getElementById("nuevo_codigo").value = codigo;
+        document.getElementById("nuevo_nombre").value = "";
+        document.getElementById("nuevo_costo").value = "0.00";
+        document.getElementById("nuevo_desc_oferta").value = "15";
+
+        var modalElement = document.getElementById('modalCrearRapido');
+        var myModal = new bootstrap.Modal(modalElement);
+        myModal.show();
+
+        setTimeout(() => document.getElementById("nuevo_nombre").focus(), 500);
+    }
+
+    // ✅ REPARADO: Cerrar modal con JS Puro
+    function guardarProductoRapido() {
+        const codigo = document.getElementById("nuevo_codigo").value;
+        const nombre = document.getElementById("nuevo_nombre").value.trim();
+        const costo = parseFloat(document.getElementById("nuevo_costo").value) || 0;
+        const precio_full = parseFloat(document.getElementById("nuevo_precio_full").value) || costo;
+        const precio_oferta = parseFloat(document.getElementById("nuevo_precio_oferta").value) || precio_full;
+        const stock_inicial = parseInt(document.getElementById("nuevo_stock").value) || 0;
+        const cantidad = parseFloat(document.getElementById("cantidad_input").value) || 1;
+
+        if (!nombre) { alert("¡Ponle un nombre al producto!"); return; }
+        if (costo <= 0) { alert("⚠️ El costo no puede ser $0."); return; }
+
+        fetch("/crear_producto_rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ codigo, nombre, costo, precio: precio_full, precio_oferta, stock: stock_inicial }),
+        })
+            .then((r) => r.json())
+            .then((prod) => {
+                if (prod.id) {
+                    carrito.push({ id: prod.id, codigo: prod.codigo, nombre: prod.nombre, cantidad, costo });
+                    renderizarCarrito();
+
+                    // Cerrar modal correctamente
+                    var modalElement = document.getElementById('modalCrearRapido');
+                    var modalInstance = bootstrap.Modal.getInstance(modalElement);
+                    if (modalInstance) { modalInstance.hide(); }
+
+                    document.getElementById("codigo_input").value = "";
+                    document.getElementById("cantidad_input").value = 1;
+                    setTimeout(() => document.getElementById("codigo_input").focus(), 200);
+                    mostrarAlerta(`✅ <b>${prod.nombre}</b> creado y agregado al carrito`, "success");
+                } else {
+                    alert("Error al guardar: " + (prod.message || "intente de nuevo"));
+                }
+            })
+            .catch((err) => alert("Error de conexión: " + err));
+    }
+
+    // ---------- BÚSQUEDA POR NOMBRE (REPARADA) ----------
+    function debounce(fn, delay = 300) {
+        let t;
+        return function (...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
+
+    const inputNombre = document.getElementById('nombre_search_input');
+    const contSuggestions = document.getElementById('nombre_suggestions');
+
+    inputNombre && inputNombre.addEventListener('input', debounce(function (e) {
+        const q = this.value.trim();
+        contSuggestions.innerHTML = '';
+        if (!q) return;
+
+        fetch(`/buscar_producto_nombre/${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(list => {
+                if (!list || list.length === 0) {
+                    // ✅ Si no existe, mostrar opción para crear uno nuevo con ese nombre
+                    contSuggestions.innerHTML = `
+                        <button type="button" class="list-group-item list-group-item-action list-group-item-warning"
+                                onclick="abrirModalCrearDesdeNombre('${q}')">
+                            <i class="fas fa-plus-circle"></i> No existe "<strong>${q}</strong>". ¿Desea crearlo?
+                        </button>
+                    `;
+                    return;
+                }
+                contSuggestions.innerHTML = list.map(p => `
+                    <button type="button" class="list-group-item list-group-item-action"
+                            data-id="${p.id}" data-codigo="${p.codigo}" data-nombre="${p.nombre}" data-costo="${p.costo}">
+                      <strong>${p.nombre}</strong> <small class="text-muted"> — ${p.codigo}</small>
+                    </button>
+                `).join('');
+            });
+    }, 250));
+
+    // Nueva función para cuando el producto no existe por nombre
+    function abrirModalCrearDesdeNombre(nombre) {
+        const codigoProvisional = "NUEVO-" + Math.floor(Math.random() * 10000);
+        abrirModalCrearRapido(codigoProvisional);
+        // Esperar un pelín a que abra y ponerle el nombre que el usuario escribió
+        setTimeout(() => {
+            document.getElementById("nuevo_nombre").value = nombre;
+            document.getElementById("nuevo_codigo").removeAttribute('readonly'); // Permitir cambiar el código si quiere
+            document.getElementById("nuevo_codigo").focus();
+            document.getElementById("nuevo_codigo").select();
+        }, 600);
+        contSuggestions.innerHTML = '';
+        inputNombre.value = '';
+    }
+
+    contSuggestions && contSuggestions.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-id]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const codigo = btn.getAttribute('data-codigo');
+        const nombre = btn.getAttribute('data-nombre');
+        const costo = parseFloat(btn.getAttribute('data-costo')) || 0;
+
+        document.getElementById("panel_prod_nombre").innerText = nombre;
+        document.getElementById("panel_prod_codigo").innerText = codigo;
+        document.getElementById("panel_costo_input").value = costo.toFixed(2);
+        document.getElementById("panel_prod_id").value = id;
+        document.getElementById("panel_prod_cantidad").value = parseFloat(document.getElementById("cantidad_input").value) || 1;
+
+        document.getElementById("area_confirmar").style.display = "block";
+        document.getElementById("panel_costo_input").focus();
+        document.getElementById("panel_costo_input").select();
+
+        contSuggestions.innerHTML = '';
+        inputNombre.value = '';
+    });
+</script>
+{% endblock %}

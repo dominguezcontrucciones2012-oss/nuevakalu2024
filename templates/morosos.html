@@ -1,0 +1,505 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+  <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+      <i class="fas fa-user-clock text-danger"></i> Control de Morosos (Fiado)
+    </h1>
+
+    <div>
+      <a href="{{ url_for('clientes.historial_abonos') }}" class="btn btn-success shadow-sm mr-3">
+        <i class="fas fa-history fa-sm text-white-50"></i> Ver Historial de Pagos
+      </a>
+
+      <a href="{{ url_for('clientes.pagos_reportados') }}" class="btn btn-primary shadow-sm mr-3">
+        <i class="fas fa-receipt fa-sm text-white-50"></i> Pagos Reportados
+      </a>
+
+      <div class="d-inline-block h4 mb-0 font-weight-bold text-primary">
+        Deuda Total: $<span id="deuda_total_general">
+          {{ "%.2f"|format(morosos|selectattr('saldo_usd', 'gt', 0)|sum(attribute='saldo_usd')) if morosos else "0.00"
+          }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <div class="input-group shadow-sm rounded-pill overflow-hidden border-danger" style="border: 2px solid #e74a3b;">
+      <span class="input-group-text bg-white border-0 text-danger"><i class="fas fa-search"></i></span>
+      <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe cliente, teléfono, monto..." style="box-shadow: none;">
+    </div>
+  </div>
+
+  <div class="card shadow mb-4">
+    <div class="card-header py-3 bg-danger text-white">
+      <h6 class="m-0 font-weight-bold">Lista de Clientes con Deuda Pendiente</h6>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="tabla_morosos" width="100%" cellspacing="0">
+          <thead class="thead-light">
+            <tr>
+              <th>Cliente</th>
+              <th>Teléfono</th>
+              <th>Última Compra</th>
+              <th>Deuda ($)</th>
+              <th>Deuda (Bs)</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if morosos %}
+            {% for c in morosos %}
+            <tr class="{{ 'table-success' if c.saldo_usd < 0 else '' }}">
+              <td class="font-weight-bold">{{ c.nombre }}</td>
+              <td>{{ c.telefono or 'N/A' }}</td>
+              <td>{{ c.ultima_compra or 'N/A' }}</td>
+
+              {# SALDO A FAVOR vs DEUDA #}
+              {% if c.saldo_usd < 0 %} <td class="font-weight-bold text-success">
+                ✅ A FAVOR: ${{ "%.2f"|format(c.saldo_usd * -1) }}
+                </td>
+                <td class="text-success">
+                  ✅ A FAVOR: Bs. {{ "%.2f"|format(c.saldo_usd * -1 * tasa_bcv) }}
+                </td>
+                {% else %}
+                <td class="font-weight-bold text-danger">
+                  ${{ "%.2f"|format(c.saldo_usd) }}
+                </td>
+                <td class="text-muted">
+                  Bs. {{ "%.2f"|format(c.saldo_usd * tasa_bcv) }}
+                </td>
+                {% endif %}
+
+                <td>
+                  <div class="btn-group">
+                    {% if c.saldo_usd < 0 %} <span class="badge badge-success p-2">
+                      <i class="fas fa-check-circle"></i> Saldo a Favor
+                      </span>
+                      {% else %}
+                      <button class="btn btn-info btn-sm" title="Ver Facturas Pendientes"
+                        onclick="verFacturasPendientes('{{ c.id }}', '{{ c.nombre }}')">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button class="btn btn-success btn-sm"
+                        onclick="abrirModalAbono('{{ c.id }}', '{{ c.nombre }}', '{{ c.saldo_usd }}')">
+                        <i class="fas fa-hand-holding-usd"></i> Abonar
+                      </button>
+                      {% endif %}
+                  </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="fas fa-check-circle text-success"></i> ¡No hay morosos! Todos están al día.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARA REGISTRAR ABONO -->
+<div class="modal fade" id="modalAbono" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-money-bill-wave"></i> Registrar Abono / Pago
+        </h5>
+        <button type="button" class="close text-white" onclick="cerrarModal()">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <h4 id="abono_cliente_nombre" class="text-center mb-3 text-primary font-weight-bold"></h4>
+
+        <div class="alert alert-warning text-center">
+          Deuda Actual: <strong>$<span id="abono_deuda_actual"></span></strong>
+        </div>
+
+        <div class="form-group">
+          <label class="font-weight-bold" id="label_monto_abono">Monto del Abono ($)</label>
+          <input type="number" id="monto_abono" class="form-control form-control-lg border-success" step="0.01"
+            placeholder="0.00" />
+          <input type="hidden" id="tasa_sistema" value="{{ tasa_bcv | default(1) }}">
+          <small id="alerta_monto" class="text-danger font-weight-bold mt-1" style="display:none;">
+            ⚠️ El monto supera la deuda pendiente. Corrige el valor.
+          </small>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="font-weight-bold">Método de Pago</label>
+          <select id="metodo_abono" class="form-control form-control-lg border-success"
+            onchange="actualizarLabelMonto()">
+            <option value="">-- SELECCIONE PAGO --</option>
+            <option value="EFECTIVO_USD">💵 Efectivo $</option>
+            <option value="EFECTIVO_BS">💴 Efectivo Bs</option>
+            <option value="PAGO_MOVIL">📱 Pago Móvil</option>
+            <option value="DEBITO">💳 Tarjeta Débito</option>
+            <option value="BIOPAGO">🏦 Biopago BDV</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+        <button type="button" class="btn btn-success btn-lg" onclick="procesarAbono()">
+          <i class="fas fa-check"></i> Confirmar Pago
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FACTURAS PENDIENTES -->
+<div class="modal fade" id="modalFacturas" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-file-invoice-dollar"></i> Facturas — <span id="facturas_cliente_nombre"></span>
+        </h5>
+        <button type="button" class="close text-white" onclick="cerrarModalFacturas()"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="facturas_loading" class="text-center py-4">
+          <i class="fas fa-spinner fa-spin fa-2x text-info"></i>
+          <p class="mt-2 text-muted">Cargando facturas...</p>
+        </div>
+        <div id="facturas_contenido" style="display:none;">
+          <table class="table table-bordered table-sm">
+            <thead class="thead-light">
+              <tr>
+                <th>#</th>
+                <th>Fecha</th>
+                <th>Total ($)</th>
+                <th>Pagado ($)</th>
+                <th>Pendiente ($)</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody id="facturas_tbody"></tbody>
+          </table>
+        </div>
+        <div id="facturas_vacio" class="text-center text-muted py-4" style="display:none;">
+          <i class="fas fa-check-circle text-success fa-2x"></i>
+          <p class="mt-2">No hay facturas pendientes.</p>
+        </div>
+        <div id="facturas_error" class="alert alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModalFacturas()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE PRODUCTOS -->
+<div class="modal fade" id="modalDetalleVenta" tabindex="-1" role="dialog" aria-hidden="true" style="z-index:1060;">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-shopping-basket"></i> Productos — Factura #<span id="det_venta_id"></span>
+        </h5>
+        <button type="button" class="close text-white" onclick="cerrarModalDetalle()"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div id="det_loading" class="text-center py-4">
+          <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+          <p class="mt-2 text-muted">Cargando productos...</p>
+        </div>
+        <div id="det_contenido" style="display:none;">
+          <table class="table table-sm table-striped">
+            <thead class="thead-light">
+              <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>Precio Unit.</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody id="det_venta_tbody"></tbody>
+          </table>
+        </div>
+        <div id="det_error" class="alert alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModalDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  let clienteSeleccionado = null;
+
+  function abrirModalAbono(id, nombre, deuda) {
+    clienteSeleccionado = id;
+    document.getElementById("abono_cliente_nombre").innerText = nombre;
+    document.getElementById("abono_deuda_actual").innerText = parseFloat(deuda).toFixed(2);
+
+    actualizarLabelMonto();
+
+    const modal = document.getElementById("modalAbono");
+    modal.classList.add("show");
+    modal.style.display = "block";
+    modal.removeAttribute("aria-hidden");
+    document.body.classList.add("modal-open");
+
+    if (!document.getElementById("modal-backdrop")) {
+      const backdrop = document.createElement("div");
+      backdrop.id = "modal-backdrop";
+      backdrop.className = "modal-backdrop fade show";
+      document.body.appendChild(backdrop);
+    }
+  }
+
+  function cerrarModal() {
+    const modal = document.getElementById("modalAbono");
+    modal.classList.remove("show");
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+
+    const backdrop = document.getElementById("modal-backdrop");
+    if (backdrop) backdrop.remove();
+  }
+
+  function actualizarLabelMonto() {
+    const metodo = document.getElementById("metodo_abono").value;
+    const label = document.getElementById("label_monto_abono");
+    const input = document.getElementById("monto_abono");
+    const alerta = document.getElementById("alerta_monto");
+    const deuda = parseFloat(document.getElementById("abono_deuda_actual").innerText) || 0;
+
+    // Leer tasa BCV desde input oculto
+    const tasa = parseFloat(document.getElementById("tasa_sistema").value) || 1;
+
+    if (metodo === 'EFECTIVO_BS' || metodo === 'PAGO_MOVIL' || metodo === 'DEBITO' || metodo === 'BIOPAGO') {
+      label.textContent = 'Monto del Abono (Bs)';
+      input.value = (deuda * tasa).toFixed(2);
+      input.placeholder = 'Ingresa en Bolívares';
+    } else {
+      label.textContent = 'Monto del Abono ($)';
+      input.value = deuda.toFixed(2);
+      input.placeholder = '0.00';
+    }
+    alerta.style.display = 'none';
+    input.style.borderColor = '';
+  }
+
+  document.getElementById("monto_abono").addEventListener("input", function () {
+    validarMonto();
+  });
+
+  function validarMonto() {
+    const metodo = document.getElementById("metodo_abono").value;
+    const input = document.getElementById("monto_abono");
+    const alerta = document.getElementById("alerta_monto");
+    const deuda = parseFloat(document.getElementById("abono_deuda_actual").innerText) || 0;
+    const tasa = parseFloat(document.getElementById("tasa_sistema").value) || 1;
+    const monto = parseFloat(input.value) || 0;
+
+    let limiteMaximo = deuda;
+    if (metodo === 'EFECTIVO_BS' || metodo === 'PAGO_MOVIL' || metodo === 'DEBITO' || metodo === 'BIOPAGO') {
+      limiteMaximo = deuda * tasa;
+    }
+
+    if (monto > limiteMaximo + 0.05) {
+      alerta.style.display = 'block';
+      input.style.borderColor = 'red';
+      return false;
+    } else {
+      alerta.style.display = 'none';
+      input.style.borderColor = '';
+      return true;
+    }
+  }
+
+  function procesarAbono() {
+    if (!validarMonto()) {
+      alert("⚠️ El monto ingresado supera la deuda pendiente. Corrige antes de continuar.");
+      return;
+    }
+
+    const monto = (document.getElementById("monto_abono").value || "").trim();
+    const metodo = (document.getElementById("metodo_abono").value || "").trim();
+
+    if (!clienteSeleccionado) {
+      alert("⚠️ Cliente inválido.");
+      return;
+    }
+    if (!metodo) {
+      alert("⚠️ ¡MOSCA! Debe seleccionar un método de pago.");
+      return;
+    }
+    const montoNum = parseFloat(monto);
+    if (!monto || isNaN(montoNum) || montoNum <= 0) {
+      alert("⚠️ ¡Comandante! Ingrese un monto válido mayor a cero.");
+      return;
+    }
+
+    // 🛡️ ANTI DOBLE CLIC
+    const btn = document.querySelector('#modalAbono .btn-success.btn-lg');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    const body = new URLSearchParams();
+    body.append("monto_usd", monto);
+    body.append("metodo_pago", metodo);
+
+    fetch("/clientes/abono/" + clienteSeleccionado, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    })
+      .then((response) => {
+        if (response.ok) {
+          cerrarModal();
+          window.location.reload();
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+          response.text().then(t => alert("❌ Error en el servidor:\n" + t));
+        }
+      })
+      .catch((err) => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
+        alert("❌ Error de conexión: " + err);
+      });
+  }
+
+  function verFacturasPendientes(id, nombre) {
+    document.getElementById("facturas_cliente_nombre").innerText = nombre;
+    document.getElementById("facturas_loading").style.display = "block";
+    document.getElementById("facturas_contenido").style.display = "none";
+    document.getElementById("facturas_vacio").style.display = "none";
+    document.getElementById("facturas_error").style.display = "none";
+    document.getElementById("facturas_tbody").innerHTML = "";
+
+    const modal = document.getElementById("modalFacturas");
+    modal.classList.add("show");
+    modal.style.display = "block";
+    modal.removeAttribute("aria-hidden");
+    document.body.classList.add("modal-open");
+    if (!document.getElementById("modal-backdrop")) {
+      const backdrop = document.createElement("div");
+      backdrop.id = "modal-backdrop";
+      backdrop.className = "modal-backdrop fade show";
+      document.body.appendChild(backdrop);
+    }
+
+    fetch("/clientes/detalles_deuda/" + id)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("facturas_loading").style.display = "none";
+        if (!data || data.length === 0) {
+          document.getElementById("facturas_vacio").style.display = "block";
+          return;
+        }
+        const tbody = document.getElementById("facturas_tbody");
+        data.forEach(f => {
+          tbody.innerHTML += `
+            <tr>
+              <td>#${f.id}</td>
+              <td>${f.fecha}</td>
+              <td class="text-danger font-weight-bold">$${f.total_usd.toFixed(2)}</td>
+              <td class="text-success">$${f.pagado_usd.toFixed(2)}</td>
+              <td class="text-danger font-weight-bold">$${f.pendiente.toFixed(2)}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="verDetalleProductos(${f.id})">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </td>
+            </tr>`;
+        });
+        document.getElementById("facturas_contenido").style.display = "block";
+      })
+      .catch(err => {
+        document.getElementById("facturas_loading").style.display = "none";
+        document.getElementById("facturas_error").innerText = "❌ Error: " + err;
+        document.getElementById("facturas_error").style.display = "block";
+      });
+  }
+
+  function cerrarModalFacturas() {
+    const modal = document.getElementById("modalFacturas");
+    modal.classList.remove("show");
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
+    const backdrop = document.getElementById("modal-backdrop");
+    if (backdrop) backdrop.remove();
+  }
+
+  function verDetalleProductos(ventaId) {
+    document.getElementById("det_venta_id").innerText = ventaId;
+    document.getElementById("det_loading").style.display = "block";
+    document.getElementById("det_contenido").style.display = "none";
+    document.getElementById("det_error").style.display = "none";
+    document.getElementById("det_venta_tbody").innerHTML = "";
+
+    const modal = document.getElementById("modalDetalleVenta");
+    modal.classList.add("show");
+    modal.style.display = "block";
+    modal.removeAttribute("aria-hidden");
+
+    fetch("/detalle_venta/" + ventaId + "/json")
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("det_loading").style.display = "none";
+        const tbody = document.getElementById("det_venta_tbody");
+        data.forEach(p => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${p.nombre}</td>
+              <td>${p.cantidad}</td>
+              <td>$${p.precio_unitario.toFixed(2)}</td>
+              <td class="font-weight-bold">$${(p.cantidad * p.precio_unitario).toFixed(2)}</td>
+            </tr>`;
+        });
+        document.getElementById("det_contenido").style.display = "block";
+      })
+      .catch(err => {
+        document.getElementById("det_loading").style.display = "none";
+        document.getElementById("det_error").innerText = "❌ Error: " + err;
+        document.getElementById("det_error").style.display = "block";
+      });
+  }
+
+  function cerrarModalDetalle() {
+    const modal = document.getElementById("modalDetalleVenta");
+    modal.classList.remove("show");
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+
+    // ESTO ES LO QUE FALTA: Quitar la mancha oscura de la pantalla
+    const backdrop = document.getElementById("modal-backdrop");
+    if (backdrop) backdrop.remove();
+    document.body.classList.remove("modal-open");
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+      const buscador = document.getElementById("buscador_kalu");
+      if(buscador) {
+          buscador.addEventListener("keyup", function() {
+              const query = this.value.toLowerCase();
+              const rows = document.querySelectorAll("#tabla_morosos tbody tr");
+              rows.forEach(row => {
+                  row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+              });
+          });
+      }
+  });
+</script>
+{% endblock %}

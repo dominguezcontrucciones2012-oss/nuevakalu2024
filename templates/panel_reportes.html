@@ -1,0 +1,171 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-chart-line text-primary"></i> Análisis de Utilidad y Ventas
+        </h1>
+        <div class="text-muted">
+            <i class="fas fa-calendar-alt"></i> Período: {{ inicio }} al {{ fin }}
+        </div>
+    </div>
+
+    <!-- FILTRO DE FECHAS -->
+    <div class="card shadow mb-4 border-left-primary">
+        <div class="card-body">
+            <form class="row align-items-end" method="GET" action="/reportes">
+                <div class="col-md-4">
+                    <label class="font-weight-bold">Desde:</label>
+                    <input type="date" name="inicio" class="form-control" value="{{ inicio }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="font-weight-bold">Hasta:</label>
+                    <input type="date" name="fin" class="form-control" value="{{ fin }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-sync-alt"></i> Actualizar Reporte
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE RESUMEN -->
+    <div class="row">
+        <!-- VENTAS TOTALES -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Ventas Totales ($)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">${{ "%.2f"|format(total_usd) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- UTILIDAD ESTIMADA -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Utilidad (Ganancia $)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-success">${{ "%.2f"|format(utilidad) }}</div>
+                            <small class="text-muted">Ventas - Costo de Mercancía</small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-piggy-bank fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VENTAS EN BS -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Ventas en Bolívares
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.2f"|format(total_bs) }} Bs</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-money-bill-wave fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CANTIDAD DE VENTAS -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Operaciones</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ num_ventas }} Ventas</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-shopping-basket fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- TOP 10 PRODUCTOS -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-dark text-white">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-fire text-warning"></i> Los 10 Más Vendidos
+                        (Período)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-center">Unidades</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in top_productos %}
+                                <tr>
+                                    <td>{{ p.nombre_producto }}</td>
+                                    <td class="text-center">
+                                        <span class="badge badge-pill badge-primary px-3">{{ p.total }}</span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted">No hay ventas en este rango</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONSEJO DE NEGOCIO -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4 border-left-warning">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning"><i class="fas fa-lightbulb"></i> Análisis de Margen
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if total_usd > 0 %}
+                    <p>Tu margen de utilidad promedio en este período es del
+                        <strong>{{ "%.1f"|format((utilidad / (total_usd - utilidad)) * 100) if (total_usd - utilidad) >
+                            0 else '0' }}%</strong>
+                        sobre el costo.
+                    </p>
+                    {% endif %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Nota:</strong> La utilidad se calcula restando el costo que tenía el producto al momento
+                        de la venta del precio cobrado. Asegúrate de cargar los costos correctamente en el módulo de
+                        Compras.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

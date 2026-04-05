@@ -1,0 +1,308 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-file-invoice-dollar text-danger"></i> Cuentas por Pagar
+        </h1>
+    </div>
+
+    <!-- RESUMEN POR PROVEEDOR -->
+    <div class="row mb-4">
+        {% for p in proveedores %}
+        {% if p.saldo_pendiente_usd and p.saldo_pendiente_usd > 0 %}
+        <div class="col-md-4 mb-3">
+            <div class="card border-left-danger shadow-sm h-100">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="font-weight-bold text-dark">{{ p.nombre }}</div>
+                            <small class="text-muted">{{ p.rif or '' }}</small>
+                        </div>
+                        <div class="text-right">
+                            <div class="h5 text-danger font-weight-bold mb-0">
+                                ${{ "%.2f"|format(p.saldo_pendiente_usd) }}
+                            </div>
+                            <small class="text-muted">Deuda total</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- BUSCADOR INTELIGENTE -->
+    <div class="mb-3">
+      <div class="input-group shadow-sm rounded-pill overflow-hidden border-danger" style="border: 2px solid #e74a3b;">
+        <span class="input-group-text bg-white border-0 text-danger"><i class="fas fa-search"></i></span>
+        <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: buscar proveedor, factura, estado..." style="box-shadow: none;">
+      </div>
+    </div>
+
+    <!-- TABLA DE FACTURAS PENDIENTES -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-danger text-white d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold">📋 Facturas Pendientes / Parciales</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Proveedor</th>
+                            <th>Factura</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Abonado</th>
+                            <th class="text-right text-danger">Saldo</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in cuentas %}
+                        <tr
+                            class="{{ 'table-success' if c.estatus == 'Pagado' else 'table-warning' if c.estatus == 'Parcial' else '' }}">
+                            <td>{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ c.proveedor.nombre if c.proveedor else '—' }}</td>
+                            <td>{{ c.numero_factura or '—' }}</td>
+                            <td class="text-right">${{ "%.2f"|format(c.monto_total_usd) }}</td>
+                            <td class="text-right text-success">${{ "%.2f"|format(c.monto_abonado_usd) }}</td>
+                            <td class="text-right font-weight-bold text-danger">${{ "%.2f"|format(c.saldo_pendiente_usd)
+                                }}</td>
+                            <td>
+                                {% if c.estatus == 'Pagado' %}
+                                <span class="badge badge-success">✅ Pagado</span>
+                                {% elif c.estatus == 'Parcial' %}
+                                <span class="badge badge-warning">⚠️ Parcial</span>
+                                {% else %}
+                                <span class="badge badge-danger">🔴 Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.estatus != 'Pagado' %}
+                                <button class="btn btn-sm btn-outline-success"
+                                    onclick="abrirAbono({{ c.id }}, '{{ c.proveedor.nombre if c.proveedor else '' }}', '{{ c.numero_factura or '' }}', {{ c.saldo_pendiente_usd }})">
+                                    <i class="fas fa-hand-holding-usd"></i> Abonar
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ABONAR -->
+<div class="modal fade" id="modalAbonar" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-hand-holding-usd"></i> Registrar Abono</h5>
+                <button type="button" class="close text-white" onclick="cerrarModal()">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-1"><strong>Proveedor:</strong> <span id="abono_proveedor"></span></p>
+                <p class="mb-3"><strong>Factura:</strong> <span id="abono_factura"></span></p>
+
+                <div class="form-group">
+                    <label class="font-weight-bold text-danger">Saldo Pendiente:</label>
+                    <h4 class="text-danger" id="abono_saldo"></h4>
+                </div>
+
+                <div class="form-group">
+                    <label id="label_monto" class="font-weight-bold">Monto a Abonar ($)</label>
+                    <input type="number" id="abono_monto" class="form-control form-control-lg" step="0.01"
+                        placeholder="0.00" />
+                </div>
+
+                <div class="form-group">
+                    <label class="font-weight-bold">Caja de Origen</label>
+                    <select id="abono_caja" class="form-control">
+                        <option value="Caja USD">Caja Principal $</option>
+                        <option value="Caja Bs">Caja Principal Bs</option>
+                        <option value="Banco">Banco (Transferencia/PM)</option>
+                    </select>
+                </div> <!-- ✅ CIERRE del form-group de Caja -->
+
+                <!-- Campo tasa (solo visible cuando se elige Caja Bs) -->
+                <div class="form-group" id="grupo_tasa" style="display:none;">
+                    <label class="font-weight-bold">Tasa BCV (Bs/$)</label>
+                    <input type="number" id="abono_tasa" class="form-control" step="0.01" placeholder="Ej: 36.50" />
+                    <small class="text-muted">Ingresa la tasa del día para convertir el monto</small>
+                </div>
+
+                <input type="hidden" id="abono_cxp_id" />
+            </div> <!-- ✅ CIERRE modal-body -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button type="button" class="btn btn-success btn-lg" onclick="confirmarAbono()">
+                    <i class="fas fa-check"></i> Confirmar Abono
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let facturaSeleccionada = null;
+    let saldoMaximoUSD = 0;
+
+    function abrirAbono(cxpId, proveedor, factura, saldo) {
+        facturaSeleccionada = cxpId;
+        saldoMaximoUSD = parseFloat(saldo);
+
+        document.getElementById('abono_cxp_id').value = cxpId;
+        document.getElementById('abono_proveedor').textContent = proveedor;
+        document.getElementById('abono_factura').textContent = factura;
+        document.getElementById('abono_saldo').textContent = '$' + saldoMaximoUSD.toFixed(2);
+        document.getElementById('abono_monto').value = saldoMaximoUSD.toFixed(2);
+
+        document.getElementById('abono_monto').style.border = '';
+        document.getElementById('abono_monto').style.color = '';
+        document.getElementById('abono_monto').style.backgroundColor = '';
+        document.getElementById('abono_caja').value = 'Caja USD';
+        document.getElementById('grupo_tasa').style.display = 'none';
+        document.getElementById('label_monto').textContent = 'Monto a Abonar ($)';
+        if (document.getElementById('abono_tasa')) document.getElementById('abono_tasa').value = '{{ tasa_bcv }}';
+
+        const modal = document.getElementById('modalAbonar');
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        document.body.classList.add('modal-open');
+
+        const backdrop = document.createElement('div');
+        backdrop.id = 'modal-backdrop';
+        backdrop.className = 'modal-backdrop fade show';
+        document.body.appendChild(backdrop);
+    }
+
+    function cerrarModal() {
+        const modal = document.getElementById('modalAbonar');
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+        const backdrop = document.getElementById('modal-backdrop');
+        if (backdrop) backdrop.remove();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const buscador = document.getElementById("buscador_kalu");
+        if(buscador) {
+            buscador.addEventListener("keyup", function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll("table.table-hover tbody tr");
+                rows.forEach(row => {
+                    row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+                });
+            });
+        }
+
+        document.getElementById('abono_monto').addEventListener('input', function () {
+            validarMonto(false);
+        });
+
+        document.getElementById('abono_caja').addEventListener('change', function () {
+            let caja = this.value;
+            let inputMonto = document.getElementById('abono_monto');
+            let tasaInput = document.getElementById('abono_tasa');
+            let labelMonto = document.getElementById('label_monto');
+            let grupoTasa = document.getElementById('grupo_tasa');
+
+            if (caja === 'Caja Bs' || caja === 'Banco') {
+                grupoTasa.style.display = 'block';
+                labelMonto.textContent = 'Monto a Abonar (Bs)';
+                let tasa = parseFloat(tasaInput.value || 0);
+                if (tasa > 0) {
+                    inputMonto.value = (saldoMaximoUSD * tasa).toFixed(2);
+                } else {
+                    inputMonto.value = '';
+                    inputMonto.placeholder = 'Ingresa la tasa primero';
+                }
+            } else {
+                grupoTasa.style.display = 'none';
+                labelMonto.textContent = 'Monto a Abonar ($)';
+                inputMonto.value = saldoMaximoUSD.toFixed(2);
+            }
+            validarMonto(false);
+        });
+
+        document.getElementById('abono_tasa').addEventListener('input', function () {
+            let tasa = parseFloat(this.value || 0);
+            let inputMonto = document.getElementById('abono_monto');
+            if (tasa > 0) {
+                inputMonto.value = (saldoMaximoUSD * tasa).toFixed(2);
+            }
+            validarMonto(false);
+        });
+    });
+
+    function validarMonto(mostrarAlerta = true) {
+        let monto = parseFloat(document.getElementById('abono_monto').value) || 0;
+        let caja = document.getElementById('abono_caja').value;
+        let esBolivares = (caja === 'Caja Bs' || caja === 'Banco'); // ✅ CORREGIDO
+        let tasa = parseFloat(document.getElementById('abono_tasa')?.value || 1) || 1;
+        let limiteMaximo = esBolivares ? (saldoMaximoUSD * tasa) : saldoMaximoUSD;
+        let moneda = esBolivares ? 'Bs' : '$';
+        let inputMonto = document.getElementById('abono_monto');
+
+        if (monto > (limiteMaximo + 0.05)) {
+            inputMonto.style.border = '2px solid red';
+            inputMonto.style.color = 'red';
+            inputMonto.style.backgroundColor = '#fff0f0';
+            if (mostrarAlerta) {
+                alert(`⚠️ ¡PAGO ABORTADO!\n\nEl monto (${moneda} ${monto.toFixed(2)}) supera el saldo pendiente.\nMáximo permitido: ${moneda} ${limiteMaximo.toFixed(2)}\n\nCorrige el monto antes de continuar.`);
+            }
+            return false;
+        } else {
+            inputMonto.style.border = '2px solid green';
+            inputMonto.style.color = '';
+            inputMonto.style.backgroundColor = '';
+            return true;
+        }
+    }
+
+    function confirmarAbono() {
+        if (!validarMonto(true)) return;
+
+        const cxp_id = document.getElementById('abono_cxp_id').value;
+        const monto = parseFloat(document.getElementById('abono_monto').value) || 0;
+        const caja = document.getElementById('abono_caja').value;
+        const tasa = parseFloat(document.getElementById('abono_tasa')?.value || 1) || 1;
+        const moneda = (caja === 'Caja Bs' || caja === 'Banco') ? 'Bs' : 'USD'; // ✅ CORREGIDO
+
+        if (!cxp_id) { alert('⚠️ Factura no seleccionada'); return; }
+        if (monto <= 0) { alert('⚠️ Ingrese un monto válido'); return; }
+
+        fetch('/compras/abonar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cxp_id: cxp_id,
+                monto_usd: monto,
+                caja_origen: caja,
+                moneda: moneda,
+                tasa_bcv: tasa
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    cerrarModal();
+                    alert('✅ Abono registrado correctamente');
+                    location.reload();
+                } else {
+                    alert('❌ Error: ' + data.message);
+                }
+            })
+            .catch(err => alert('❌ Error de conexión: ' + err));
+    }
+</script>
+{% endblock %}

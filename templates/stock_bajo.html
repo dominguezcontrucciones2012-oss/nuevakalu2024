@@ -1,0 +1,24 @@
+{% extends 'base.html' %} {% block content %}
+
+<h2 class="fw-bold mb-4 text-danger">
+  <i class="fas fa-exclamation-triangle"></i> STOCK BAJO
+</h2>
+
+<table class="table table-hover">
+  <thead class="table-dark">
+    <tr>
+      <th>Producto</th>
+      <th>Stock</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in productos %}
+    <tr>
+      <td>{{ p.nombre }}</td>
+      <td class="text-danger fw-bold">{{ p.stock }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

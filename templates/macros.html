@@ -1,0 +1,53 @@
+{% macro tabla_kalu_pro(id, headers, scroll_y="65vh") %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" id="{{ id }}">
+        <thead class="table-dark">
+            <tr>
+                {% for h in headers %}
+                <th class="text-uppercase small fw-bold">{{ h }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {{ caller() }}
+        </tbody>
+    </table>
+</div>
+
+<!-- Configuración centralizada del Buscador -->
+<script>
+    $(document).ready(function () {
+        if (!$.fn.DataTable.isDataTable('#{{ id }}')) {
+            $('#{{ id }}').DataTable({
+                "paging": false,
+                "scrollY": "{{ scroll_y }}",
+                "scrollCollapse": true,
+                "language": {
+                    "zeroRecords": "❌ No se encontró nada, camarita",
+                    "info": "Mostrando _TOTAL_ registros",
+                    "infoEmpty": "No hay datos",
+                    "infoFiltered": "(filtrado de _MAX_ totales)",
+                    "search": "🔍 BUSCAR:"
+                },
+                "dom": '<"d-flex justify-content-between align-items-center mb-3"Bf>t',
+                "buttons": [
+                    {
+                        extend: 'excelHtml5',
+                        text: '<i class="fas fa-file-excel me-1"></i> Excel',
+                        className: 'btn btn-success btn-sm border-0 shadow-sm mx-1'
+                    },
+                    {
+                        extend: 'pdfHtml5',
+                        text: '<i class="fas fa-file-pdf me-1"></i> PDF',
+                        className: 'btn btn-danger btn-sm border-0 shadow-sm mx-1'
+                    }
+                ],
+                "initComplete": function () {
+                    // Aplicar el estilo "Flu y Corbata" al buscador
+                    $('.dataTables_filter input').addClass('form-control shadow-sm border-primary').css('width', '250px');
+                }
+            });
+        }
+    });
+</script>
+{% endmacro %}

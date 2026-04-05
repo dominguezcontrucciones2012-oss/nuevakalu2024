@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-history text-success"></i> Historial de Pagos Recibidos
+        </h1>
+        <a href="{{ url_for('clientes.vista_morosos') }}" class="btn btn-secondary btn-sm shadow-sm">
+            <i class="fas fa-arrow-left"></i> Volver a Morosos
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success text-white">
+            <h6 class="m-0 font-weight-bold">
+                <i class="fas fa-list"></i> Registro Permanente de Abonos
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Fecha / Hora</th>
+                            <th>Cliente</th>
+                            <th>Monto USD</th>
+                            <th>Monto Bs</th>
+                            <th>Tasa del Día</th>
+                            <th>Método de Pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in pagos %}
+                        <tr>
+                            <td>{{ p.fecha.strftime('%d/%m/%Y %I:%M %p') }}</td>
+                            <td><strong>{{ p.cliente.nombre }}</strong></td>
+                            <td class="text-success font-weight-bold">
+                                ${{ "%.2f"|format(p.monto_usd) }}
+                            </td>
+                            <td class="text-info">
+                                Bs. {{ "%.2f"|format(p.monto_bs) }}
+                            </td>
+                            <td class="text-muted">
+                                Bs. {{ "%.2f"|format(p.tasa_dia) }}
+                            </td>
+                            <td>
+                                {% if p.metodo_pago == 'EFECTIVO_USD' %}
+                                <span class="badge badge-success">💵 Efectivo USD</span>
+                                {% elif p.metodo_pago == 'EFECTIVO_BS' %}
+                                <span class="badge badge-warning">💴 Efectivo Bs</span>
+                                {% elif p.metodo_pago == 'PAGO_MOVIL' %}
+                                <span class="badge badge-info">📱 Pago Móvil</span>
+                                {% elif p.metodo_pago == 'DEBITO' %}
+                                <span class="badge badge-primary">💳 Débito</span>
+                                {% elif p.metodo_pago == 'BIOPAGO' %}
+                                <span class="badge badge-dark">👆 Biopago</span>
+                                {% else %}
+                                <span class="badge badge-secondary">{{ p.metodo_pago }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                No hay pagos registrados todavía.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

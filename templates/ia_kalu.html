@@ -1,0 +1,112 @@
+{% extends "base.html" %} {% block content %}
+<div class="container mt-4">
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h3>
+        <i class="fas fa-robot text-primary"></i> Kalu-IA: Inteligencia de
+        Mercado
+      </h3>
+      <p class="text-muted">
+        Análisis en tiempo real para San Lorenzo Tiznados
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- ASISTENTE DE COMPRAS -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white">
+          <i class="fas fa-box-open"></i> Reposición de Stock
+        </div>
+        <div class="card-body">
+          <h6 class="fw-bold text-danger">Urgente comprar:</h6>
+          {% for p in stock_bajo %}
+          <div class="d-flex justify-content-between border-bottom py-1">
+            <span>{{ p.nombre }}</span>
+            <span class="badge bg-danger">{{ p.stock }} und</span>
+          </div>
+          {% else %}
+          <p class="text-muted small">Inventario saludable por ahora.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- CLUB DEL VECINO -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-primary text-white">
+          <i class="fas fa-users"></i> Impulso de Ventas
+        </div>
+        <div class="card-body">
+          <h6 class="fw-bold">Cerca del premio (200 pts):</h6>
+          {% for c in proximos_premios %}
+          <div class="d-flex justify-content-between small border-bottom py-1">
+            <span>{{ c.nombre }}</span>
+            <span class="text-primary fw-bold">{{ c.puntos }} pts</span>
+          </div>
+          {% else %}
+          <p class="text-muted small">No hay clientes cerca del tope.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT CON LA IA -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-success text-white">
+          <i class="fas fa-comment-dots"></i> Consultar a Kalu-IA
+        </div>
+        <div class="card-body">
+          <p class="small text-muted">
+            Pregúntame sobre deudas, ventas o qué comprar.
+          </p>
+          <div class="input-group">
+            <input
+              type="text"
+              id="preguntaIA"
+              class="form-control"
+              placeholder="Escribe aquí..."
+            />
+            <button class="btn btn-success" onclick="preguntarIA()">
+              Enviar
+            </button>
+          </div>
+          <div
+            id="respuestaIA"
+            class="mt-3 p-2 bg-light border rounded d-none small"
+          >
+            <!-- Aquí cae la respuesta -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function preguntarIA() {
+    let pregunta = document.getElementById("preguntaIA").value;
+    if (!pregunta) return;
+
+    let box = document.getElementById("respuestaIA");
+    box.classList.remove("d-none");
+    box.innerHTML = "<em>Pensando...</em>";
+
+    fetch("/ia-consultar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pregunta: pregunta }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        box.innerHTML = `<strong>Kalu-IA:</strong> ${data.respuesta}`;
+      })
+      .catch((err) => {
+        box.innerHTML = "Error conectando con la IA.";
+      });
+  }
+</script>
+{% endblock %}

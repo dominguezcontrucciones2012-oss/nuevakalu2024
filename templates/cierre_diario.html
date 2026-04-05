@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- ENCABEZADO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="mb-0 fw-bold text-dark">🏦 Cierre de Caja Diario</h3>
+            <small class="text-muted">Fecha: <strong>{{ fecha }}</strong> | Tasa BCV: <strong>Bs {{ tasa
+                    }}</strong></small>
+        </div>
+        <div>
+            {% if ya_cerrado %}
+            <div class="d-flex gap-2">
+                <span class="badge bg-success fs-6 px-4 py-3 shadow">✅ CAJA CERRADA</span>
+                <a href="{{ url_for('cierre.ver_cierre', cierre_id=ya_cerrado.id) }}"
+                    class="btn btn-info shadow text-white">
+                    👁️ Ver Reporte Detallado
+                </a>
+            </div>
+            <!-- CIERRE RETROACTIVO -->
+            <div class="card mt-3 border-warning">
+                <div class="card-header bg-warning fw-bold">
+                    <i class="fas fa-history"></i> Cierre Retroactivo (fecha pasada)
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('cierre.ejecutar_cierre_retroactivo') }}" method="POST"
+                        onsubmit="return confirm('¿Seguro que deseas hacer el cierre de esta fecha?')">
+                        <div class="input-group">
+                            <input type="date" name="fecha_retroactiva" class="form-control fw-bold" required>
+                            <button type="submit" class="btn btn-warning fw-bold">
+                                <i class="fas fa-lock"></i> CERRAR ESA FECHA
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <form action="{{ url_for('cierre.ejecutar_cierre') }}" method="POST"
+                onsubmit="return confirm('¿Confirmas el cierre de caja de hoy? Esta acción es definitiva.')">
+                <button type="submit" class="btn btn-danger btn-lg shadow">🔒 Cerrar Caja Ahora</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- FILA 1: ENTRADAS -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-success border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">💵</div>
+                    <h6 class="text-muted">Efectivo USD</h6>
+                    <h3 class="text-success fw-bold">$ {{ "%.2f"|format(r.efectivo_usd) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-primary border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">🇻🇪</div>
+                    <h6 class="text-muted">Efectivo Bs</h6>
+                    <h3 class="text-primary fw-bold">Bs {{ "%.2f"|format(r.efectivo_bs) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-info border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">📱</div>
+                    <h6 class="text-muted">Pago Móvil</h6>
+                    <h3 class="text-info fw-bold">Bs {{ "%.2f"|format(r.pago_movil) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILA 2: MÁS ENTRADAS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-primary border-4 bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-credit-card fa-2x mb-2 text-primary"></i>
+                    <h6 class="text-muted">Tarjeta Débito</h6>
+                    <h3 class="text-primary fw-bold">Bs {{ "%.2f"|format(r.debito) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-warning border-4 bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-cheese fa-2x mb-2 text-warning"></i>
+                    <h6 class="text-muted">Cobro en Queso</h6>
+                    <h3 class="text-warning fw-bold">$ {{ "%.2f"|format(r.cobro_queso) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-secondary border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">💳</div>
+                    <h6 class="text-muted">Biopago BDV</h6>
+                    <h3 class="text-secondary fw-bold">Bs {{ "%.2f"|format(r.biopago) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-danger border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">📋</div>
+                    <h6 class="text-muted">Fiado del Día</h6>
+                    <h3 class="text-danger fw-bold">$ {{ "%.2f"|format(r.fiado) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ NUEVO: FILA 3 - SALIDAS DE CAJA -->
+    <h5 class="fw-bold text-danger mb-3">📤 Salidas de Caja del Día</h5>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-danger border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">🧀</div>
+                    <h6 class="text-muted">Pagos a Productores (USD)</h6>
+                    <h3 class="text-danger fw-bold">$ {{ "%.2f"|format(r.pagos_productores_usd) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-danger border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">🧀</div>
+                    <h6 class="text-muted">Pagos a Productores (Bs)</h6>
+                    <h3 class="text-danger fw-bold">Bs {{ "%.2f"|format(r.pagos_productores_bs) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-warning border-4">
+                <div class="card-body text-center">
+                    <div class="fs-1">🛒</div>
+                    <h6 class="text-muted">Compras del Día</h6>
+                    <h3 class="text-warning fw-bold">$ {{ "%.2f"|format(r.total_compras_usd) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ NUEVO: TABLA DE MOVIMIENTOS DE CAJA -->
+    {% if movs_hoy %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header py-3" style="background: linear-gradient(90deg, #7b0000, #b71c1c);">
+            <h5 class="mb-0 text-white fw-bold">📤 Detalle de Salidas y Movimientos de Caja</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Hora</th>
+                            <th>Tipo</th>
+                            <th>Categoría</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Monto</th>
+                            <th class="text-center">Caja</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movs_hoy %}
+                        <tr class="{{ 'table-danger' if m.tipo_movimiento == 'SALIDA' else 'table-success' }}">
+                            <td class="ps-3"><small>{{ m.fecha.strftime('%I:%M %p') }}</small></td>
+                            <td>
+                                {% if m.tipo_movimiento == 'SALIDA' %}
+                                <span class="badge bg-danger">📤 SALIDA</span>
+                                {% else %}
+                                <span class="badge bg-success">📥 ENTRADA</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ m.categoria or '-' }}</td>
+                            <td><small>{{ m.descripcion or '-' }}</small></td>
+                            <td class="text-end fw-bold">
+                                {% if m.tipo_caja == 'CAJA_USD' %}
+                                $ {{ "%.2f"|format(m.monto) }}
+                                {% else %}
+                                Bs {{ "%.2f"|format(m.monto) }}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">{{ m.tipo_caja }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- TOTAL GENERAL -->
+    <div class="card border-0 shadow-lg mb-5" style="background: linear-gradient(135deg, #1a1a2e, #16213e);">
+        <div class="card-body text-center py-4">
+            <h5 class="text-white-50 mb-1 text-uppercase" style="letter-spacing:2px;">Ventas Totales (Equivalente USD)
+            </h5>
+            <h1 class="text-white fw-bold display-3">$ {{ "%.2f"|format(r.total_general) }}</h1>
+            <span class="badge bg-light text-dark px-3 py-2 fs-6">{{ r.conteo }} venta(s) procesada(s) hoy</span>
+        </div>
+    </div>
+
+    <!-- TABLA DETALLADA DE VENTAS -->
+    <div class="card border-0 shadow-sm mb-5">
+        <div class="card-header py-3" style="background: linear-gradient(90deg, #0f2027, #203a43);">
+            <h5 class="mb-0 text-white fw-bold">📋 Detalle de Ventas del Día</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">#</th>
+                            <th>Hora</th>
+                            <th>Cliente</th>
+                            <th class="text-center">Total USD</th>
+                            <th class="text-center text-success">💵 Efect. USD</th>
+                            <th class="text-center text-primary">🇻🇪 Efect. Bs</th>
+                            <th class="text-center text-info">📱 P. Móvil</th>
+                            <th class="text-center text-primary">💳 Débito</th>
+                            <th class="text-center text-secondary">💳 Biopago</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ventas_hoy %}
+                        <tr>
+                            <td class="ps-3 fw-bold text-muted">#{{ v.id }}</td>
+                            <td><small class="text-muted">{{ v.fecha.strftime('%I:%M %p') }}</small></td>
+                            <td class="fw-semibold">{{ v.nombre_cliente_final }}</td>
+                            <td class="text-center fw-bold">$ {{ "%.2f"|format(v.total_usd) }}</td>
+                            <td class="text-center text-success">
+                                {% if v.pago_efectivo_usd and v.pago_efectivo_usd > 0 %}$ {{
+                                "%.2f"|format(v.pago_efectivo_usd) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-center text-primary">
+                                {% if v.pago_efectivo_bs and v.pago_efectivo_bs > 0 %}Bs {{
+                                "%.2f"|format(v.pago_efectivo_bs) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-center text-info">
+                                {% if v.pago_movil_bs and v.pago_movil_bs > 0 %}Bs {{ "%.2f"|format(v.pago_movil_bs)
+                                }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-center text-primary">
+                                {% if v.pago_transferencia_bs and v.pago_transferencia_bs > 0 %}Bs {{
+                                "%.2f"|format(v.pago_transferencia_bs) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-center text-secondary">
+                                {% if v.biopago_bdv and v.biopago_bdv > 0 %}Bs {{ "%.2f"|format(v.biopago_bdv) }}{% else
+                                %}-{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if v.es_fiado %}
+                                <span class="badge bg-danger">FIADO</span>
+                                {% else %}
+                                <span class="badge bg-success">CONTADO</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark">
+                        <tr>
+                            <td colspan="3" class="ps-3 fw-bold">TOTALES</td>
+                            <td class="text-center fw-bold text-warning">$ {{ "%.2f"|format(r.total_general) }}</td>
+                            <td class="text-center fw-bold text-success">$ {{ "%.2f"|format(r.efectivo_usd) }}</td>
+                            <td class="text-center fw-bold text-primary">Bs {{ "%.2f"|format(r.efectivo_bs) }}</td>
+                            <td class="text-center fw-bold text-info">Bs {{ "%.2f"|format(r.pago_movil) }}</td>
+                            <td class="text-center fw-bold text-primary">Bs {{ "%.2f"|format(r.debito) }}</td>
+                            <td class="text-center fw-bold text-secondary">Bs {{ "%.2f"|format(r.biopago) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIAL DE CIERRES -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📅 Historial de Cierres Recientes</h5>
+            <a href="{{ url_for('cierre.historial_cierres') }}" class="btn btn-outline-light btn-sm">Ver Todo</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th class="text-end">Total Ventas</th>
+                            <th class="text-end">Efectivo USD</th>
+                            <th class="text-end">Efectivo Bs</th>
+                            <th class="text-end">Pago Móvil</th>
+                            <th class="text-end">Fiado</th>
+                            <th class="text-end">Tasa</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in cierres_historial %}
+                        <tr>
+                            <td>{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td class="text-end fw-bold text-warning">$ {{ "%.2f"|format(c.total_ventas_usd or 0) }}
+                            </td>
+                            <td class="text-end text-success">$ {{ "%.2f"|format(c.monto_usd) }}</td>
+                            <td class="text-end text-primary">Bs {{ "%.2f"|format(c.monto_bs) }}</td>
+                            <td class="text-end text-info">Bs {{ "%.2f"|format(c.pago_movil) }}</td>
+                            <td class="text-end text-danger">$ {{ "%.2f"|format(c.fiado_dia_usd or 0) }}</td>
+                            <td class="text-end">Bs {{ c.tasa_cierre }}</td>
+                            <td class="text-center">
+                                <a href="{{ url_for('cierre.ver_cierre', cierre_id=c.id) }}"
+                                    class="btn btn-sm btn-primary">
+                                    👁️ Ver Detalle
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .card {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .table thead th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+</style>
+
+{% endblock %}

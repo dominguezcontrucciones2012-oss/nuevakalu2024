@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid mt-4">
+
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h4 class="mb-0">
+            <i class="fas fa-receipt text-primary me-2"></i> Historial de Ventas
+        </h4>
+        <span class="badge bg-secondary fs-6">{{ ventas|length }} registros</span>
+    </div>
+
+    <div class="mb-3">
+        <div class="input-group shadow-sm rounded-pill overflow-hidden border-primary" style="border: 2px solid #4e73df;">
+            <span class="input-group-text bg-white border-0 text-primary"><i class="fas fa-search"></i></span>
+            <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe cliente, monto, fecha..." style="box-shadow: none;">
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">
+            <i class="fas fa-list me-2"></i> Últimas ventas
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Fecha / Hora</th>
+                            <th>Cliente</th>
+                            <th class="text-end">Total USD</th>
+                            <th class="text-end">Tasa</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">Ver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ventas %}
+                        <tr style="cursor:pointer;" onclick="window.location='/historial_ventas/{{ v.id }}'">
+                            <td class="text-muted small">{{ v.id }}</td>
+                            <td>{{ v.fecha.strftime('%d/%m/%Y %H:%M') if v.fecha else '-' }}</td>
+                            <td>
+                                {% set nombre = v.nombre_cliente_final %}
+                                {% if "PROD:" in nombre %}
+                                <i class="fas fa-tractor text-success me-1"></i>
+                                <span class="fw-bold text-success">{{ nombre }}</span>
+                                {% elif nombre != "Consumidor Final" %}
+                                <i class="fas fa-user text-primary me-1"></i>{{ nombre }}
+                                {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-user-slash me-1"></i>Consumidor Final
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold text-success">
+                                ${{ "%.2f"|format(v.total_usd or 0) }}
+                            </td>
+                            <td class="text-end text-muted small">
+                                Bs. {{ "%.2f"|format(v.tasa_momento or 0) }}
+                            </td>
+                            <td class="text-center">
+                                {% if v.es_fiado %}
+                                {% if v.pagada %}
+                                <span class="badge bg-success">Saldado</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Fiado</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge bg-primary">Contado</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <i class="fas fa-eye text-primary"></i>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                No hay ventas registradas todavía.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const buscador = document.getElementById("buscador_kalu");
+    if(buscador) {
+        buscador.addEventListener("keyup", function() {
+            const query = this.value.toLowerCase();
+            const rows = document.querySelectorAll("table tbody tr");
+            rows.forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

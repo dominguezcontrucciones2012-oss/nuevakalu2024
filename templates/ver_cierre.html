@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Cierre de Caja - {{ cierre.fecha.strftime('%d/%m/%Y') }}</h3>
+    <button class="btn btn-success" onclick="window.print()">Imprimir</button>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card card-body">
+            <strong>Total Ventas (USD):</strong>
+            <h4>${{ '%.2f'|format(cierre.total_ventas_usd or 0) }}</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-body">
+            <strong>Total Compras (USD):</strong>
+            <h4>${{ '%.2f'|format(cierre.total_compras_usd or 0) }}</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-body">
+            <strong>Fiado del Día (USD):</strong>
+            <h4 class="text-danger">${{ '%.2f'|format(cierre.fiado_dia_usd or 0) }}</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-body">
+            <strong>Tasa BCV Cierre:</strong>
+            <h4>Bs {{ '%.2f'|format(cierre.tasa_cierre or 0) }}</h4>
+        </div>
+    </div>
+</div>
+
+<h4>Detalle de Ventas del Día</h4>
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Hora</th>
+            <th>Cliente</th>
+            <th>Total USD</th>
+            <th>Efectivo USD</th>
+            <th>Efectivo Bs</th>
+            <th>P. Móvil</th>
+            <th>Débito</th>
+            <th>Biopago</th>
+            <th>Fiado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in ventas %}
+        <tr>
+            <td>{{ v.id }}</td>
+            <td>{{ v.hora }}</td>
+            <td>{{ v.cliente }}</td>
+            <td>${{ '%.2f'|format(v.total_usd) }}</td>
+            <td>${{ '%.2f'|format(v.efectivo_usd) }}</td>
+            <td>Bs {{ '%.2f'|format(v.efectivo_bs) }}</td>
+            <td>Bs {{ '%.2f'|format(v.pago_movil) }}</td>
+            <td>Bs {{ '%.2f'|format(v.debito) }}</td>
+            <td>Bs {{ '%.2f'|format(v.biopago) }}</td>
+            <td>
+                {% if v.fiado %}
+                <span class="badge bg-danger">Fiado</span>
+                {% else %}
+                <span class="badge bg-success">Contado</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% if v.productos %}
+        <tr>
+            <td></td>
+            <td colspan="9">
+                <strong>Productos:</strong>
+                <ul class="mb-0">
+                    {% for p in v.productos %}
+                    <li>{{ p.cantidad }} x {{ p.nombre }} @ ${{ '%.2f'|format(p.precio) }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+
+<h4 class="mt-4">Detalle de Compras del Día</h4>
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Proveedor</th>
+            <th>Factura</th>
+            <th>Total USD</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in compras %}
+        <tr>
+            <td>{{ c.id }}</td>
+            <td>{{ c.proveedor }}</td>
+            <td>{{ c.factura }}</td>
+            <td>${{ '%.2f'|format(c.total_usd) }}</td>
+            <td>{{ c.estado }}</td>
+        </tr>
+        {% if c.productos %}
+        <tr>
+            <td></td>
+            <td colspan="4">
+                <strong>Productos:</strong>
+                <ul class="mb-0">
+                    {% for p in c.productos %}
+                    <li>{{ p.cantidad }} x {{ p.nombre }} @ ${{ '%.2f'|format(p.costo) }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

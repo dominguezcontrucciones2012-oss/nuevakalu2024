@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid py-4">
+    <h3 class="mb-4">📥 Carga Masiva por Excel</h3>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="row g-4">
+
+        <!-- 1. CLIENTES -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-primary h-100">
+                <div class="card-header bg-primary text-white fw-bold">👥 Clientes</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: nombre, cedula, telefono, direccion, fecha_nacimiento,
+                        saldo_usd, saldo_bs, puntos</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_clientes') }}" enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-primary btn-sm w-100">⬆ Subir Clientes</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='clientes') }}"
+                        class="btn btn-outline-primary btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. PROVEEDORES -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-success h-100">
+                <div class="card-header bg-success text-white fw-bold">🧾 Proveedores</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: rif, nombre, telefono, direccion, vendedor_nombre,
+                        vendedor_telefono, saldo_pendiente_usd</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_proveedores') }}"
+                        enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-success btn-sm w-100">⬆ Subir Proveedores</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='proveedores') }}"
+                        class="btn btn-outline-success btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. INVENTARIO -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-warning h-100">
+                <div class="card-header bg-warning text-dark fw-bold">📦 Inventario</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: codigo, nombre, categoria, costo_usd, precio_normal_usd,
+                        precio_oferta_usd, stock, stock_minimo</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_inventario') }}"
+                        enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-warning btn-sm w-100 text-dark">⬆ Subir Inventario</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='inventario') }}"
+                        class="btn btn-outline-warning btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. COMPRAS -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-info h-100">
+                <div class="card-header bg-info text-white fw-bold">🛒 Compras Históricas</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: rif_proveedor, numero_factura, fecha, total_usd, estado,
+                        metodo_pago, codigo_producto, cantidad, costo_unitario</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_compras') }}" enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-info btn-sm w-100 text-white">⬆ Subir Compras</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='compras') }}"
+                        class="btn btn-outline-info btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. VENTAS -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header bg-secondary text-white fw-bold">🧾 Ventas Históricas</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: fecha, cedula_cliente, total_usd, tasa_momento, es_fiado,
+                        pago_efectivo_usd, pago_efectivo_bs, pago_movil_bs, codigo_producto, cantidad,
+                        precio_unitario_usd</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_ventas') }}" enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-secondary btn-sm w-100">⬆ Subir Ventas</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='ventas') }}"
+                        class="btn btn-outline-secondary btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. FIADO -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-danger h-100">
+                <div class="card-header bg-danger text-white fw-bold">💳 Saldos de Fiado</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: cedula, nombre, saldo_usd, saldo_bs</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_fiado') }}" enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-danger btn-sm w-100">⬆ Subir Fiado</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='fiado') }}"
+                        class="btn btn-outline-danger btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. CUENTAS POR PAGAR -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-dark h-100">
+                <div class="card-header bg-dark text-white fw-bold">💵 Cuentas por Pagar</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: rif_proveedor, numero_factura, fecha_emision, monto_total_usd,
+                        monto_abonado_usd</p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_cuentas_pagar') }}"
+                        enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-dark btn-sm w-100">⬆ Subir Cuentas por Pagar</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='cuentas_pagar') }}"
+                        class="btn btn-outline-dark btn-sm w-100">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. SALDOS DE CAJA 👈 NUEVO -->
+        <div class="col-md-6 col-lg-4">
+            <div class="card border-0 h-100" style="border: 2px solid #6f42c1 !important;">
+                <div class="card-header text-white fw-bold" style="background-color: #6f42c1;">💰 Saldos de Caja
+                    (Capital Inicial)</div>
+                <div class="card-body">
+                    <p class="small text-muted">Columnas: tipo_caja, monto_usd, monto_bs, descripcion</p>
+                    <p class="small text-muted">
+                        <strong>tipo_caja válidos:</strong> Efectivo USD, Efectivo Bs, Zelle, Pago Móvil, Transferencia,
+                        Punto de Venta
+                    </p>
+                    <form method="POST" action="{{ url_for('cargar.cargar_saldos_caja') }}"
+                        enctype="multipart/form-data">
+                        <input type="file" name="archivo" class="form-control form-control-sm mb-2" accept=".xls,.xlsx"
+                            required>
+                        <button class="btn btn-sm w-100 text-white" style="background-color: #6f42c1;">⬆ Subir Saldos de
+                            Caja</button>
+                    </form>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('cargar.descargar_plantilla', modulo='saldos_caja') }}" class="btn btn-sm w-100"
+                        style="color: #6f42c1; border: 1px solid #6f42c1;">
+                        📄 Descargar Plantilla
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /row -->
+</div>
+{% endblock %}

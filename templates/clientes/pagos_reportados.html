@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-receipt text-primary"></i> Pagos Reportados por Clientes
+        </h1>
+        <div>
+            <a href="{{ url_for('clientes.vista_morosos') }}" class="btn btn-secondary shadow-sm">
+                <i class="fas fa-arrow-left"></i> Volver a Morosos
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-primary text-white">
+            <h6 class="m-0 font-weight-bold">Listado de pagos reportados</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente</th>
+                            <th>Fecha reporte</th>
+                            <th>Fecha pago</th>
+                            <th>Método</th>
+                            <th>Monto USD</th>
+                            <th>Monto Bs</th>
+                            <th>Banco</th>
+                            <th>Referencia</th>
+                            <th>Estado</th>
+                            <th>Capture</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if pagos %}
+                        {% for pago in pagos %}
+                        <tr>
+                            <td>{{ pago.id }}</td>
+                            <td>
+                                <strong>{{ pago.cliente.nombre if pago.cliente else 'Cliente no disponible' }}</strong>
+                                {% if pago.cliente and pago.cliente.cedula %}
+                                <br><small class="text-muted">CI: {{ pago.cliente.cedula }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ pago.fecha_reporte.strftime('%d/%m/%Y %H:%M') if pago.fecha_reporte else 'N/A' }}
+                            </td>
+                            <td>
+                                {{ pago.fecha_pago.strftime('%d/%m/%Y') if pago.fecha_pago else 'No indicada' }}
+                            </td>
+                            <td>{{ pago.metodo_pago or 'No indicado' }}</td>
+                            <td>${{ '%.2f'|format(pago.monto_usd or 0) }}</td>
+                            <td>Bs {{ '%.2f'|format(pago.monto_bs or 0) }}</td>
+                            <td>{{ pago.banco or 'N/A' }}</td>
+                            <td>{{ pago.referencia or 'N/A' }}</td>
+                            <td>
+                                {% if pago.estado == 'pendiente' %}
+                                <span class="badge badge-warning">Pendiente</span>
+                                {% elif pago.estado == 'revisado' %}
+                                <span class="badge badge-info">Revisado</span>
+                                {% elif pago.estado == 'rechazado' %}
+                                <span class="badge badge-danger">Rechazado</span>
+                                {% else %}
+                                <span class="badge badge-secondary">{{ pago.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if pago.imagen_comprobante %}
+                                <a href="{{ url_for('static', filename='comprobantes/' ~ pago.imagen_comprobante) }}"
+                                    target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-image"></i> Ver
+                                </a>
+                                {% else %}
+                                <span class="text-muted">Sin capture</span>
+                                {% endif %}
+                            </td>
+                            <td style="min-width: 180px;">
+                                <form method="POST"
+                                    action="{{ url_for('clientes.cambiar_estado_pago_reportado', pago_id=pago.id) }}"
+                                    class="mb-1">
+                                    <input type="hidden" name="estado" value="revisado">
+                                    <button type="submit" class="btn btn-sm btn-info btn-block">
+                                        <i class="fas fa-check-circle"></i> Marcar revisado
+                                    </button>
+                                </form>
+
+                                <form method="POST"
+                                    action="{{ url_for('clientes.cambiar_estado_pago_reportado', pago_id=pago.id) }}"
+                                    class="mb-1">
+                                    <input type="hidden" name="estado" value="pendiente">
+                                    <button type="submit" class="btn btn-sm btn-warning btn-block">
+                                        <i class="fas fa-undo"></i> Volver a pendiente
+                                    </button>
+                                </form>
+
+                                <form method="POST"
+                                    action="{{ url_for('clientes.cambiar_estado_pago_reportado', pago_id=pago.id) }}">
+                                    <input type="hidden" name="estado" value="rechazado">
+                                    <button type="submit" class="btn btn-sm btn-danger btn-block">
+                                        <i class="fas fa-times-circle"></i> Rechazar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+
+                        {% if pago.observacion %}
+                        <tr class="table-light">
+                            <td colspan="12">
+                                <strong>Observación:</strong> {{ pago.observacion }}
+                            </td>
+                        </tr>
+                        {% endif %}
+
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="12" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox"></i> No hay pagos reportados todavía.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

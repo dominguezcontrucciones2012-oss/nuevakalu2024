@@ -1,0 +1,118 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>
+      <i class="fas fa-eye text-primary"></i> Detalle de Asiento #{{ asiento.id
+      }}
+    </h3>
+    <a href="/contabilidad/libro-diario" class="btn btn-secondary btn-sm">
+      <i class="fas fa-arrow-left"></i> Volver al Diario
+    </a>
+  </div>
+
+  <div class="card shadow mb-4 border-left-primary">
+    <div class="card-header bg-white py-3">
+      <div class="row align-items-center">
+        <div class="col">
+          <h6 class="m-0 font-weight-bold text-primary">
+            Descripción: {{ asiento.descripcion }}
+          </h6>
+        </div>
+        <div class="col text-right">
+          <span class="badge badge-info p-2"
+            >Referencia: {{ asiento.referencia_tipo }} #{{ asiento.referencia_id
+            }}</span
+          >
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row mb-4 text-center">
+        <div class="col-md-4 border-right">
+          <small class="text-muted d-block">FECHA</small>
+          <strong>{{ asiento.fecha.strftime('%d/%m/%Y') }}</strong>
+        </div>
+        <div class="col-md-4 border-right">
+          <small class="text-muted d-block">TASA DE REFERENCIA</small>
+          <strong>Bs. {{ "%.2f"|format(asiento.tasa_referencia) }}</strong>
+        </div>
+        <div class="col-md-4">
+          <small class="text-muted d-block">ESTADO</small>
+          <strong class="text-success"
+            ><i class="fas fa-check-circle"></i> CONTABILIZADO</strong
+          >
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="thead-dark">
+            <tr>
+              <th>Código Cuenta</th>
+              <th>Nombre de la Cuenta</th>
+              <th class="text-right">Debe ($)</th>
+              <th class="text-right">Haber ($)</th>
+              <th class="text-right bg-light">Debe (Bs)</th>
+              <th class="text-right bg-light">Haber (Bs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in asiento.detalles %}
+            <tr>
+              <td>
+                <strong class="text-primary">{{ d.cuenta.codigo }}</strong>
+              </td>
+              <td>{{ d.cuenta.nombre }}</td>
+              <td class="text-right">
+                {% if d.debe_usd > 0 %}<span class="text-success fw-bold"
+                  >${{ "%.2f"|format(d.debe_usd) }}</span
+                >{% else %}-{% endif %}
+              </td>
+              <td class="text-right">
+                {% if d.haber_usd > 0 %}<span class="text-danger fw-bold"
+                  >${{ "%.2f"|format(d.haber_usd) }}</span
+                >{% else %}-{% endif %}
+              </td>
+              <td class="text-right text-muted small bg-light">
+                {% if d.debe_bs > 0 %}Bs. {{ "%.2f"|format(d.debe_bs) }}{% else
+                %}-{% endif %}
+              </td>
+              <td class="text-right text-muted small bg-light">
+                {% if d.haber_bs > 0 %}Bs. {{ "%.2f"|format(d.haber_bs) }}{%
+                else %}-{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="bg-dark text-white">
+            <tr>
+              <th colspan="2" class="text-right">TOTALES</th>
+              <th class="text-right">
+                ${{ "%.2f"|format(asiento.detalles|sum(attribute='debe_usd')) }}
+              </th>
+              <th class="text-right">
+                ${{ "%.2f"|format(asiento.detalles|sum(attribute='haber_usd'))
+                }}
+              </th>
+              <th class="text-right">
+                Bs. {{ "%.2f"|format(asiento.detalles|sum(attribute='debe_bs'))
+                }}
+              </th>
+              <th class="text-right">
+                Bs. {{ "%.2f"|format(asiento.detalles|sum(attribute='haber_bs'))
+                }}
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-3">
+    <button onclick="window.print()" class="btn btn-outline-secondary">
+      <i class="fas fa-print"></i> Imprimir Comprobante
+    </button>
+  </div>
+</div>
+{% endblock %}

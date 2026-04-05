@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Ticket KALU #{{ "%06d"|format(venta.id) }}</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    @page {
+      size: 58mm auto;
+      margin: 2mm 3mm;
+    }
+
+    body {
+      width: 50mm;
+      max-width: 50mm;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 8pt;
+      color: #000;
+      padding: 2px 2px;
+      overflow: hidden;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .right {
+      text-align: right;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    .small {
+      font-size: 7pt;
+    }
+
+    .grande {
+      font-size: 10pt;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .linea-punteada {
+      border: none;
+      border-top: 1px dashed #000;
+      margin: 4px 0;
+    }
+
+    .linea-solida {
+      border: none;
+      border-top: 1px solid #000;
+      margin: 4px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7pt;
+      table-layout: fixed;
+    }
+
+    table th {
+      border-bottom: 1px solid #000;
+      padding-bottom: 2px;
+      font-size: 7pt;
+      overflow: hidden;
+    }
+
+    table td {
+      padding: 1px 0;
+      vertical-align: top;
+      overflow: hidden;
+      word-break: break-all;
+    }
+
+    table th:nth-child(1),
+    table td:nth-child(1) {
+      width: 18%;
+    }
+
+    table th:nth-child(2),
+    table td:nth-child(2) {
+      width: 42%;
+    }
+
+    table th:nth-child(3),
+    table td:nth-child(3) {
+      width: 40%;
+      text-align: right;
+    }
+
+    .totales {
+      font-size: 8.5pt;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .total-grande {
+      font-size: 9.5pt;
+      font-weight: bold;
+    }
+
+    .footer {
+      font-size: 7pt;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .corte {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ENCABEZADO -->
+  <div class="center">
+    <div class="grande">★ KALU 2.0 ★</div>
+    <div class="bold small">SOLUCIONES ADMINISTRATIVAS</div>
+    <div class="small" style="font-style: italic; margin: 3px 0; line-height: 1.3">
+      "Una gran herramienta que me enseña<br />y me acompaña en este gran reto"
+    </div>
+  </div>
+
+  <hr class="linea-punteada" />
+
+  <!-- DATOS DE LA VENTA -->
+  <div style="font-size: 7.5pt; line-height: 1.5">
+    <span class="bold">CONTROL :</span> #{{ "%06d"|format(venta.id) }}<br />
+    <span class="bold">FECHA :</span> {{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}<br />
+    <span class="bold">CAJERO :</span> {{ cajero|upper }}<br />
+    <span class="bold">CLIENTE :</span>
+    {% if venta.cliente %} {{ venta.cliente.nombre|upper }} {% else %} CONSUMIDOR FINAL {% endif %}<br />
+    <span class="bold">CONDICIÓN:</span>
+    {% if venta.es_fiado %}
+    <span class="bold">CRÉDITO</span>
+    {% else %} CONTADO ✓ {% endif %}
+  </div>
+
+  <hr class="linea-punteada" />
+
+  <!-- PRODUCTOS -->
+  <table>
+    <thead>
+      <tr>
+        <th align="left">CANT</th>
+        <th align="left">PRODUCTO</th>
+        <th align="right">TOTAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in venta.detalles %}
+      <tr>
+        <td>{{ d.cantidad }}</td>
+        <td>{{ d.producto.nombre[:16] }}</td>
+        <td align="right">
+          ${{ "%.2f"|format(d.cantidad * d.precio_unitario_usd) }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <hr class="linea-solida" />
+
+  <!-- TOTALES -->
+  <div class="totales" style="text-align: center; margin-top: 4px;">
+    {% set total_bs = venta.total_usd * venta.tasa_momento %}
+    <div class="total-grande">
+      TOTAL: ${{ "%.2f"|format(venta.total_usd) }}
+    </div>
+    <div class="bold">BS: {{ "{:,.2f}".format(total_bs) }}</div>
+    <div class="small">
+      Tasa BCV: Bs. {{ "%.2f"|format(venta.tasa_momento) }}
+  </div>
+  
+  {% if es_primera_compra and venta.cliente %}
+  <hr class="linea-punteada" />
+  <div class="center small bold" style="margin-top: 5px;">
+    🚀 ¡TU COMPRA ONLINE! 🚀<br />
+    Entra a: <span style="font-size:8pt;">http://app.kalumaster.com</span><br />
+    Usuario: {{ venta.cliente.cedula }}<br />
+    Clave: {{ venta.cliente.cedula[-4:] if venta.cliente.cedula|length >= 4 else '1234' }}
+  </div>
+  {% endif %}
+
+  <!-- PUNTOS CLUB DEL VECINO -->
+  {% if venta.cliente %}
+  <hr class="linea-punteada" />
+  <div class="center small bold">
+    ⭐ CLUB DEL VECINO ⭐<br />
+    Puntos acumulados: {{ venta.cliente.puntos or 0 }} pts<br />
+    <span class="small">Meta: 200 pts = Premio</span>
+  </div>
+  {% endif %}
+
+  <hr class="linea-punteada" />
+
+  <!-- PIE DE PÁGINA -->
+  <div class="center footer corte">
+    *** GRACIAS POR SU PREFERENCIA ***<br />
+    Comprobante de control interno.<br />
+    KALU Tech · Venezuela 2026<br />
+    Powered by Abacus.AI 🤖
+  </div>
+  <script>
+    window.onload = function () {
+      window.print();
+      setTimeout(function () {
+        window.close();
+      }, 1000);
+    };
+  </script>
+
+</body>
+
+</html>

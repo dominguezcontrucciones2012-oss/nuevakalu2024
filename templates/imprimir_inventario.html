@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Inventario KALU - {{ fecha.strftime('%d/%m/%Y') }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            color: #000;
+            background: #fff;
+        }
+
+        .no-print {
+            margin: 15px;
+        }
+
+        .no-print button {
+            padding: 8px 20px;
+            margin-right: 8px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .btn-print {
+            background: #198754;
+            color: white;
+        }
+
+        .btn-back {
+            background: #6c757d;
+            color: white;
+        }
+
+        .encabezado {
+            text-align: center;
+            padding: 15px 20px 5px;
+            border-bottom: 2px solid #000;
+            margin-bottom: 10px;
+        }
+
+        .encabezado h1 {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .encabezado p {
+            font-size: 11px;
+            color: #444;
+        }
+
+        /* Filtro por categoría */
+        .filtros {
+            padding: 5px 20px 10px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filtros a {
+            padding: 4px 10px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            text-decoration: none;
+            color: #333;
+            font-size: 11px;
+        }
+
+        .filtros a.activo {
+            background: #000;
+            color: #fff;
+        }
+
+        /* Tarjetas resumen */
+        .resumen {
+            display: flex;
+            gap: 10px;
+            padding: 0 20px 10px;
+        }
+
+        .tarjeta {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 8px 12px;
+            text-align: center;
+        }
+
+        .tarjeta .valor {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .tarjeta .label {
+            font-size: 10px;
+            color: #555;
+        }
+
+        .tarjeta.rojo {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .tarjeta.verde {
+            border-color: #198754;
+            color: #198754;
+        }
+
+        .tarjeta.azul {
+            border-color: #0d6efd;
+            color: #0d6efd;
+        }
+
+        .tarjeta.gris {
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+
+        /* Tabla */
+        .contenido {
+            padding: 0 20px 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead tr {
+            background: #000;
+            color: #fff;
+        }
+
+        thead th {
+            padding: 6px 8px;
+            text-align: left;
+            font-size: 10px;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f5f5f5;
+        }
+
+        tbody tr.bajo-minimo {
+            background: #ffe0e0 !important;
+        }
+
+        tbody td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #ddd;
+            font-size: 10px;
+        }
+
+        tfoot tr {
+            background: #222;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        tfoot td {
+            padding: 6px 8px;
+            font-size: 11px;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .badge-cat {
+            background: #555;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+        }
+
+        .badge-alerta {
+            background: #dc3545;
+            color: #fff;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 9px;
+        }
+
+        /* Pie de página */
+        .pie {
+            text-align: center;
+            padding: 10px 20px;
+            border-top: 1px solid #ccc;
+            font-size: 10px;
+            color: #666;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            .filtros {
+                display: none !important;
+            }
+
+            body {
+                font-size: 10px;
+            }
+
+            .encabezado {
+                padding: 10px 0 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- BOTONES (solo en pantalla) -->
+    <div class="no-print">
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+        <button class="btn-back" onclick="window.history.back()">← Volver</button>
+        <span style="font-size:12px; color:#666; margin-left:10px;">
+            💡 Para guardar como PDF: Imprimir → Destino: "Guardar como PDF"
+        </span>
+    </div>
+
+    <!-- ENCABEZADO -->
+    <div class="encabezado">
+        <h1>🏪 SISTEMA KALU 2.0 — INVENTARIO GENERAL</h1>
+        <p>
+            Fecha: {{ fecha.strftime('%d/%m/%Y %I:%M %p') }} |
+            Tasa BCV: Bs {{ "%.2f"|format(tasa) }} |
+            Categoría: {{ categoria_filtro }}
+        </p>
+    </div>
+
+    <!-- FILTRO POR CATEGORÍA (solo en pantalla) -->
+    <div class="filtros no-print">
+        <a href="{{ url_for('inventario.imprimir_inventario') }}"
+            class="{{ 'activo' if categoria_filtro == 'TODAS' else '' }}">TODAS</a>
+        {% for cat in categorias %}
+        <a href="{{ url_for('inventario.imprimir_inventario', categoria=cat) }}"
+            class="{{ 'activo' if categoria_filtro == cat else '' }}">{{ cat }}</a>
+        {% endfor %}
+    </div>
+
+    <!-- TARJETAS RESUMEN -->
+    <div class="resumen">
+        <div class="tarjeta rojo">
+            <div class="valor">$ {{ "%.2f"|format(totales.total_invertido_usd) }}</div>
+            <div class="label">💸 Total Invertido USD</div>
+            <div class="label">Bs {{ "{:,.0f}".format(totales.total_invertido_usd * tasa) }}</div>
+        </div>
+        <div class="tarjeta verde">
+            <div class="valor">$ {{ "%.2f"|format(totales.total_venta_usd) }}</div>
+            <div class="label">🏷️ Valor de Venta USD</div>
+            <div class="label">Bs {{ "{:,.0f}".format(totales.total_venta_usd * tasa) }}</div>
+        </div>
+        <div class="tarjeta azul">
+            <div class="valor">$ {{ "%.2f"|format(totales.total_venta_usd - totales.total_invertido_usd) }}</div>
+            <div class="label">📈 Ganancia Potencial USD</div>
+        </div>
+        <div class="tarjeta gris">
+            <div class="valor">{{ totales.total_productos }}</div>
+            <div class="label">📦 Productos</div>
+        </div>
+    </div>
+
+    <!-- TABLA PRINCIPAL -->
+    <div class="contenido">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Categoría</th>
+                    <th class="text-center">Stock</th>
+                    <th class="text-right">Costo $</th>
+                    <th class="text-right">Precio $</th>
+                    <th class="text-right">Invertido $</th>
+                    <th class="text-right">Val. Venta $</th>
+                    <th class="text-right">Ganancia $</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in data %}
+                <tr class="{{ 'bajo-minimo' if d.bajo_minimo else '' }}">
+                    <td>{{ loop.index }}</td>
+                    <td>{{ d.codigo }}</td>
+                    <td>
+                        {{ d.nombre }}
+                        {% if d.bajo_minimo %}
+                        <span class="badge-alerta">⚠️ BAJO</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge-cat">{{ d.categoria }}</span></td>
+                    <td class="text-center">{{ d.stock }}</td>
+                    <td class="text-right">{{ "%.2f"|format(d.costo_usd) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(d.precio_usd) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(d.invertido_usd) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(d.valor_venta_usd) }}</td>
+                    <td class="text-right">{{ "%.2f"|format(d.ganancia_usd) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="7" class="text-right">TOTALES →</td>
+                    <td class="text-right">$ {{ "%.2f"|format(totales.total_invertido_usd) }}</td>
+                    <td class="text-right">$ {{ "%.2f"|format(totales.total_venta_usd) }}</td>
+                    <td class="text-right">$ {{ "%.2f"|format(totales.total_venta_usd - totales.total_invertido_usd) }}
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- PIE DE PÁGINA -->
+    <div class="pie">
+        Sistema KALU 2.0 | Reporte generado el {{ fecha.strftime('%d/%m/%Y a las %I:%M %p') }}
+        | Tasa BCV del día: Bs {{ "%.2f"|format(tasa) }}
+    </div>
+
+</body>
+
+</html>

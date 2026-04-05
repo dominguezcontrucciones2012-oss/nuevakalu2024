@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+
+        <!-- Formulario de Gasto -->
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white text-center">
+                    <h5>💸 Registrar Egreso / Pago</h5>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                    {% endwith %}
+
+                    <!-- SALDOS DISPONIBLES -->
+                    <div class="alert alert-info p-2 mb-3">
+                        <small class="fw-bold">💰 Saldos disponibles:</small><br>
+                        <small>💵 Caja USD: <strong>${{ "%.2f"|format(saldos['Caja USD']) }}</strong></small><br>
+                        <small>💸 Caja Bs: <strong>{{ "%.2f"|format(saldos['Caja Bs']) }} Bs</strong></small><br>
+                        <small>🏦 Banco: <strong>{{ "%.2f"|format(saldos['Banco']) }} Bs</strong></small>
+                    </div>
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Categoría:</label>
+                            <select name="categoria" class="form-select" required>
+                                <option value="Nomina">👷 Pago de Obrero (Nómina)</option>
+                                <option value="Servicios">💡 Servicios (Luz, Internet)</option>
+                                <option value="Inventario">📦 Compra de Mercancía</option>
+                                <option value="Logistica">🚗 Gasolina / Fletes</option>
+                                <option value="Retiro Personal">💼 Retiro del Dueño</option>
+                                <option value="Otros">📝 Otros Gastos</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">¿De dónde sale?</label>
+                            <select name="tipo_caja" class="form-select" required>
+                                <option value="Caja USD">💵 Efectivo $ (Caja USD)</option>
+                                <option value="Caja Bs">💸 Efectivo Bolívares</option>
+                                <option value="Banco">🏦 Banco (Pago Móvil / Biopago / Tarjeta)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Monto:</label>
+                            <input type="number" step="0.01" name="monto" class="form-control" placeholder="0.00"
+                                required>
+                            <small class="text-muted">
+                                Ingresa en $ si es Caja USD, en Bs si es Caja Bs o Banco.
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Concepto:</label>
+                            <input type="text" name="concepto" class="form-control"
+                                placeholder="Ej: Pago semana Luis obrero" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100 fw-bold">
+                            💾 Guardar Egreso
+                        </button>
+                        <a href="{{ url_for('caja.saldo_caja') }}" class="btn btn-secondary w-100 mt-2">
+                            ← Volver al Tablero
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de Movimientos -->
+        <div class="col-md-7">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">📋 Últimos 20 Movimientos</h5>
+                    <a href="{{ url_for('caja.saldo_caja') }}" class="btn btn-sm btn-light">
+                        Ver Tablero
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Categoría</th>
+                                <th>Concepto</th>
+                                <th>Caja</th>
+                                <th class="text-end">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in movimientos %}
+                            <tr class="{{ 'table-success' if m.tipo_movimiento == 'INGRESO' else 'table-danger' }}">
+                                <td>{{ m.fecha.strftime('%d/%m %H:%M') }}</td>
+                                <td>{{ m.categoria }}</td>
+                                <td class="text-muted small">{{ m.descripcion }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ m.tipo_caja }}</span>
+                                </td>
+                                <td class="text-end fw-bold">
+                                    {% if m.tipo_movimiento == 'INGRESO' %}
+                                    <span class="text-success">⬆</span>
+                                    {% else %}
+                                    <span class="text-danger">⬇</span>
+                                    {% endif %}
+                                    {% if m.tipo_caja == 'Caja USD' %}
+                                    ${{ "%.2f"|format(m.monto) }}
+                                    {% else %}
+                                    {{ "%.2f"|format(m.monto) }} Bs
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    Sin movimientos aún
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

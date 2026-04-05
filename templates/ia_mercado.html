@@ -1,0 +1,176 @@
+{% extends "base.html" %} {% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      <i class="fas fa-brain text-primary"></i> Kalu-IA: Inteligencia de Mercado
+    </h2>
+    <span class="badge bg-info text-dark">Actualizado: {{ now.strftime('%d/%m/%Y') if now else 'Hoy' }}</span>
+  </div>
+
+  <!-- Alerta de Temporada / Zafra -->
+  <div class="alert alert-warning border-start border-5 border-warning shadow-sm mb-4">
+    <h5><i class="fas fa-calendar-alt"></i> Análisis de Temporada</h5>
+    <p class="mb-0 fs-5"><strong>{{ sugerencia_zafra }}</strong></p>
+  </div>
+
+  <!-- INFORME CONTABLE IA -->
+  <div class="card shadow-sm mb-4 border-0 bg-dark text-white">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h5 class="mb-1"><i class="fas fa-robot"></i> Auditoría Contable IA — Hoy</h5>
+          <small class="text-muted">Comparación entre ventas del POS y dinero registrado en Caja.</small>
+        </div>
+        <form method="POST" action="/ia/ajuste_contable">
+          <button type="submit" class="btn btn-warning fw-bold">
+            <i class="fas fa-magic"></i> Ejecutar Ajuste IA
+          </button>
+        </form>
+      </div>
+      {% if informe %}
+      <div class="row text-center">
+        <div class="col-4">
+          <div class="bg-secondary rounded p-2">
+            <small class="text-muted d-block">Ventas POS</small>
+            <strong class="fs-5">${{ "%.2f"|format(informe.ventas) }}</strong>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="bg-secondary rounded p-2">
+            <small class="text-muted d-block">En Caja</small>
+            <strong class="fs-5">${{ "%.2f"|format(informe.en_caja) }}</strong>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="rounded p-2 {% if informe.descuadre|abs < 0.01 %}bg-success{% else %}bg-danger{% endif %}">
+            <small class="d-block">Diferencia</small>
+            <strong class="fs-5">${{ "%.2f"|format(informe.descuadre) }}</strong>
+            <div><small>{{ informe.estado }}</small></div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Columna 1: Plan de Compras -->
+    <div class="col-md-4">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-danger text-white">
+          <i class="fas fa-shopping-cart"></i> Reposición Urgente
+        </div>
+        <div class="card-body">
+          <ul class="list-group list-group-flush">
+            {% for p in criticos %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ p.nombre }}</strong><br>
+                <small class="text-muted">Mínimo: {{ p.stock_minimo }}</small>
+              </div>
+              <span class="badge bg-danger rounded-pill">{{ p.stock }} en stock</span>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted text-center">
+              <i class="fas fa-check-circle text-success"></i> Stock saludable
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna 2: Plan de Ventas (Ofertas) -->
+    <div class="col-md-4">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+          <i class="fas fa-tags"></i> Sugerencia de Ofertas
+        </div>
+        <div class="card-body p-0">
+          <p class="small text-muted px-3 pt-2">Productos estancados. La IA aplica 10% de descuento:</p>
+          <ul class="list-group list-group-flush">
+            {% for p in estancados %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ p.nombre }}</strong><br>
+                <small class="text-muted">Precio: ${{ "%.2f"|format(p.precio_normal_usd) }}</small>
+              </div>
+              <form method="POST" action="/ia/aplicar_oferta/{{ p.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-success">
+                  <i class="fas fa-bolt"></i> Aplicar
+                </button>
+              </form>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted text-center">
+              <i class="fas fa-check-circle text-success"></i> Sin productos estancados
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna 3: Club del Vecino (Cerca del Premio) -->
+    <div class="col-md-4">
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+          <i class="fas fa-users"></i> Impulso Club del Vecino
+        </div>
+        <div class="card-body p-0">
+          <p class="small text-muted px-3 pt-2">Cerca de 200 pts. La IA les da +10 puntos:</p>
+          <ul class="list-group list-group-flush">
+            {% for c in clientes_top %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ c.nombre }}</strong><br>
+                <small class="text-muted">{{ c.puntos }} / 200 pts</small>
+              </div>
+              <form method="POST" action="/ia/enviar_bono/{{ c.id }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-gift"></i> +10 pts
+                </button>
+              </form>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted text-center">Sin clientes en rango</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clientes Inactivos -->
+  {% if clientes_inactivos %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-dark">
+      <i class="fas fa-user-clock"></i> Clientes a Recuperar (sin compras en 15 días)
+    </div>
+    <div class="card-body p-0">
+      <ul class="list-group list-group-flush">
+        {% for c in clientes_inactivos %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ c.nombre }}</strong>
+            <span class="badge bg-secondary ms-2">{{ c.puntos }} pts</span>
+          </div>
+          <form method="POST" action="/ia/enviar_bono/{{ c.id }}">
+            <button type="submit" class="btn btn-sm btn-warning">
+              <i class="fas fa-gift"></i> Regalar 10 pts para que vuelva
+            </button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="text-center mt-4">
+    <button class="btn btn-outline-primary" onclick="window.print()">
+      <i class="fas fa-print"></i> Imprimir Plan del Día
+    </button>
+  </div>
+</div>
+{% endblock %}

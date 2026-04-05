@@ -1,0 +1,242 @@
+{% extends 'base.html' %} {% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold text-success">
+    <i class="fas fa-truck"></i> DIRECTORIO DE PROVEEDORES
+  </h2>
+  <button class="btn btn-success btn-lg shadow" data-bs-toggle="modal" data-bs-target="#modalProveedor">
+    <i class="fas fa-plus-circle"></i> NUEVO PROVEEDOR
+  </button>
+</div>
+
+<div class="mb-3">
+  <div class="input-group shadow-sm rounded-pill overflow-hidden border-success" style="border: 2px solid #1cc88a;">
+    <span class="input-group-text bg-white border-0 text-success"><i class="fas fa-search"></i></span>
+    <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe empresa, RIF, teléfono, vendedor..." style="box-shadow: none;">
+  </div>
+</div>
+
+<div class="card shadow border-0">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>RIF</th>
+            <th>EMPRESA</th>
+            <th>TELÉFONO</th>
+            <th>VENDEDOR</th>
+            <th>SALDO PENDIENTE ($)</th>
+            <th class="text-center">PRODUCTOR</th>
+            <th class="text-center">ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for prov in proveedores %}
+          <tr>
+            <td class="fw-bold text-secondary">{{ prov.rif }}</td>
+            <td class="fw-bold">{{ prov.nombre }}</td>
+            <td>{{ prov.telefono }}</td>
+            <td>
+              <small class="d-block fw-bold">{{ prov.vendedor_nombre }}</small>
+              <small class="text-muted">{{ prov.vendedor_telefono }}</small>
+            </td>
+            <td class="text-danger fw-bold">
+              ${{ "%.2f"|format(prov.saldo_pendiente_usd) }}
+            </td>
+            <td class="text-center">
+              {% if prov.es_productor %}
+              <span class="badge bg-warning text-dark">🧀 Productor</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <button class="btn btn-outline-primary btn-sm border-0"
+                onclick="abrirEditarProveedor({{ prov.id }}, '{{ prov.rif }}', '{{ prov.nombre }}', '{{ prov.telefono }}', '{{ prov.direccion }}', '{{ prov.vendedor_nombre }}', '{{ prov.vendedor_telefono }}', {{ 'true' if prov.es_productor else 'false' }})"
+                data-bs-toggle="modal" data-bs-target="#modalEditarProveedor">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn btn-outline-danger btn-sm border-0"
+                onclick="eliminarProveedor({{ prov.id }}, '{{ prov.nombre }}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO PROVEEDOR -->
+<div class="modal fade" id="modalProveedor" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold">REGISTRAR PROVEEDOR</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/guardar_proveedor" method="POST">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold">RIF / Cédula</label>
+              <input type="text" name="rif" class="form-control" required placeholder="J-12345678" />
+            </div>
+            <div class="col-md-8 mb-3">
+              <label class="form-label fw-bold">Nombre de la Empresa</label>
+              <input type="text" name="nombre" class="form-control" required placeholder="Distribuidora C.A." />
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Teléfono Empresa</label>
+              <input type="text" name="telefono" class="form-control" />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Dirección</label>
+              <input type="text" name="direccion" class="form-control" />
+            </div>
+          </div>
+          <hr />
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold text-success">Nombre del Vendedor</label>
+              <input type="text" name="vendedor_nombre" class="form-control" />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold text-success">Teléfono del Vendedor</label>
+              <input type="text" name="vendedor_telefono" class="form-control" />
+            </div>
+          </div>
+          <div class="form-check mt-2 mb-1">
+            <input class="form-check-input" type="checkbox" name="es_productor" id="es_productor" value="1">
+            <label class="form-check-label fw-bold text-warning" for="es_productor">
+              🧀 Es Productor (aparece en Libreta de Productores)
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            GUARDAR PROVEEDOR
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- MODAL EDITAR PROVEEDOR -->
+<div class="modal fade" id="modalEditarProveedor" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">
+          <i class="fas fa-edit"></i> EDITAR PROVEEDOR
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="formEditarProveedor" method="POST">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold">RIF / Cédula</label>
+              <input type="text" name="rif" id="edit_rif" class="form-control" required />
+            </div>
+            <div class="col-md-8 mb-3">
+              <label class="form-label fw-bold">Nombre de la Empresa</label>
+              <input type="text" name="nombre" id="edit_nombre" class="form-control" required />
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Teléfono Empresa</label>
+              <input type="text" name="telefono" id="edit_telefono" class="form-control" />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Dirección</label>
+              <input type="text" name="direccion" id="edit_direccion" class="form-control" />
+            </div>
+          </div>
+          <hr />
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold text-success">Nombre del Vendedor</label>
+              <input type="text" name="vendedor_nombre" id="edit_vendedor_nombre" class="form-control" />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold text-success">Teléfono del Vendedor</label>
+              <input type="text" name="vendedor_telefono" id="edit_vendedor_telefono" class="form-control" />
+            </div>
+          </div>
+          <div class="form-check mt-2 mb-1">
+            <input class="form-check-input" type="checkbox" name="es_productor" id="edit_es_productor" value="1">
+            <label class="form-check-label fw-bold text-warning" for="edit_es_productor">
+              🧀 Es Productor (aparece en Libreta de Productores)
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            GUARDAR CAMBIOS
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function abrirEditarProveedor(id, rif, nombre, telefono, direccion, vendedor_nombre, vendedor_telefono, es_productor) {
+    document.getElementById("edit_rif").value = rif;
+    document.getElementById("edit_nombre").value = nombre;
+    document.getElementById("edit_telefono").value = telefono;
+    document.getElementById("edit_direccion").value = direccion;
+    document.getElementById("edit_vendedor_nombre").value = vendedor_nombre;
+    document.getElementById("edit_vendedor_telefono").value = vendedor_telefono;
+    document.getElementById("edit_es_productor").checked = es_productor;
+    document.getElementById("formEditarProveedor").action = "/editar_proveedor/" + id;
+  }
+
+  function eliminarProveedor(id, nombre) {
+    if (
+      confirm(
+        '⚠️ ¿Seguro que desea eliminar a "' +
+        nombre +
+        '"? Esta acción no se puede deshacer.',
+      )
+    ) {
+      fetch("/eliminar_proveedor/" + id, { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            alert("✅ Proveedor eliminado correctamente.");
+            location.reload();
+          } else {
+            alert("❌ Error: " + data.message);
+          }
+        });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+      const buscador = document.getElementById("buscador_kalu");
+      if(buscador) {
+          buscador.addEventListener("keyup", function() {
+              const query = this.value.toLowerCase().trim();
+              const rows = document.querySelectorAll("table tbody tr");
+              rows.forEach(row => {
+                  row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+              });
+          });
+      }
+  });
+</script>
+{% endblock %}

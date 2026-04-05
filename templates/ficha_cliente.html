@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-3 mb-5">
+    <!-- CABECERA -->
+    <div class="card shadow-sm border-0 mb-3"
+        style="background: linear-gradient(135deg, #28a745, #1e7e34); color: white;">
+        <div class="card-body text-center">
+            <h4 class="mb-0">👋 ¡Hola, {{ cliente.nombre }}!</h4>
+            <small class="opacity-75">C.I.: {{ cliente.cedula }}</small>
+        </div>
+    </div>
+
+    <!-- ESTADO DE CUENTA -->
+    <div class="card border-0 shadow-sm mb-4 text-center p-4" style="background-color: #f8f9fa;">
+        <small class="text-muted d-block mb-1 text-uppercase font-weight-bold">Tu Deuda Total</small>
+        <h1 class="display-4 text-danger font-weight-bold">${{ "%.2f"|format(cliente.saldo_usd) }}</h1>
+        <p class="text-muted mb-0">Equivalente a: <strong>{{ "%.2f"|format(cliente.saldo_usd * session.get('tasa_bcv',
+                36)) }} Bs.</strong></p>
+    </div>
+
+    <!-- BOTÓN DE PAGO -->
+    <div class="d-grid gap-2 mb-4">
+        <button class="btn btn-success btn-lg btn-block shadow-sm py-3" data-toggle="modal" data-target="#modalPago">
+            <i class="fas fa-mobile-alt mr-2"></i> REPORTAR PAGO MÓVIL
+        </button>
+    </div>
+
+    <!-- LISTA DE FACTURAS -->
+    <h6 class="text-muted mb-3 px-2">MIS ÚLTIMAS COMPRAS</h6>
+    <div class="list-group shadow-sm border-0">
+        {% for venta in cliente.ventas | sort(attribute='fecha', reverse=True) %}
+        <div class="list-group-item border-0 mb-1 py-3 d-flex justify-content-between align-items-center">
+            <div>
+                <strong class="text-dark">Factura #{{ venta.id }}</strong><br>
+                <small class="text-muted">{{ venta.fecha.strftime('%d/%m/%Y %I:%M %p') }}</small>
+            </div>
+            <div class="text-right">
+                <span class="d-block font-weight-bold text-dark">${{ "%.2f"|format(venta.total_usd) }}</span>
+                {% if venta.pagada %}
+                <span class="badge badge-success">Pagada ✅</span>
+                {% else %}
+                <span class="badge badge-warning text-white">Pendiente ❌</span>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item text-center text-muted py-4">No tienes compras registradas.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- MODAL PAGO -->
+<div class="modal fade" id="modalPago" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title">Reportar Pago Móvil</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form action="{{ url_for('usuarios.subir_pago') }}" method="POST">
+                <div class="modal-body">
+                    <div class="alert alert-info small">
+                        <strong>Datos para el pago:</strong><br>
+                        Banesco | 0412-1234567 | J-12345678-9
+                    </div>
+                    <div class="form-group">
+                        <label>Monto Pagado ($)</label>
+                        <input type="number" step="0.01" name="monto" class="form-control form-control-lg"
+                            placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Referencia (Últimos 4 números)</label>
+                        <input type="text" name="referencia" class="form-control" placeholder="1234">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-success btn-block btn-lg">ENVIAR PAGO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

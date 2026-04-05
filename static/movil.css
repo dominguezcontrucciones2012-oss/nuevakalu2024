@@ -1,0 +1,56 @@
+/* ESTO SOLO SE ACTIVA EN CELULARES */
+@media (max-width: 768px) {
+    /* 1. Escondemos el menú lateral para que no tape la pantalla */
+    .sidebar {
+        display: none !important;
+    }
+
+    /* 2. Hacemos que el contenido use todo el ancho del teléfono */
+    .main-content {
+        margin-left: 0 !important;
+        padding: 15px !important;
+        width: 100% !important;
+    }
+
+    /* 3. Ponemos un menú cómodo abajo tipo App */
+    body::after {
+        content: "";
+        display: block;
+        height: 70px; /* Espacio para que el menú no tape el contenido */
+    }
+
+    /* Creamos la barra de navegación inferior */
+    .mobile-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 65px;
+        background: #1a252f;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        border-top: 2px solid #3498db;
+        z-index: 9999;
+    }
+
+    .mobile-nav a {
+        color: #bdc3c7;
+        text-decoration: none;
+        text-align: center;
+        font-size: 0.7rem;
+    }
+
+    .mobile-nav a i {
+        display: block;
+        font-size: 1.3rem;
+        margin-bottom: 2px;
+    }
+}
+
+/* Si no es celular, no mostramos la barra de abajo */
+@media (min-width: 769px) {
+    .mobile-nav {
+        display: none !important;
+    }
+}

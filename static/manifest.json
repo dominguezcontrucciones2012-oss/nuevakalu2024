@@ -1,0 +1,17 @@
+{
+  "name": "KALU 2.0 - Sistema Administrativo",
+  "short_name": "KALU 2.0",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a252f",
+  "theme_color": "#1a252f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3225/3225091.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

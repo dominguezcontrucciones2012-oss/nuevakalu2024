@@ -1,0 +1,174 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="fas fa-chart-pie text-warning"></i> Balance General</h3>
+    <div>
+      <button onclick="window.print()" class="btn btn-outline-dark btn-sm">
+        <i class="fas fa-print"></i> Imprimir
+      </button>
+      <a href="/contabilidad" class="btn btn-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Volver
+      </a>
+    </div>
+  </div>
+
+  {% if not resumen %}
+  <div class="alert alert-info text-center">
+    <i class="fas fa-info-circle"></i> No hay movimientos contables registrados
+    aún.
+  </div>
+  {% else %}
+
+  <!-- ACTIVOS -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-success text-white">
+      <h5 class="mb-0"><i class="fas fa-plus-circle"></i> ACTIVOS</h5>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Código</th>
+            <th>Cuenta</th>
+            <th class="text-right">Debe $</th>
+            <th class="text-right">Haber $</th>
+            <th class="text-right">Saldo $</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in resumen if c.tipo == 'ACTIVO' %}
+          <tr>
+            <td><strong class="text-success">{{ c.codigo }}</strong></td>
+            <td>{{ c.nombre }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.debe) }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.haber) }}</td>
+            <td class="text-right text-success">
+              <strong>{{ "%.2f"|format(c.saldo) }}</strong>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PASIVOS -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-danger text-white">
+      <h5 class="mb-0"><i class="fas fa-minus-circle"></i> PASIVOS</h5>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Código</th>
+            <th>Cuenta</th>
+            <th class="text-right">Debe $</th>
+            <th class="text-right">Haber $</th>
+            <th class="text-right">Saldo $</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in resumen if c.tipo == 'PASIVO' %}
+          <tr>
+            <td><strong class="text-danger">{{ c.codigo }}</strong></td>
+            <td>{{ c.nombre }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.debe) }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.haber) }}</td>
+            <td class="text-right text-danger">
+              <strong>{{ "%.2f"|format(c.saldo) }}</strong>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INGRESOS -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-arrow-up"></i> INGRESOS</h5>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Código</th>
+            <th>Cuenta</th>
+            <th class="text-right">Debe $</th>
+            <th class="text-right">Haber $</th>
+            <th class="text-right">Saldo $</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in resumen if c.tipo == 'INGRESO' %}
+          <tr>
+            <td><strong class="text-primary">{{ c.codigo }}</strong></td>
+            <td>{{ c.nombre }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.debe) }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.haber) }}</td>
+            <td class="text-right text-primary">
+              <strong>{{ "%.2f"|format(c.saldo) }}</strong>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- GASTOS -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0"><i class="fas fa-arrow-down"></i> GASTOS</h5>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Código</th>
+            <th>Cuenta</th>
+            <th class="text-right">Debe $</th>
+            <th class="text-right">Haber $</th>
+            <th class="text-right">Saldo $</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in resumen if c.tipo == 'GASTO' %}
+          <tr>
+            <td><strong class="text-warning">{{ c.codigo }}</strong></td>
+            <td>{{ c.nombre }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.debe) }}</td>
+            <td class="text-right">{{ "%.2f"|format(c.haber) }}</td>
+            <td class="text-right text-warning">
+              <strong>{{ "%.2f"|format(c.saldo) }}</strong>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% set total_activos = resumen | selectattr('tipo', 'equalto', 'ACTIVO') |
+  sum(attribute='saldo') %} {% set total_ingresos = resumen | selectattr('tipo',
+  'equalto', 'INGRESO') | sum(attribute='saldo') %} {% set total_gastos =
+  resumen | selectattr('tipo', 'equalto', 'GASTO') | sum(attribute='saldo') %}
+  <div class="alert alert-dark shadow text-center">
+    <h5 class="mb-0">
+      <i class="fas fa-balance-scale"></i>
+      Activos:
+      <strong class="text-success">${{ "%.2f"|format(total_activos) }}</strong>
+      &nbsp;|&nbsp; Ingresos:
+      <strong class="text-primary">${{ "%.2f"|format(total_ingresos) }}</strong>
+      &nbsp;|&nbsp; Utilidad:
+      <strong class="text-warning"
+        >${{ "%.2f"|format(total_ingresos - total_gastos) }}</strong
+      >
+    </h5>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}

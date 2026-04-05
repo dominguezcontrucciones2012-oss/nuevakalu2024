@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>KALU 2.0 - SISTEMA ADMINISTRATIVO</title>
+   <!-- PWA Support -->
+   <link rel="manifest" href="/static/manifest.json">
+   <meta name="theme-color" content="#1a252f">
+   <meta name="apple-mobile-web-app-capable" content="yes">
+   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+   <link rel="apple-touch-icon" href="/static/logo_pwa.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <!-- DataTables + Buttons CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+  
+  <!-- DataTables + Extensiones de Exportación JS -->
+  <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='movil.css') }}">
+  <style>
+    body {
+      background: url('/static/fondo_negocio_jpg.png') no-repeat center center fixed !important;
+      background-size: cover !important;
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    /* Overlay global para contraste */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4); /* Capa oscura sutil */
+      z-index: -1;
+    }
+
+    @keyframes pulse-tasa {
+      0% {
+        background: #c0392b;
+      }
+
+      50% {
+        background: #e74c3c;
+      }
+
+      100% {
+        background: #c0392b;
+      }
+    }
+
+    .barra-tasa-alerta {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10000;
+      background: #c0392b;
+      color: white;
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      animation: pulse-tasa 1.5s infinite;
+    }
+
+    .sidebar {
+      height: 100vh;
+      background: rgba(26, 37, 47, 0.95);
+      color: white;
+      position: fixed;
+      width: 260px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      z-index: 1050;
+      backdrop-filter: blur(10px);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar.collapsed {
+      transform: translateX(-260px);
+    }
+
+    .sidebar h3 {
+      padding: 25px;
+      background: rgba(20, 28, 36, 0.5);
+      color: #3498db;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 0;
+      letter-spacing: 2px;
+    }
+
+    .sidebar .menu-label {
+      padding: 15px 25px 5px 25px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: #5dade2;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .sidebar a {
+      color: #bdc3c7;
+      text-decoration: none;
+      padding: 12px 25px;
+      display: block;
+      transition: all 0.2s;
+      font-size: 0.9rem;
+      border-left: 4px solid transparent;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active {
+      background: rgba(52, 152, 219, 0.1);
+      color: #3498db;
+      border-left: 4px solid #3498db;
+      padding-left: 30px;
+    }
+
+    .main-content {
+      margin-left: 260px;
+      padding: 30px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .main-content.expanded {
+      margin-left: 0;
+    }
+
+    /* Toggle Button */
+    .btn-toggle-sidebar {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1100;
+      background: #1a252f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      transition: all 0.3s;
+    }
+
+    .btn-toggle-sidebar:hover {
+      background: #3498db;
+      transform: scale(1.05);
+    }
+
+    .card {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(15px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    
+    /* PWA - Color de barra de estado */
+    meta[name="theme-color"] { content: #1a252f; }
+
+    .btn-tasa-bcv {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: white !important;
+      border-radius: 50px;
+      padding: 8px 15px;
+      font-size: 0.85rem;
+      text-decoration: none !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-tasa-bcv:hover {
+      background: #f1c40f;
+      color: #000 !important;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+
+<body>
+  <button class="btn-toggle-sidebar" id="sidebar-toggle" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- 🚨 BARRA ROJA FLOTANTE — ALERTA TASA BCV -->
+  {% if alerta_tasa %}
+  <div class="barra-tasa-alerta" data-url="{{ url_for('set_tasa_bcv') }}" onclick="window.location=this.dataset.url">
+    ⚠️ LA TASA BCV ESTÁ DESACTUALIZADA — HAZ CLIC AQUÍ PARA ACTUALIZAR
+  </div>
+  <style>
+    .sidebar {
+      margin-top: 48px !important;
+    }
+
+    .main-content {
+      margin-top: 48px !important;
+    }
+  </style>
+  {% endif %}
+
+  <div class="sidebar">
+    <h3>KALU 2.0</h3>
+
+    <div class="menu-label">Módulo de Ventas</div>
+    <a href="/pos"><i class="fas fa-cash-register me-2"></i> PUNTO DE VENTA</a>
+    <a href="/historial_ventas"><i class="fas fa-receipt me-2"></i> HISTORIAL VENTAS</a>
+    <a href="/clientes"><i class="fas fa-users me-2"></i> CLIENTES</a>
+    <a href="/morosos"><i class="fas fa-user-clock me-2"></i> CUENTAS X COBRAR</a>
+
+    <div class="menu-label">Inventario y Compras</div>
+    <a href="/inventario"><i class="fas fa-boxes me-2"></i> INVENTARIO</a>
+    <a href="/compras"><i class="fas fa-shopping-cart me-2"></i> CARGA DE COMPRAS</a>
+    <a href="/cuentas_por_pagar"><i class="fas fa-file-invoice-dollar me-2"></i> CUENTAS X PAGAR</a>
+    <a href="/proveedores"><i class="fas fa-truck me-2"></i> PROVEEDORES</a>
+
+    <div class="menu-label">Reportes y Caja</div>
+    <a href="/reporte_cierre"><i class="fas fa-chart-line me-2"></i> CIERRE DIARIO</a>
+    {% if current_user.role != 'cajero' %}
+    <a href="/reportes"><i class="fas fa-chart-bar me-2"></i> ANÁLISIS Y UTILIDAD</a>
+    <a href="{{ url_for('caja.registrar_gasto') }}" class="gasto-link">
+      <i class="fas fa-money-bill-wave me-2"></i> REGISTRAR GASTOS / PAGOS
+    </a>
+    <a href="/contabilidad"><i class="fas fa-book me-2"></i> MOVIMIENTOS CAJA</a>
+    {% endif %}
+    <a href="/ia-mercado"><i class="fas fa-robot me-2"></i> IA MERCADO</a>
+
+    <div class="menu-label">Productores</div>
+    <a href="{{ url_for('productores.libreta') }}">
+      <i class="fas fa-book-open me-2"></i> LIBRETA QUESO
+    </a>
+
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <div class="menu-label-admin">⚙️ Panel Administrador</div>
+    <a href="{{ url_for('usuarios.lista_usuarios') }}" class="admin-link"><i class="fas fa-user-shield me-2"></i>
+      GESTIONAR USUARIOS</a>
+    <a href="{{ url_for('cargar.panel_cargar') }}" class="admin-link"><i class="fas fa-file-excel me-2"></i> IMPORTAR
+      EXCEL</a>
+    <a href="{{ url_for('reportes.respaldar_db') }}" class="admin-link"><i class="fas fa-cloud-download-alt me-2"></i>
+      DESCARGAR RESPALDO</a>
+    {% endif %}
+
+    <div style="padding: 15px 25px; margin-top: 10px">
+      <a href="{{ url_for('set_tasa_bcv') }}" class="btn-tasa-bcv shadow-sm w-100
+         {% if alerta_tasa %}border-danger{% endif %}" {% if alerta_tasa %}style="background:#c0392b;" {% endif %}>
+        <i class="fas fa-university me-2"></i>
+        {% if alerta_tasa %}
+        <span>⚠️ ACTUALIZAR TASA</span>
+        {% else %}
+        <span>BCV: <strong>Bs. {{ tasa_actual|default('CARGAR') }}</strong></span>
+        {% endif %}
+      </a>
+    </div>
+
+    {% if current_user.is_authenticated %}
+    <div style="padding: 10px 25px; margin-bottom: 20px;">
+      <a href="{{ url_for('auth.logout') }}" style="color:#e74c3c; border-left: 4px solid #e74c3c;"
+        class="d-block text-decoration-none py-2 px-0">
+        <i class="fas fa-sign-out-alt me-2"></i> CERRAR SESIÓN
+        <small class="d-block text-muted" style="font-size:0.75rem;">{{ current_user.username }} ({{ current_user.role
+          }})</small>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const mainContent = document.querySelector('.main-content');
+      const toggleBtn = document.getElementById('sidebar-toggle');
+      
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('expanded');
+      
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      localStorage.setItem('sidebarCollapsed', isCollapsed);
+      
+      // Update icon
+      const icon = toggleBtn.querySelector('i');
+      if (isCollapsed) {
+        icon.classList.replace('fa-bars', 'fa-chevron-right');
+        toggleBtn.style.left = '15px';
+      } else {
+        icon.classList.replace('fa-chevron-right', 'fa-bars');
+        // Optional: you could move the button if you want it to follow the sidebar
+      }
+    }
+
+    // Initialize sidebar state
+    document.addEventListener('DOMContentLoaded', () => {
+      let isCollapsed = localStorage.getItem('sidebarCollapsed');
+      
+      // Default to collapsed if it's the first time and we are in POS
+      if (isCollapsed === null && window.location.pathname.includes('/pos')) {
+        isCollapsed = 'true';
+      }
+      
+      if (isCollapsed === 'true') {
+        document.querySelector('.sidebar').classList.add('collapsed');
+        document.querySelector('.main-content').classList.add('expanded');
+        document.getElementById('sidebar-toggle').querySelector('i').classList.replace('fa-bars', 'fa-chevron-right');
+      }
+    });
+  </script>
+  <script>
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').then(reg => {
+          console.log('PWA Service Worker registrado correctamente.', reg.scope);
+        }).catch(err => {
+          console.warn('Fallo el registro del Service Worker:', err);
+        });
+      });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- DataTables + Extensiones de Exportación JS -->
+<!-- DataTables + Extensiones de Exportación JS y jQuery se cargan arriba -->
+
+  <div class="mobile-nav">
+    <a href="/pos"><i class="fas fa-cash-register"></i>Vender</a>
+    <a href="/inventario"><i class="fas fa-boxes"></i>Stock</a>
+    <a href="/reporte_cierre"><i class="fas fa-chart-line"></i>Cierre</a>
+    <a href="/clientes"><i class="fas fa-users"></i>Clientes</a>
+  </div>
+</body>
+
+</html>

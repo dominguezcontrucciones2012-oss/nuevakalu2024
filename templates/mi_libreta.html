@@ -1,0 +1,390 @@
+{% extends 'base_portal.html' %}
+
+{% block title %}Mi Libreta{% endblock %}
+
+{% block content %}
+<style>
+    .banner {
+        background: linear-gradient(135deg, #0d6efd, #198754);
+        color: white;
+        border-radius: 18px;
+        padding: 22px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .banner h2 {
+        margin: 0 0 6px 0;
+        font-size: 26px;
+    }
+
+    .banner p {
+        margin: 0;
+        opacity: 0.95;
+        font-size: 14px;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .card h3 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+        color: #666;
+    }
+
+    .value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #222;
+    }
+
+    .profile-card {
+        background: white;
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .profile-card h3 {
+        margin-top: 0;
+        color: #198754;
+    }
+
+    .profile-card p {
+        margin: 6px 0;
+        font-size: 14px;
+    }
+
+    .section-title {
+        margin: 24px 0 12px;
+        font-size: 20px;
+        color: #222;
+    }
+
+    .movement-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .movement-item {
+        background: white;
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border-left: 5px solid #198754;
+    }
+
+    .movement-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .movement-date {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .movement-type {
+        font-size: 12px;
+        font-weight: bold;
+        background: #e9f7ef;
+        color: #198754;
+        padding: 4px 8px;
+        border-radius: 20px;
+    }
+
+    .movement-desc {
+        font-size: 14px;
+        margin-bottom: 10px;
+        color: #333;
+    }
+
+    .movement-values {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .movement-values div {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+    }
+
+    .movement-values span {
+        display: block;
+        color: #777;
+        font-size: 11px;
+        margin-bottom: 4px;
+    }
+
+    .empty {
+        background: #f8f9fa;
+        padding: 16px;
+        border-radius: 12px;
+        color: #666;
+    }
+
+    .notice-box {
+        background: linear-gradient(135deg, #fff3cd, #ffe69c);
+        border-left: 5px solid #ffc107;
+        border-radius: 16px;
+        padding: 18px;
+        margin-top: 22px;
+    }
+
+    .notice-box h3 {
+        margin-top: 0;
+    }
+
+    @media (max-width: 600px) {
+        .movement-values {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+
+<div class="banner">
+    <h2>📒 Mi Libreta Digital</h2>
+    <p>Consulta tus movimientos, pagos, kilos y saldo actual.</p>
+</div>
+
+<div class="profile-card">
+    <h3>{{ proveedor.nombre }}</h3>
+    <p><strong>RIF / Cédula:</strong> {{ proveedor.rif or 'No registrado' }}</p>
+    <p><strong>Teléfono:</strong> {{ proveedor.telefono or 'No registrado' }}</p>
+</div>
+
+<div class="summary-grid">
+    <div class="card">
+        <h3>Saldo actual</h3>
+        <div class="value">${{ '%.2f'|format(saldo_actual or 0) }}</div>
+    </div>
+
+    <div class="card">
+        <h3>Total kilos</h3>
+        <div class="value">{{ '%.2f'|format(total_kilos or 0) }}</div>
+    </div>
+
+    <div class="card">
+        <h3>Total debe</h3>
+        <div class="value">${{ '%.2f'|format(total_debe or 0) }}</div>
+    </div>
+
+    <div class="card">
+        <h3>Total haber</h3>
+        <div class="value">${{ '%.2f'|format(total_haber or 0) }}</div>
+    </div>
+</div>
+
+<h3 class="section-title">📋 Movimientos recientes</h3>
+
+{% if movimientos %}
+<div class="movement-list">
+    {% for mov in movimientos[:10] %}
+    <div class="movement-item">
+        <div class="movement-top">
+            <div class="movement-date">
+                {{ mov.fecha.strftime('%d/%m/%Y %I:%M %p') if mov.fecha else 'Sin fecha' }}
+            </div>
+            <div class="movement-type">
+                {{ mov.tipo or 'MOVIMIENTO' }}
+            </div>
+        </div>
+
+        <div class="movement-desc">
+            {{ mov.descripcion or 'Sin descripción' }}
+        </div>
+
+        <div class="movement-values">
+            <div>
+                <span>Kilos</span>
+                {{ '%.2f'|format(mov.kilos or 0) }}
+            </div>
+            <div>
+                <span>Debe</span>
+                ${{ '%.2f'|format(mov.debe or 0) }}
+            </div>
+            <div>
+                <span>Haber</span>
+                ${{ '%.2f'|format(mov.haber or 0) }}
+            </div>
+            <div>
+                <span>Saldo</span>
+                ${{ '%.2f'|format(mov.saldo or 0) }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty">No hay movimientos registrados en tu libreta.</div>
+{% endif %}
+
+<div class="notice-box" style="margin-bottom: 20px;">
+    <h3>📢 Avisos Especiales</h3>
+    <p>Revisión semanal de leche. Pagos pendientes confirmados para el viernes.</p>
+</div>
+
+<h3 class="section-title" id="productos">🛒 Productos y Ofertas KALU</h3>
+{% if productos %}
+<p style="color: #666; font-size: 14px; margin-top: -10px;">Encuentra y agrega lo que necesitas comprar para que el cajero lo prepare (se puede cargar a tu libreta).</p>
+<button class="pay-button" style="background: #0d6efd; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.25); text-decoration:none; border:none; display:flex; justify-content:center; align-items:center; width:100%; border-radius:12px; padding:15px; color:white; font-weight:bold; cursor:pointer;" onclick="abrirCatalogo()">
+    <i class="fas fa-search" style="margin-right:8px;"></i> VER CATÁLOGO DE PRODUCTOS
+</button>
+
+<!-- MODAL CATÁLOGO DE PRODUCTOS -->
+<div id="modalCatalogo" class="form-box"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:1005; border-radius:0; margin:0; overflow-y:auto; background: #f0f2f5;">
+    
+    <div style="background: white; padding: 15px; position: sticky; top: 0; z-index: 1006; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h4 style="margin:0; color:#198754;"><i class="fas fa-store"></i> Catálogo KALU</h4>
+            <button onclick="cerrarCatalogo()" style="background:none; border:none; font-size:28px; color:#dc3545; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <input type="text" id="buscadorProductos" class="form-control" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;" placeholder="Buscar por nombre o categoría..." onkeyup="filtrarProductos()">
+    </div>
+
+    <div style="padding: 15px; padding-bottom: 100px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 15px;" id="lista_catalogo">
+            {% for producto in productos %}
+            <div class="product-card item-producto" data-nombre="{{ producto.nombre|lower }}" data-categoria="{{ (producto.categoria or '')|lower }}" style="background: white; border: 1px solid #e9ecef; border-radius: 14px; padding: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+                <h4 style="margin:0 0 8px 0; color:#198754; font-size:17px;">{{ producto.nombre }}</h4>
+                <div style="font-size: 18px; font-weight: bold; color: #212529;">Normal: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
+                <div style="color:#dc3545; font-weight:bold;">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
+                <div style="color:#777; font-size:13px; margin-top:4px;">Categoría: {{ producto.categoria or 'General' }}</div>
+                <button style="background:#198754; color:white; border:none; padding:10px; border-radius:8px; width:100%; margin-top:10px; font-weight:bold; cursor:pointer;"
+                    onclick="agregarAlPedido('{{ producto.id }}', `{{ producto.nombre }}`, {{ producto.precio_oferta_usd or producto.precio_normal_usd }}); cerrarCatalogo();">
+                    <i class="fas fa-plus"></i> Añadir a la lista
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- BOTÓN FLOTANTE DE PEDIDO -->
+<div id="btn_flotante_pedido" style="display:none; position: fixed; bottom: 85px; right: 20px; z-index: 999;">
+    <button style="background: #198754; color: white; padding: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; box-shadow: 0 4px 12px rgba(25, 135, 84, 0.25); border: none; cursor: pointer;" onclick="verMiLista()">
+        <i class="fas fa-shopping-basket"></i> MI LISTA (<span id="cant_items_pedido">0</span>)
+    </button>
+</div>
+
+<!-- MODAL MI LISTA (CARRITO CLIENTE) -->
+<div id="modalLista" class="form-box"
+    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; width:90%; max-width:400px; border:2px solid #198754; background:white; padding:20px; border-radius:15px;">
+    <h4 style="text-align:center; margin-top:0;">🛒 Mi Lista de Pedido</h4>
+    <div id="items_lista" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
+    <button style="background:#198754; color:white; border:none; padding:12px; border-radius:10px; width:100%; font-weight:bold; margin-bottom:10px; cursor:pointer;" onclick="enviarPedido()"><i class="fas fa-paper-plane"></i> ENVIAR PEDIDO A KALU</button>
+    <button style="background:#666; color:white; border:none; padding:12px; border-radius:10px; width:100%; font-weight:bold; cursor:pointer;" onclick="document.getElementById('modalLista').style.display='none'">CERRAR</button>
+</div>
+{% else %}
+<div class="empty">No hay productos disponibles en este momento.</div>
+{% endif %}
+
+<script>
+    let miPedido = [];
+
+    function abrirCatalogo() {
+        document.getElementById('modalCatalogo').style.display = 'block';
+    }
+    
+    function cerrarCatalogo() {
+        document.getElementById('modalCatalogo').style.display = 'none';
+        document.getElementById('buscadorProductos').value = '';
+        filtrarProductos();
+    }
+
+    function filtrarProductos() {
+        let input = document.getElementById('buscadorProductos').value.toLowerCase();
+        let items = document.querySelectorAll('.item-producto');
+        
+        items.forEach(item => {
+            let nombre = item.getAttribute('data-nombre');
+            let categoria = item.getAttribute('data-categoria');
+            if (nombre.includes(input) || categoria.includes(input)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function agregarAlPedido(id, nombre, precio) {
+        const existe = miPedido.find(i => i.id === id);
+        if (existe) {
+            existe.cantidad++;
+        } else {
+            miPedido.push({ id, nombre, precio, cantidad: 1 });
+        }
+        actualizarBotonFlotante();
+        alert(`✅ ${nombre} añadido.`);
+    }
+
+    function actualizarBotonFlotante() {
+        const btn = document.getElementById('btn_flotante_pedido');
+        const cant = document.getElementById('cant_items_pedido');
+        if (miPedido.length > 0) {
+            btn.style.display = 'block';
+            cant.innerText = miPedido.reduce((acc, item) => acc + item.cantidad, 0);
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+
+    function verMiLista() {
+        const container = document.getElementById('items_lista');
+        container.innerHTML = miPedido.map((item, index) => `
+        <div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
+            <span>${item.nombre} x${item.cantidad}</span>
+            <strong>$${(item.precio * item.cantidad).toFixed(2)}</strong>
+            <button onclick="miPedido.splice(${index},1); verMiLista(); actualizarBotonFlotante();" style="border:none; background:none; color:red; cursor:pointer;">×</button>
+        </div>
+    `).join('');
+        document.getElementById('modalLista').style.display = 'block';
+    }
+
+    function enviarPedido() {
+        if (miPedido.length === 0) return;
+
+        fetch('/api/crear_pedido', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: miPedido })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                alert(res.message);
+                miPedido = [];
+                actualizarBotonFlotante();
+                document.getElementById('modalLista').style.display = 'none';
+            } else {
+                alert("⚠️ " + res.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("❌ No se pudo enviar el pedido al servidor.");
+        });
+    }
+</script>
+{% endblock %}

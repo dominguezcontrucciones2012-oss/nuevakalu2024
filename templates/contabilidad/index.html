@@ -1,0 +1,105 @@
+{% extends 'base.html' %} {% block content %}
+<div class="container mt-4">
+  <h3 class="mb-1">
+    <i class="fas fa-calculator text-primary"></i> Módulo de Contabilidad
+  </h3>
+  <p class="text-muted mb-4">
+    KALU 2.0 - Contabilidad bimoneda (USD / Bs). Tasa actual:
+    <strong>Bs {{ "%.2f"|format(tasa_actual) }}</strong>
+  </p>
+
+  <!-- RESUMEN FINANCIERO -->
+  <div class="row mb-4">
+    <div class="col-md-4 mb-3">
+      <div class="card border-left-success shadow">
+        <div class="card-body py-3">
+          <div class="text-xs text-success fw-bold text-uppercase mb-1">
+            💰 Total Ventas
+          </div>
+          <div class="h4 fw-bold text-dark">
+            ${{ "%.2f"|format(total_ventas) }}
+          </div>
+          <small class="text-muted">Contado + Fiado registrados</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card border-left-danger shadow">
+        <div class="card-body py-3">
+          <div class="text-xs text-danger fw-bold text-uppercase mb-1">
+            🛒 Total Compras
+          </div>
+          <div class="h4 fw-bold text-dark">
+            ${{ "%.2f"|format(total_compras) }}
+          </div>
+          <small class="text-muted">Mercancía registrada</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card border-left-warning shadow">
+        <div class="card-body py-3">
+          <div class="text-xs text-warning fw-bold text-uppercase mb-1">
+            📋 Cuentas por Cobrar
+          </div>
+          <div class="h4 fw-bold text-dark">
+            ${{ "%.2f"|format(total_fiado) }}
+          </div>
+          <small class="text-muted">Ventas fiado pendientes</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÓDULOS -->
+  <div class="row">
+    <!-- Plan de Cuentas -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow h-100 border-left-primary">
+        <div class="card-body text-center py-4">
+          <i class="fas fa-sitemap fa-3x text-primary mb-3"></i>
+          <h5 class="fw-bold">Plan de Cuentas</h5>
+          <p class="text-muted small">Catálogo contable completo</p>
+          <a
+            href="/contabilidad/plan-cuentas"
+            class="btn btn-primary btn-sm mt-2"
+          >
+            <i class="fas fa-arrow-right"></i> Abrir
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Libro Diario -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow h-100 border-left-success">
+        <div class="card-body text-center py-4">
+          <i class="fas fa-book fa-3x text-success mb-3"></i>
+          <h5 class="fw-bold">Libro Diario</h5>
+          <p class="text-muted small">Asientos automáticos de ventas</p>
+          <a
+            href="/contabilidad/libro-diario"
+            class="btn btn-success btn-sm mt-2"
+          >
+            <i class="fas fa-arrow-right"></i> Abrir
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Balance -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow h-100 border-left-warning">
+        <div class="card-body text-center py-4">
+          <i class="fas fa-chart-line fa-3x text-warning mb-3"></i>
+          <h5 class="fw-bold">Balance General</h5>
+          <p class="text-muted small">Activos, Pasivos e Ingresos</p>
+          <a href="/contabilidad/balance" class="btn btn-warning btn-sm mt-2">
+            <i class="fas fa-arrow-right"></i> Abrir
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-primary">
+            <i class="fas fa-book-open"></i> LIBRETA DIGITAL DE PRODUCTORES
+        </h2>
+        <button class="btn btn-warning btn-lg shadow fw-bold" data-bs-toggle="modal" data-bs-target="#modalRanking">
+            <i class="fas fa-trophy"></i> VER RANKING DEL AÑO
+        </button>
+    </div>
+
+    <div class="row">
+        {% for p in productores %}
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body text-center">
+                    <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3"
+                        style="width: 80px; height: 80px;">
+                        <i class="fas fa-user-tie fa-3x text-secondary"></i>
+                    </div>
+                    <h5 class="fw-bold mb-1">{{ p.nombre }}</h5>
+                    <p class="text-muted small mb-3"><i class="fas fa-id-card"></i> {{ p.rif }}</p>
+
+                    <div class="d-flex justify-content-between px-3 mb-3">
+                        <div class="text-center">
+                            <span class="d-block small text-muted">Saldo</span>
+                            {% if p.saldo_pendiente_usd >= 0 %}
+                            <span class="fw-bold text-success">A FAVOR: ${{ "%.2f"|format(p.saldo_pendiente_usd)
+                                }}</span>
+                            {% else %}
+                            <span class="fw-bold text-danger">TE DEBE: ${{ "%.2f"|format(p.saldo_pendiente_usd | abs)
+                                }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="text-center border-start ps-3">
+                            <span class="d-block small text-muted">Kilos (Año)</span>
+                            <span class="fw-bold text-primary">{{ "%.2f"|format(p.total_kilos or 0) }} kg</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#modalHistorial{{ p.id }}">
+                            <i class="fas fa-eye"></i> VER LIBRETA
+                        </button>
+                        <button class="btn btn-success fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#modalQueso{{ p.id }}">
+                            <i class="fas fa-plus"></i> RECIBIR QUESO
+                        </button>
+                        <button class="btn btn-danger fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#modalPago{{ p.id }}">
+                            <i class="fas fa-money-bill-wave"></i> PAGAR / ADELANTO
+                        </button>
+                        <button class="btn btn-primary fw-bold" data-bs-toggle="modal"
+                            data-bs-target="#modalAbono{{ p.id }}">
+                            <i class="fas fa-hand-holding-usd"></i> ABONAR EFECTIVO (POS)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- MODAL RANKING -->
+<div class="modal fade" id="modalRanking" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="fas fa-crown"></i> RANKING {{ anio_actual }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>PRODUCTOR</th>
+                            <th class="text-center">KILOS</th>
+                            <th class="text-center">CONSTANCIA</th>
+                            <th class="text-end">PUNTOS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in ranking %}
+                        <tr>
+                            <td class="fw-bold">{{ r.nombre }}</td>
+                            <td class="text-center">{{ r.total_kilos }} kg</td>
+                            <td class="text-center">{{ r.semanas_fiel }} sem</td>
+                            <td class="text-end fw-bold text-success fs-5">{{ r.puntos_totales }} pts</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for p in productores %}
+<!-- MODAL REGISTRAR QUESO -->
+<div class="modal fade" id="modalQueso{{ p.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Recibir Queso: {{ p.nombre }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('productores.registrar_entrega') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="proveedor_id" value="{{ p.id }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Kilos Recibidos</label>
+                        <input type="number" step="0.01" name="kilos" id="kilos{{ p.id }}" class="form-control" required
+                            oninput="calcularTotal({{ p.id }})">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Precio por Kilo ($)</label>
+                        <input type="number" step="0.01" name="precio" id="precio{{ p.id }}" class="form-control"
+                            required oninput="calcularTotal({{ p.id }})">
+                    </div>
+                    <div class="mb-3 p-3 bg-dark text-warning rounded text-center">
+                        <span class="fs-6 d-block">TOTAL A PAGAR:</span>
+                        <span class="fs-2 fw-bold" id="totalQueso{{ p.id }}">$0.00</span>
+                    </div>
+                    <div class="mb-3 border p-3 bg-light rounded">
+                        <label class="form-label fw-bold text-primary">¿CÓMO PAGAS?</label>
+                        <select name="metodo_pago" class="form-select" onchange="togglePago(this, {{ p.id }})">
+                            <option value="CREDITO">A LA LIBRETA (FIADO)</option>
+                            <option value="CAJA_CHICA">EFECTIVO (CAJA USD)</option>
+                            <option value="BANCO">BANCO / PAGO MOVIL (Bs)</option>
+                        </select>
+                        <div id="divMontoPago{{ p.id }}" style="display:none;" class="mt-2">
+                            <input type="number" step="0.01" name="monto_pagado" class="form-control"
+                                placeholder="Monto en $">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success w-100 fw-bold">GUARDAR ENTREGA</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL REGISTRAR PAGO / ADELANTO -->
+<div class="modal fade" id="modalPago{{ p.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Registrar Pago / Adelanto: {{ p.nombre }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('productores.registrar_pago_productor') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="proveedor_id" value="{{ p.id }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Monto a Entregar ($)</label>
+                        <input type="number" step="0.01" name="monto" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Método de Salida</label>
+                        <select name="metodo" class="form-select">
+                            <option value="EFECTIVO">💵 EFECTIVO (DÓLARES)</option>
+                            <option value="EFECTIVO_BS">💴 EFECTIVO (BOLÍVARES)</option>
+                            <option value="PAGO_MOVIL">📱 PAGO MÓVIL (Bs)</option>
+                            <option value="TRANSFERENCIA">🏦 TRANSFERENCIA (Bs)</option>
+                            <option value="RECARGA">📞 RECARGA TELEFÓNICA</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Beneficiario (Si es tercero)</label>
+                        <input type="text" name="beneficiario" class="form-control" placeholder="Nombre de la persona">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Referencia / Nota</label>
+                        <input type="text" name="referencia" class="form-control"
+                            placeholder="Nro de confirmación o motivo">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-danger w-100 fw-bold">GUARDAR PAGO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL HISTORIAL -->
+<div class="modal fade" id="modalHistorial{{ p.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Historial de Movimientos: {{ p.nombre }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Debe</th>
+                            <th class="text-end">Haber</th>
+                            <th class="text-end">Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mov in p.movimientos | sort(attribute='fecha', reverse=True) %}
+                        <tr>
+                            <td>{{ mov.fecha.strftime('%d/%m/%y') }}</td>
+                            <td><span class="badge bg-secondary">{{ mov.tipo }}</span></td>
+                            <td class="small">{{ mov.descripcion }}</td>
+                            <td class="text-end text-danger">{{ "%.2f"|format(mov.debe) if mov.debe > 0 else '-' }}</td>
+                            <td class="text-end text-success">{{ "%.2f"|format(mov.haber) if mov.haber > 0 else '-' }}
+                            </td>
+                            <td class="text-end fw-bold">${{ "%.2f"|format(mov.saldo_momento) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ABONAR EFECTIVO (PARA DEUDA POS) -->
+<div class="modal fade" id="modalAbono{{ p.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Abono en Efectivo: {{ p.nombre }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('productores.abonar_efectivo_productor') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="proveedor_id" value="{{ p.id }}">
+                    <div class="mb-3 text-center">
+                        <p class="text-muted mb-1">Saldo Actual en Libreta:</p>
+                        <h4
+                            class="fw-bold {% if p.saldo_pendiente_usd < 0 %}text-danger{% else %}text-success{% endif %}">
+                            ${{ "%.2f"|format(p.saldo_pendiente_usd) }}
+                        </h4>
+                    </div>
+                    <select name="metodo" id="metodoAbono{{ p.id }}" class="form-select"
+                        onchange="autoMontoAbono({{ p.id }}, '{{ p.saldo_pendiente_usd }}')">
+                        <option value="">-- Seleccione Método --</option> <!-- Agregué esto para que obligue a tocar -->
+                        <option value="EFECTIVO_USD">💵 EFECTIVO (DÓLARES)</option>
+                        <option value="EFECTIVO_BS">💴 EFECTIVO (BOLÍVARES)</option>
+                        <option value="PAGO_MOVIL">📱 PAGO MÓVIL / BANCO (Bs)</option>
+                    </select>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Monto que entrega el Productor</label>
+                        <input type="number" step="0.01" name="monto" id="montoAbono{{ p.id }}"
+                            class="form-control form-control-lg text-center fw-bold" placeholder="0.00" required>
+                        <div class="form-text text-muted" id="notaAbono{{ p.id }}"></div>
+                    </div>
+                    <div class="alert alert-info small">
+                        <i class="fas fa-info-circle"></i> Este abono restará la deuda del productor y sumará el dinero
+                        a tu caja/banco.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">REGISTRAR ABONO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    // 🔵 BOTÓN AZUL: Auto-rellena con la DEUDA TOTAL al seleccionar método
+    const TASA_BCV = {{ tasa_bcv | default (40) }};
+
+    function autoMontoAbono(id, saldoPendiente) {
+        const metodo = document.getElementById('metodoAbono' + id).value;
+        const campoMonto = document.getElementById('montoAbono' + id);
+        const nota = document.getElementById('notaAbono' + id);
+
+        const deudaAbsoluta = Math.abs(parseFloat(saldoPendiente));
+
+        if (metodo === 'EFECTIVO_USD') {
+            campoMonto.value = deudaAbsoluta.toFixed(2);
+            nota.textContent = '✅ Cobrando deuda total: $' + deudaAbsoluta.toFixed(2);
+            nota.className = 'form-text text-success fw-bold';
+        } else {
+            const montoBs = (deudaAbsoluta * TASA_BCV).toFixed(2);
+            campoMonto.value = montoBs;
+            nota.textContent = '✅ Total en Bs: ' + montoBs + ' (Tasa: ' + TASA_BCV + ')';
+            nota.className = 'form-text text-primary fw-bold';
+        }
+    }
+
+    // 🟢 CALCULAR TOTAL DE QUESO (Kilos x Precio)
+    function calcularTotal(id) {
+        const kilos = parseFloat(document.getElementById('kilos' + id).value) || 0;
+        const precio = parseFloat(document.getElementById('precio' + id).value) || 0;
+        const total = kilos * precio;
+        document.getElementById('totalQueso' + id).textContent = '$' + total.toFixed(2);
+    }
+
+    // 🟡 MOSTRAR/OCULTAR campo de monto según método de pago
+    function togglePago(select, id) {
+        const div = document.getElementById('divMontoPago' + id);
+        div.style.display = (select.value !== 'CREDITO') ? 'block' : 'none';
+    }
+</script>
+{% endblock %}

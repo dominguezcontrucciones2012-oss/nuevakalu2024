@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+
+    <!-- ENCABEZADO FACTURA -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h2 class="text-primary fw-bold">📄 FACTURA DE COMPRA</h2>
+                    <h5 class="text-muted">Nro: <strong>{{ compra.numero_factura or 'S/N' }}</strong></h5>
+                </div>
+                <div class="text-end">
+                    <span
+                        class="badge {% if compra.estado == 'Pagada' %}bg-success{% elif compra.estado == 'Parcial' %}bg-warning{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
+                        {{ compra.estado }}
+                    </span>
+                    <div class="mt-2 text-muted small">{{ compra.fecha.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h6 class="text-muted">PROVEEDOR</h6>
+                    {% if compra.proveedor %}
+                    <p class="mb-1"><strong>{{ compra.proveedor.nombre }}</strong></p>
+                    <p class="mb-1 text-muted">RIF: {{ compra.proveedor.rif }}</p>
+                    <p class="mb-1 text-muted">Tel: {{ compra.proveedor.telefono or 'N/A' }}</p>
+                    {% else %}
+                    <p class="text-muted">Sin proveedor asignado</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h6 class="text-muted">MÉTODO DE PAGO</h6>
+                    <p><strong>{{ compra.metodo_pago or 'No especificado' }}</strong></p>
+                    {% if compra.caja_origen %}
+                    <p class="text-muted small">Caja: {{ compra.caja_origen }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA DE PRODUCTOS -->
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">📦 Productos Comprados</h5>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>#</th>
+                        <th>Código</th>
+                        <th>Producto</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-end">Costo Unit. ($)</th>
+                        <th class="text-end">Subtotal ($)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in compra.detalles %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><code>{{ d.producto.codigo }}</code></td>
+                        <td>{{ d.producto.nombre }}</td>
+                        <td class="text-center">{{ d.cantidad }}</td>
+                        <td class="text-end">${{ "%.2f"|format(d.costo_unitario) }}</td>
+                        <td class="text-end fw-bold">${{ "%.2f"|format(d.costo_unitario * d.cantidad) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-dark">
+                    <tr>
+                        <td colspan="5" class="text-end fw-bold">TOTAL FACTURA:</td>
+                        <td class="text-end fw-bold fs-5">${{ "%.2f"|format(compra.total_usd) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- ESTADO DE PAGO (si es crédito) -->
+    {% if compra.cuenta_por_pagar %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">💳 Estado de Cuenta por Pagar</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="text-muted small">TOTAL FACTURA</div>
+                    <div class="fs-4 fw-bold">${{ "%.2f"|format(compra.cuenta_por_pagar.monto_total_usd) }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">ABONADO</div>
+                    <div class="fs-4 fw-bold text-success">${{ "%.2f"|format(compra.cuenta_por_pagar.monto_abonado_usd)
+                        }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">SALDO PENDIENTE</div>
+                    <div class="fs-4 fw-bold text-danger">${{ "%.2f"|format(compra.cuenta_por_pagar.saldo_pendiente_usd)
+                        }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- BOTONES -->
+    <div class="d-flex gap-2">
+        <a href="/compras" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i> Volver a Compras
+        </a>
+        {% if compra.cuenta_por_pagar and compra.estado != 'Pagada' %}
+        <a href="/cuentas_por_pagar" class="btn btn-warning">
+            <i class="fas fa-dollar-sign me-2"></i> Ir a Pagar Factura
+        </a>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

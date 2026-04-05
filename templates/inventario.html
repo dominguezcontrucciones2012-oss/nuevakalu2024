@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import tabla_kalu_pro %}
+
+{% block content %}
+<!-- ESTILOS PARA QUE SE VEA DE AGENCIA -->
+<style>
+  /* Estilo para resaltar la fila editada */
+  .fila-actualizada {
+    background-color: #fff3cd !important;
+    /* Amarillo suave */
+    transition: background-color 2s ease-in-out;
+  }
+
+  #tabla_inventario_kalu tbody tr:hover {
+    background-color: rgba(78, 115, 223, 0.08) !important;
+    transition: 0.3s;
+  }
+</style>
+
+<div class="container-fluid mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold text-primary">
+      <i class="fas fa-boxes"></i> CONTROL DE INVENTARIO
+    </h2>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('inventario.reporte_inventario') }}"
+        class="btn btn-success btn-lg shadow-sm rounded-pill px-4">
+        <i class="fas fa-chart-bar"></i> REPORTE DE INVERSIÓN
+      </a>
+      <a href="{{ url_for('inventario.imprimir_inventario') }}" target="_blank"
+        class="btn btn-secondary btn-lg shadow-sm rounded-pill px-4">
+        <i class="fas fa-print"></i> IMPRIMIR
+      </a>
+      <button class="btn btn-primary btn-lg shadow-sm rounded-pill px-4" data-bs-toggle="modal"
+        data-bs-target="#modalProducto">
+        <i class="fas fa-plus-circle"></i> NUEVO PRODUCTO
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLA PRINCIPAL CON BUSCADOR -->
+  <div class="mb-3">
+    <div class="input-group shadow-sm rounded-pill overflow-hidden border-primary" style="border: 2px solid #4e73df;">
+      <span class="input-group-text bg-white border-0 text-primary"><i class="fas fa-search"></i></span>
+      <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe producto, código, categoría..." style="box-shadow: none;">
+    </div>
+  </div>
+
+  <div class="card shadow border-0 mb-4">
+    <div class="card-body p-4">
+      {% call tabla_kalu_pro('tabla_inventario_kalu',
+      ['CÓDIGO', 'PRODUCTO', 'CATEGORÍA', 'COSTO ($)', 'P. FULL ($)',
+      'P. OFERTA ($)', 'STOCK', '% GANANCIA', 'ESTADO', 'ACCIONES'])
+      %}
+      <tbody>
+        {% for p in productos %}
+        <!-- AGREGAMOS EL ID A LA FILA PARA EL ANCLA -->
+        <tr id="prod-{{ p.id }}">
+          <td class="fw-bold text-secondary">{{ p.codigo }}</td>
+          <td class="fw-bold text-dark">{{ p.nombre }}</td>
+          <td>
+            {% if p.categoria == "VÍVERES" %}
+            <span class="badge bg-success">🛒 {{ p.categoria }}</span>
+            {% elif p.categoria == "REPUESTOS DE MOTO" %}
+            <span class="badge bg-warning text-dark">🏍️ {{ p.categoria }}</span>
+            {% elif p.categoria == "CARNICERÍA" %}
+            <span class="badge bg-danger">🥩 {{ p.categoria }}</span>
+            {% elif p.categoria == "PRODUCTORES / AGRÍCOLA" %}
+            <span class="badge bg-info text-dark">🌾 {{ p.categoria }}</span>
+            {% elif p.categoria == "FERRETERÍA" %}
+            <span class="badge bg-secondary">🔧 {{ p.categoria }}</span>
+            {% else %}
+            <span class="badge bg-dark">📦 {{ p.categoria or "GENÉRICOS" }}</span>
+            {% endif %}
+          </td>
+          <td class="text-danger fw-bold">${{ "%.2f"|format(p.costo_usd or 0) }}</td>
+          <td class="text-primary fw-bold">${{ "%.2f"|format(p.precio_normal_usd or 0) }}</td>
+          <td class="text-success fw-bold">${{ "%.2f"|format(p.precio_oferta_usd or 0) }}</td>
+          <td><span class="fw-bold fs-5">{{ p.stock }}</span></td>
+          <td class="fw-bold text-dark text-center">
+            {% if p.costo_usd and p.costo_usd > 0 %}
+            {{ "%.1f"|format(((p.precio_normal_usd - p.costo_usd) / p.costo_usd) * 100) }}%
+            {% else %} 0% {% endif %}
+          </td>
+          <td class="text-center">
+            {% if p.stock <= 0 %} <span class="badge bg-danger">SIN STOCK</span>
+              {% elif p.stock < 5 %} <span class="badge bg-warning text-dark">STOCK BAJO</span>
+                {% else %}
+                <span class="badge bg-success">DISPONIBLE</span>
+                {% endif %}
+          </td>
+          <td class="text-center">
+            <div class="btn-group">
+              <a href="{{ url_for('inventario.editar_producto', id=p.id) }}"
+                class="btn btn-outline-warning btn-sm border-0">
+                <i class="fas fa-edit"></i>
+              </a>
+              <a href="{{ url_for('inventario.eliminar_producto', id=p.id) }}"
+                class="btn btn-outline-danger btn-sm border-0" onclick="return confirm('¿Borrar {{ p.nombre }}?')">
+                <i class="fas fa-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% endcall %}
+    </div>
+  </div>
+
+  <!-- FORMULARIO DE LIQUIDACIÓN DE QUESO -->
+  <div class="card shadow-sm border-primary mt-4 mb-5">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-truck"></i> Liquidación de Queso (Venta en Ciudad)</h5>
+      <span class="badge bg-white text-primary">Zafra de Verano</span>
+    </div>
+    <div class="card-body">
+      <form action="/liquidar_queso_ciudad" method="POST">
+        <div class="row">
+          <div class="col-md-3">
+            <label class="small fw-bold">Kilos Vendidos</label>
+            <input type="number" step="0.01" name="kilos" class="form-control" placeholder="0.00" required>
+          </div>
+          <div class="col-md-3">
+            <label class="small fw-bold">Precio Venta ($/kg)</label>
+            <input type="number" step="0.01" name="precio_vta" class="form-control" placeholder="Ej: 3.50" required>
+          </div>
+          <div class="col-md-3">
+            <label class="small fw-bold">Gastos (Gasolina/Flete) $</label>
+            <input type="number" step="0.01" name="gastos" class="form-control" value="0.00">
+          </div>
+          <div class="col-md-3">
+            <label class="small fw-bold">Método de Cobro</label>
+            <select name="metodo_pago" class="form-control">
+              <option value="Efectivo USD">Efectivo USD</option>
+              <option value="Pago Móvil">Pago Móvil</option>
+              <option value="Transferencia">Transferencia</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary w-100 shadow-sm fw-bold">
+            <i class="fas fa-save"></i> REGISTRAR LIQUIDACIÓN Y DESCONTAR STOCK
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO PRODUCTO (Se mantiene igual) -->
+<div class="modal fade" id="modalProducto" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">REGISTRAR NUEVO PRODUCTO</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('inventario.agregar_producto') }}" method="POST">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Código / Referencia</label>
+              <input type="text" name="codigo" class="form-control" required placeholder="Ej. 7591234..." />
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label fw-bold">Nombre del Producto</label>
+              <input type="text" name="nombre" class="form-control" required placeholder="Ej. Harina PAN 1kg" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-12 mb-3">
+              <label class="form-label fw-bold">📦 Categoría del Producto</label>
+              <select name="categoria" class="form-select fw-bold">
+                {% for cat in categorias %}
+                <option value="{{ cat }}">{{ cat }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold text-danger">Costo ($)</label>
+              <input type="number" id="input_costo" name="costo_usd" class="form-control border-danger" step="0.01"
+                required placeholder="0.00" />
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold text-info">% Ganancia Deseada</label>
+              <input type="number" id="input_porcentaje" class="form-control border-info" step="0.1" value="30" />
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold text-primary">Precio Full ($)</label>
+              <input type="number" id="input_precio" name="precio_normal_usd" class="form-control border-primary"
+                step="0.01" required placeholder="Precio Final" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold text-success">Precio Oferta ($)</label>
+              <div class="input-group">
+                <input type="number" id="input_oferta" name="precio_oferta_usd" class="form-control border-success"
+                  step="0.01" value="0.00" />
+                <select class="form-select border-success bg-light" id="select_descuento" style="max-width: 80px">
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="15" selected>15%</option>
+                  <option value="20">20%</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label fw-bold">Stock Inicial</label>
+              <input type="number" name="stock" class="form-control" value="0" required />
+            </div>
+            <div class="col-md-4 mb-3 d-flex align-items-end">
+              <div class="alert alert-info p-2 mb-0 w-100 text-center">
+                <small class="fw-bold">💡 Margen Real:</small>
+                <span id="info_ganancia" class="fw-bold text-dark">30%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">GUARDAR PRODUCTO</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function () {
+    // BUSCADOR EN TIEMPO REAL
+    $("#buscador_kalu").on("keyup", function() {
+      var value = $(this).val().toLowerCase();
+      $("#tabla_inventario_kalu tbody tr").filter(function() {
+        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+      });
+    });
+
+    // LÓGICA PARA MANTENER POSICIÓN Y RESALTAR
+    var hash = window.location.hash;
+    if (hash) {
+      var fila = $(hash);
+      if (fila.length) {
+        // Resaltar fila
+        fila.addClass('fila-actualizada');
+
+        // Hacer scroll suave hasta la fila
+        fila[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Quitar el resaltado después de 3 segundos
+        setTimeout(function () {
+          fila.removeClass('fila-actualizada');
+        }, 3000);
+      }
+    }
+
+    // LÓGICA DE CALCULADORA (Se mantiene igual)
+    const inputCosto = document.getElementById("input_costo");
+    const inputPorcentaje = document.getElementById("input_porcentaje");
+    const inputPrecio = document.getElementById("input_precio");
+    const inputOferta = document.getElementById("input_oferta");
+    const selectDescuento = document.getElementById("select_descuento");
+    const infoGanancia = document.getElementById("info_ganancia");
+    let ofertaManual = false;
+
+    function calcularTodo() {
+      const costo = parseFloat(inputCosto.value) || 0;
+      const gananciaDeseada = parseFloat(inputPorcentaje.value) || 0;
+      const descPorcentaje = parseFloat(selectDescuento.value) || 0;
+      if (costo > 0) {
+        const precioFull = costo + costo * (gananciaDeseada / 100);
+        inputPrecio.value = precioFull.toFixed(2);
+        if (!ofertaManual) {
+          inputOferta.value = (precioFull * (1 - descPorcentaje / 100)).toFixed(2);
+        }
+        actualizarMargenReal();
+      }
+    }
+
+    function calcularDesdePrecioFull() {
+      const costo = parseFloat(inputCosto.value) || 0;
+      const precioFull = parseFloat(inputPrecio.value) || 0;
+      if (costo > 0 && precioFull > 0) {
+        inputPorcentaje.value = (((precioFull - costo) / costo) * 100).toFixed(1);
+        actualizarMargenReal();
+      }
+    }
+
+    function actualizarMargenReal() {
+      const costo = parseFloat(inputCosto.value) || 0;
+      const oferta = parseFloat(inputOferta.value) || 0;
+      if (costo > 0 && oferta > 0) {
+        infoGanancia.innerText = `${(((oferta - costo) / costo) * 100).toFixed(1)}%`;
+      }
+    }
+
+    inputCosto.addEventListener("input", calcularTodo);
+    inputPorcentaje.addEventListener("input", calcularTodo);
+    inputPrecio.addEventListener("input", calcularDesdePrecioFull);
+    selectDescuento.addEventListener("change", () => { ofertaManual = false; calcularTodo(); });
+    inputOferta.addEventListener("input", () => { ofertaManual = true; actualizarMargenReal(); });
+  });
+</script>
+{% endblock %}

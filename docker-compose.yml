@@ -1,0 +1,6 @@
+services:
+  cloudflared_real:
+    image: cloudflare/cloudflared:latest
+    container_name: kalu_tunnel_real
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}

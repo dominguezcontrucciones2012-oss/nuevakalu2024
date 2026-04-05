@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Database
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+
+# Uploads / comprobantes
+static/comprobantes/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Importar aqui (datos sensibles)
+importar_aqui/
