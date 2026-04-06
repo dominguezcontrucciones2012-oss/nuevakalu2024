@@ -171,19 +171,22 @@ def registrar_entrega():
     ))
     productor.saldo_pendiente_usd += falta_por_pagar
 
-    # ✅ MOVIMIENTO CAJA (solo si pagó algo en efectivo)
-    if metodo == 'CAJA_CHICA' and monto_pagado > 0:
-        db.session.add(MovimientoCaja(
-            fecha=datetime.now(),
-            tipo_caja='Caja USD',
-            tipo_movimiento='EGRESO',
-            categoria='Compra Queso',
-            monto=monto_pagado,
-            tasa_dia=valor_tasa,
-            descripcion=f'Pago queso {kilos}kg a {productor.nombre}',
-            modulo_origen='PRODUCTOR',
-            referencia_id=int(p_id)
-        ))
+    # ✅ MOVIMIENTO CAJA (Efectivo o Banco)
+    if monto_pagado > 0:
+        tipo_caja_mov = 'Caja USD' if metodo == 'CAJA_CHICA' else ('Banco' if metodo == 'BANCO' else None)
+        if tipo_caja_mov:
+            monto_caja = monto_pagado if tipo_caja_mov == 'Caja USD' else (monto_pagado * valor_tasa)
+            db.session.add(MovimientoCaja(
+                fecha=datetime.now(),
+                tipo_caja=tipo_caja_mov,
+                tipo_movimiento='EGRESO',
+                categoria='Compra Queso',
+                monto=monto_caja,
+                tasa_dia=valor_tasa,
+                descripcion=f'Pago queso {kilos}kg a {productor.nombre} ({metodo})',
+                modulo_origen='PRODUCTOR',
+                referencia_id=int(p_id)
+            ))
 
     db.session.commit()
     flash(f"✅ Compra procesada con éxito vía {metodo}.", "success")
@@ -210,13 +213,9 @@ def registrar_pago_productor():
     tasa = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
     valor_tasa = tasa.valor if tasa else Decimal('1.00')
 
-    # 🧮 CONVERSIÓN DE MONEDA
-    if metodo in ['EFECTIVO_BS', 'PAGO_MOVIL', 'TRANSFERENCIA']:
-        monto_usd = monto / valor_tasa
-        monto_bs  = monto
-    else:  # EFECTIVO (dólares)
-        monto_usd = monto
-        monto_bs  = monto * valor_tasa
+    # 🧮 CONVERSIÓN DE MONEDA (El input 'monto' siempre viene en USD como indica el label)
+    monto_usd = monto
+    monto_bs  = monto * valor_tasa
 
     # 🛑 RESTRICCIÓN 2: Alerta si pagan muy poco en Bs
     if metodo in ['EFECTIVO_BS', 'PAGO_MOVIL', 'TRANSFERENCIA'] and monto < 10:
@@ -287,9 +286,13 @@ def registrar_pago_productor():
     productor.saldo_pendiente_usd -= monto_usd
 
     # 📝 ASIENTO CONTABLE
-    cuenta_origen = CuentaContable.query.filter_by(
-        codigo="1.1.01.01" if metodo == 'EFECTIVO' else "1.1.01.03"
-    ).first()
+    codigo_cta = "1.1.01.01" # Caja USD por defecto
+    if metodo == 'EFECTIVO_BS':
+        codigo_cta = "1.1.01.02" # Caja Bs (Añadido para mayor precisión)
+    elif metodo in ['PAGO_MOVIL', 'TRANSFERENCIA']:
+        codigo_cta = "1.1.01.03" # Banco
+        
+    cuenta_origen = CuentaContable.query.filter_by(codigo=codigo_cta).first()
     cuenta_pasivo = CuentaContable.query.filter_by(codigo="2.1.01").first()
 
     if not cuenta_origen or not cuenta_pasivo:
@@ -358,13 +361,9 @@ def abonar_efectivo_productor():
         flash(f"⚠️ Error de Moneda: ¿Seguro que el abono es de solo {monto_input} Bolívares? Verifique.", "warning")
         return redirect(url_for('productores.libreta'))
 
-    # 🧮 CONVERSIÓN
-    if metodo in ['EFECTIVO_BS', 'PAGO_MOVIL']:
-        monto_usd = monto_input / valor_tasa
-        monto_bs  = monto_input
-    else:
-        monto_usd = monto_input
-        monto_bs  = monto_input * valor_tasa
+    # 🧮 CONVERSIÓN (El input siempre viene en USD)
+    monto_usd = monto_input
+    monto_bs  = monto_input * valor_tasa
 
     # 🛑 RESTRICCIÓN 3: Límite de abono único
     if monto_usd > 500:
@@ -417,7 +416,7 @@ def abonar_efectivo_productor():
     ))
     # 📝 ASIENTO CONTABLE
     try:
-        cod_cuenta = '1.1.01.01' if metodo == 'EFECTIVO_USD' else '1.1.01.03'
+        cod_cuenta = '1.1.01.01' if metodo == 'EFECTIVO_USD' else ('1.1.01.02' if metodo == 'EFECTIVO_BS' else '1.1.01.03')
         cta_caja = CuentaContable.query.filter_by(codigo=cod_cuenta).first()
         cta_deuda = CuentaContable.query.filter_by(codigo='1.1.02.02').first()
 

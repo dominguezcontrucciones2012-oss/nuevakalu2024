@@ -392,15 +392,26 @@ body::before {
     background: var(--wa-card);
     border: 1px solid var(--wa-border);
     border-radius: 14px;
-    padding: 15px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+    height: 100%;
 }
 
-.product-card-wa h4 { margin: 0; font-size: 15px; color: var(--wa-text); }
-.product-card-wa .price-normal { font-size: 14px; color: var(--wa-subtext); text-decoration: line-through; }
-.product-card-wa .price-offer  { font-size: 18px; font-weight: 800; color: var(--wa-green); }
+.product-card-wa h4 { 
+    margin: 0; 
+    font-size: 13px; 
+    color: var(--wa-text); 
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+    height: 32px;
+    line-height: 1.2;
+}
+.product-card-wa .price-normal { font-size: 11px; color: var(--wa-subtext); text-decoration: line-through; }
+.product-card-wa .price-offer  { font-size: 16px; font-weight: 800; color: var(--wa-green); }
 
 /* ========== CART MODAL ========== */
 .cart-modal {

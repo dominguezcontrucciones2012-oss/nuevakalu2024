@@ -53,10 +53,12 @@ def logout():
 @auth_bp.route('/login/google')
 def login_google():
     from app import google
-    # Forzamos HTTPS para el redirect_uri ya que el túnel usa SSL
-    # Esto soluciona el error de redirect_uri_mismatch
-    redirect_uri = url_for('auth.callback_google', _external=True, _scheme='https')
-    return google.authorize_redirect(redirect_uri)
+    # Si estamos en el dominio oficial, forzamos HTTPS.
+    # Si estamos probando localmente (127.0.0.1 o localhost), dejamos que Flask decida.
+    scheme = 'https' if not request.host.startswith('127.0.0.1') and not request.host.startswith('localhost') else 'http'
+    redirect_uri = url_for('auth.callback_google', _external=True, _scheme=scheme)
+    # 🚨 SEGURO EXTRA: Forzamos a Google a preguntar qué cuenta usar siempre (prompt='select_account')
+    return google.authorize_redirect(redirect_uri, prompt='select_account')
 
 @auth_bp.route('/callback_google') # 👈 Nombre simplificado para la interna
 def callback_google():
@@ -90,7 +92,7 @@ def callback_google():
                 return redirect(url_for('pos.pos'))
             return redirect(url_for('portal.mi_deuda'))
         else:
-            flash(f"🚫 El correo {email} no está vinculado a ninguna cuenta administrativa de KALU.", "warning")
+            flash(f"⛔ ACCESO DENEGADO: El correo {email} NO TIENE PERMISO en KALU. Vincúlalo en la gestión de usuarios primero.", "danger")
             return redirect(url_for('auth.login'))
             
     except Exception as e:

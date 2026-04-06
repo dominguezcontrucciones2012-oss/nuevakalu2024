@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify, flash
 from models import db, Producto, Cliente, Venta, DetalleVenta, TasaBCV, HistorialPago, Proveedor, MovimientoProductor, MovimientoCaja, Pedido, DetallePedido, PagoReportado
 from flask_login import login_required, current_user
+from routes.decorators import staff_required
 from decimal import Decimal
 from datetime import datetime
 from routes.contabilidad import registrar_asiento
@@ -14,7 +15,8 @@ _tokens_usados = set()  # ← AQUÍ, como variable global del módulo
 from flask_login import login_required
 
 @pos_bp.route('/pos')
-@login_required  # ← EL CANDADO
+@login_required
+@staff_required
 def pos():
     tasa_obj = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
     if tasa_obj:
@@ -69,6 +71,7 @@ def buscar_cliente(cedula):
             'id': cliente.id,
             'nombre': cliente.nombre,
             'cedula': cliente.cedula,
+            'telefono': cliente.telefono or 'N/A',
             'saldo_usd': float(cliente.saldo_usd or 0),
             'puntos': cliente.puntos or 0
         })
@@ -94,6 +97,8 @@ def buscar_cliente(cedula):
     return jsonify({'encontrado': False})
 
 @pos_bp.route('/procesar_venta', methods=['POST'])
+@login_required
+@staff_required
 def procesar_venta():
     data = request.get_json()
 
@@ -190,6 +195,7 @@ def procesar_venta():
         elif falta_usd < Decimal('0.01'):
             falta_usd = Decimal('0.00')
 
+        pedido_id    = data.get('pedido_id')
         cliente_id   = data.get('cliente_id')
         cliente_tipo = data.get('cliente_tipo', 'cliente')
         es_productor = False
@@ -403,6 +409,12 @@ def procesar_venta():
         except Exception as caja_err:
             print(f"⚠️ Caja falló: {caja_err}")
 
+        # ✅ Si la venta viene de un pedido, lo marcamos como LISTO
+        if pedido_id:
+            pedido_obj = Pedido.query.get(pedido_id)
+            if pedido_obj:
+                pedido_obj.estado = 'listo'
+        
         db.session.commit()
         return jsonify({
             'success': True,
@@ -422,6 +434,7 @@ def procesar_venta():
 # ============================================================
 @pos_bp.route('/api/pedidos/pendientes')
 @login_required
+@staff_required
 def api_pedidos_pendientes():
     pedidos = Pedido.query.filter_by(estado='pendiente').all()
     res = []
@@ -436,6 +449,7 @@ def api_pedidos_pendientes():
 
 @pos_bp.route('/api/pedido/<int:id>')
 @login_required
+@staff_required
 def api_get_pedido(id):
     pedido = Pedido.query.get_or_404(id)
     items = []
@@ -449,8 +463,8 @@ def api_get_pedido(id):
             'cantidad': float(d.cantidad)
         })
     
-    # Cambiar estado a "procesado" para que no salga más en la lista de pendientes
-    pedido.estado = 'procesado'
+    # Cambiar estado a "recibido" para que el cliente sepa que ya se está preparando
+    pedido.estado = 'recibido'
     db.session.commit()
 
     return jsonify({
@@ -465,6 +479,7 @@ def api_get_pedido(id):
 
 @pos_bp.route('/api/pagos_reportados/pendientes')
 @login_required
+@staff_required
 def api_pagos_reportados_pendientes():
     pagos = PagoReportado.query.filter_by(estado='pendiente').all()
     res = []
@@ -483,6 +498,8 @@ def api_pagos_reportados_pendientes():
 
 
 @pos_bp.route('/canjear_documento/<int:cliente_id>', methods=['POST'])
+@login_required
+@staff_required
 def canjear_documento(cliente_id):
     cliente = Cliente.query.get_or_404(cliente_id)
     cliente.documentos = 0
@@ -491,6 +508,7 @@ def canjear_documento(cliente_id):
 
 
 @pos_bp.route('/ticket/<int:venta_id>')
+@login_required
 def ticket(venta_id):
     venta = Venta.query.get_or_404(venta_id)
     cajero = current_user.username if current_user.is_authenticated else "SISTEMA"
@@ -502,6 +520,8 @@ def ticket(venta_id):
             es_primera_compra = True
 
     return render_template('ticket.html', venta=venta, cajero=cajero, es_primera_compra=es_primera_compra)
+
+
 
 
 @pos_bp.route('/historial_ventas')
@@ -532,6 +552,7 @@ def detalle_venta_json(venta_id):
 
 @pos_bp.route('/anular_venta/<int:id>', methods=['POST'])
 @login_required
+@staff_required
 def anular_venta(id):
     try:
         venta = Venta.query.get_or_404(id)

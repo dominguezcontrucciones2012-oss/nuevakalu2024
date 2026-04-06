@@ -9,75 +9,73 @@
         <span class="badge bg-secondary fs-6">{{ ventas|length }} registros</span>
     </div>
 
+    <!-- 🔍 BUSCADOR INTELIGENTE CON RAYOS X -->
     <div class="mb-3">
         <div class="input-group shadow-sm rounded-pill overflow-hidden border-primary" style="border: 2px solid #4e73df;">
             <span class="input-group-text bg-white border-0 text-primary"><i class="fas fa-search"></i></span>
-            <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe cliente, monto, fecha..." style="box-shadow: none;">
+            <input type="text" id="buscador_kalu" class="form-control border-0 bg-white" placeholder="Buscador inteligente: escribe cliente, producto, monto..." style="box-shadow: none;">
         </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white fw-bold">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-primary text-white fw-bold py-3">
             <i class="fas fa-list me-2"></i> Últimas ventas
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0" id="tabla_ventas">
                     <thead class="table-light">
                         <tr>
                             <th>#</th>
                             <th>Fecha / Hora</th>
-                            <th>Cliente</th>
+                            <th>Cliente / Productos</th>
                             <th class="text-end">Total USD</th>
-                            <th class="text-end">Tasa</th>
                             <th class="text-center">Estado</th>
                             <th class="text-center">Ver</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for v in ventas %}
-                        <tr style="cursor:pointer;" onclick="window.location='/historial_ventas/{{ v.id }}'">
+                        <tr style="cursor:pointer;" onclick="verDetallesVenta({{ v.id }})">
                             <td class="text-muted small">{{ v.id }}</td>
-                            <td>{{ v.fecha.strftime('%d/%m/%Y %H:%M') if v.fecha else '-' }}</td>
+                            <td class="small">{{ v.fecha.strftime('%d/%m/%Y %H:%M') if v.fecha else '-' }}</td>
                             <td>
+                                <!-- 🧬 RAYOS X: Perfil del cliente y lista de productos -->
                                 {% set nombre = v.nombre_cliente_final %}
-                                {% if "PROD:" in nombre %}
-                                <i class="fas fa-tractor text-success me-1"></i>
-                                <span class="fw-bold text-success">{{ nombre }}</span>
-                                {% elif nombre != "Consumidor Final" %}
-                                <i class="fas fa-user text-primary me-1"></i>{{ nombre }}
-                                {% else %}
-                                <span class="text-muted">
-                                    <i class="fas fa-user-slash me-1"></i>Consumidor Final
-                                </span>
-                                {% endif %}
+                                <div class="d-flex flex-column">
+                                    <div class="fw-bold">
+                                        {% if "PROD:" in nombre %}
+                                        <i class="fas fa-tractor text-success me-1"></i><span class="text-success">{{ nombre }}</span>
+                                        {% elif nombre != "Consumidor Final" %}
+                                        <i class="fas fa-user text-primary me-1"></i>{{ nombre }}
+                                        {% else %}
+                                        <span class="text-muted"><i class="fas fa-user-slash me-1"></i>Consumidor Final</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.72rem;">
+                                        <i class="fas fa-box-open me-1"></i>
+                                        {% for d in v.detalles %}
+                                            {{ d.producto.nombre }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </small>
+                                </div>
                             </td>
                             <td class="text-end fw-bold text-success">
                                 ${{ "%.2f"|format(v.total_usd or 0) }}
                             </td>
-                            <td class="text-end text-muted small">
-                                Bs. {{ "%.2f"|format(v.tasa_momento or 0) }}
-                            </td>
                             <td class="text-center">
                                 {% if v.es_fiado %}
-                                {% if v.pagada %}
-                                <span class="badge bg-success">Saldado</span>
+                                    <span class="badge {{ 'bg-success' if v.pagada else 'bg-warning text-dark' }}">
+                                        {{ 'Saldado' if v.pagada else 'Fiado' }}
+                                    </span>
                                 {% else %}
-                                <span class="badge bg-warning text-dark">Fiado</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="badge bg-primary">Contado</span>
+                                    <span class="badge bg-primary">Contado</span>
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <i class="fas fa-eye text-primary"></i>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
-                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                                No hay ventas registradas todavía.
+                                <button class="btn btn-sm btn-outline-primary rounded-circle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -86,20 +84,100 @@
             </div>
         </div>
     </div>
-
 </div>
+
+<!-- 📦 MODAL FLOTANTE ESTILO KALU PARA DETALLES -->
+<div class="modal fade" id="modalVenta" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px; overflow: hidden;">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-receipt me-2"></i> Detalles de Factura #<span id="txt_id_venta"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6 text-start">
+                        <small class="text-muted fw-bold d-block">CLIENTE:</small>
+                        <span id="txt_cliente" class="fs-5 fw-bold"></span>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small class="text-muted fw-bold d-block">FECHA Y HORA:</small>
+                        <span id="txt_fecha" class="fs-6"></span>
+                    </div>
+                </div>
+
+                <div class="table-responsive rounded-3 bg-white shadow-sm overflow-hidden">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-dark small">
+                            <tr>
+                                <th>PRODUCTO</th>
+                                <th class="text-center">CANT</th>
+                                <th class="text-end">PRECIO</th>
+                                <th class="text-end">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla_detalles_cuerpo" class="small">
+                            <!-- Se llena por AJAX -->
+                        </tbody>
+                        <tfoot class="table-light fw-bold fs-5">
+                            <tr>
+                                <td colspan="3" class="text-end">TOTAL USD:</td>
+                                <td class="text-end text-success" id="txt_total_final"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3 bg-white">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const buscador = document.getElementById("buscador_kalu");
     if(buscador) {
         buscador.addEventListener("keyup", function() {
             const query = this.value.toLowerCase();
-            const rows = document.querySelectorAll("table tbody tr");
+            const rows = document.querySelectorAll("#tabla_ventas tbody tr");
             rows.forEach(row => {
                 row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
             });
         });
     }
 });
+
+function verDetallesVenta(id) {
+    fetch(`/detalle_venta/${id}/json`)
+    .then(r => r.json())
+    .then(res => {
+        const modal = new bootstrap.Modal(document.getElementById('modalVenta'));
+        document.getElementById('txt_id_venta').innerText = id;
+        
+        // Extraer datos de la fila de la tabla
+        const tr = Array.from(document.querySelectorAll("#tabla_ventas tbody tr")).find(row => row.children[0].innerText == id);
+        
+        document.getElementById('txt_cliente').innerText = tr.querySelector('.fw-bold').innerText;
+        document.getElementById('txt_fecha').innerText = tr.children[1].innerText;
+        document.getElementById('txt_total_final').innerText = tr.querySelector('.text-success').innerText;
+
+        let html = '';
+        res.forEach(d => {
+            let subtotal = (d.cantidad * d.precio_unitario).toFixed(2);
+            html += `<tr>
+                <td><i class="fas fa-tag text-muted me-2"></i>${d.nombre}</td>
+                <td class="text-center">${d.cantidad}</td>
+                <td class="text-end">$${d.precio_unitario.toFixed(2)}</td>
+                <td class="text-end fw-bold">$${subtotal}</td>
+            </tr>`;
+        });
+        document.getElementById('tabla_detalles_cuerpo').innerHTML = html;
+        modal.show();
+    });
+}
 </script>
 {% endblock %}

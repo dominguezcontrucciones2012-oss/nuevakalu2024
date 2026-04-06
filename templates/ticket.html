@@ -181,17 +181,8 @@
     <div class="bold">BS: {{ "{:,.2f}".format(total_bs) }}</div>
     <div class="small">
       Tasa BCV: Bs. {{ "%.2f"|format(venta.tasa_momento) }}
+    </div>
   </div>
-  
-  {% if es_primera_compra and venta.cliente %}
-  <hr class="linea-punteada" />
-  <div class="center small bold" style="margin-top: 5px;">
-    🚀 ¡TU COMPRA ONLINE! 🚀<br />
-    Entra a: <span style="font-size:8pt;">http://app.kalumaster.com</span><br />
-    Usuario: {{ venta.cliente.cedula }}<br />
-    Clave: {{ venta.cliente.cedula[-4:] if venta.cliente.cedula|length >= 4 else '1234' }}
-  </div>
-  {% endif %}
 
   <!-- PUNTOS CLUB DEL VECINO -->
   {% if venta.cliente %}

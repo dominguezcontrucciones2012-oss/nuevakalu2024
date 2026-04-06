@@ -255,6 +255,54 @@ def crear_pedido():
     db.session.commit()
     return jsonify({'success': True, 'message': '✅ ¡Pedido enviado! El cajero lo procesará pronto.'})
 
+@portal_bp.route('/api/notificaciones')
+@login_required
+def api_notificaciones():
+    if current_user.role not in ['cliente', 'productor']:
+        return jsonify([])
+    
+    # Buscar pedidos en estado 'recibido' o 'listo'
+    cliente_id = current_user.cliente_id
+    if not cliente_id and current_user.role == 'productor' and current_user.proveedor:
+        cliente_dummy = Cliente.query.filter_by(cedula=current_user.proveedor.rif).first()
+        if cliente_dummy:
+            cliente_id = cliente_dummy.id
+
+    if not cliente_id:
+        return jsonify([])
+
+    pedidos = Pedido.query.filter(
+        Pedido.cliente_id == cliente_id,
+        Pedido.estado.in_(['recibido', 'listo'])
+    ).all()
+    
+    res = []
+    for p in pedidos:
+        res.append({
+            'id': p.id,
+            'estado': p.estado,
+            'fecha': p.fecha.strftime('%H:%M')
+        })
+    return jsonify(res)
+
+@portal_bp.route('/api/limpiar_pedido/<int:id>', methods=['POST'])
+@login_required
+def limpiar_pedido(id):
+    pedido = Pedido.query.get_or_404(id)
+    # Solo puede limpiar sus propios pedidos
+    cliente_id = current_user.cliente_id
+    if not cliente_id and current_user.role == 'productor' and current_user.proveedor:
+        cliente_dummy = Cliente.query.filter_by(cedula=current_user.proveedor.rif).first()
+        if cliente_dummy:
+            cliente_id = cliente_dummy.id
+            
+    if pedido.cliente_id != cliente_id:
+        return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+    pedido.estado = 'finalizado'
+    db.session.commit()
+    return jsonify({'success': True})
+
 @portal_bp.route('/api/enviar_queja', methods=['POST'])
 @login_required
 def enviar_queja():

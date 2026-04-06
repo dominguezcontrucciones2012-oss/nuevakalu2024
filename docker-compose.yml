@@ -1,6 +1,23 @@
 services:
+  kalu_app:
+    build: .
+    container_name: kalu_app
+    restart: always
+    ports:
+      - "5002:5002"
+    env_file:
+      - .env
+    volumes:
+      # ✅ Monta tu base de datos local directamente en /app/instance/
+      # Así Docker y tu app local SIEMPRE usan la misma BD y los mismos usuarios
+      # ✅ Usa la base de datos que sí tiene tus datos (la de la carpeta instance)
+      - ./instance/kalu_master.db:/app/instance/kalu_master.db
+    depends_on: []
+
   cloudflared_real:
     image: cloudflare/cloudflared:latest
     container_name: kalu_tunnel_real
     restart: always
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+    depends_on:
+      - kalu_app

@@ -233,22 +233,6 @@ def liquidar_queso_ciudad():
 
     return redirect(url_for('reportes.reportes'))
 
-# ============================================================
-# RUTA DEL TICKET TÉRMICO 58mm
-# ============================================================
-@app.route('/ticket/<int:venta_id>')
-@login_required
-def ver_ticket(venta_id):
-    from models import Venta
-    venta = Venta.query.get_or_404(venta_id)
-    
-    es_primera_compra = False
-    if venta.cliente_id:
-        count = Venta.query.filter_by(cliente_id=venta.cliente_id).count()
-        if count == 1:
-            es_primera_compra = True
-            
-    return render_template('ticket_58mm.html', venta=venta, cajero=current_user.username, es_primera_compra=es_primera_compra)
 
 if __name__ == '__main__':
     print("\n" + "=" * 50)

@@ -3,6 +3,9 @@
 
 {% block content %}
 
+<!-- CONTENEDOR DE NOTIFICACIONES DINÁMICAS -->
+<div id="notificaciones_pedidos" style="padding: 10px; display: none;"></div>
+
 <!-- HERO BALANCE -->
 <div class="hero-balance animate-in">
     <h2>💳 Saldo Pendiente</h2>
@@ -181,7 +184,7 @@
         <h4><i class="fas fa-store" style="color:var(--wa-green);"></i> Catálogo KALU</h4>
     </div>
     <input type="text" id="buscadorProductos" class="wa-search" placeholder="🔍 Buscar producto o categoría..." onkeyup="filtrarProductos()">
-    <div style="padding: 0 16px 100px; display:grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap:12px;" id="lista_catalogo">
+    <div style="padding: 0 10px 100px; display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="lista_catalogo">
         {% for producto in productos %}
         <div class="product-card-wa item-producto"
              data-nombre="{{ producto.nombre|lower }}"
@@ -191,7 +194,7 @@
             <div class="price-offer">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
             <div style="font-size:12px; color:var(--wa-subtext);">{{ producto.categoria or 'General' }}</div>
             <button class="btn-app" style="margin-top:8px; font-size:13px; padding:10px;"
-                onclick="agregarAlPedido('{{ producto.id }}', `{{ producto.nombre }}`, {{ producto.precio_oferta_usd or producto.precio_normal_usd }}); cerrarCatalogo();">
+                onclick='agregarAlPedido("{{ producto.id }}", {{ producto.nombre|tojson }}, {{ producto.precio_oferta_usd or producto.precio_normal_usd or 0 }}); cerrarCatalogo();'>
                 <i class="fas fa-plus"></i> Añadir
             </button>
         </div>
@@ -201,9 +204,9 @@
 
 <!-- BOTÓN FLOTANTE CARRITO -->
 <div id="btn_flotante_pedido" style="display:none; position:fixed; bottom:90px; right:20px; z-index:999;">
-    <button class="fab-cart" onclick="verMiLista()">
+    <button class="fab-cart" onclick="verMiLista()" style="background:var(--wa-green); border-radius:30px; font-weight:700;">
         <i class="fas fa-shopping-basket"></i>
-        MI LISTA (<span id="cant_items_pedido">0</span>)
+        $<span id="total_plata_pedido">0.00</span> (<span id="cant_items_pedido">0</span>)
     </button>
 </div>
 
@@ -362,15 +365,19 @@ function agregarAlPedido(id, nombre, precio) {
 
 function actualizarFAB() {
     const btn = document.getElementById('btn_flotante_pedido');
-    const total = miPedido.reduce((a, i) => a + i.cantidad, 0);
-    document.getElementById('cant_items_pedido').innerText = total;
-    btn.style.display = total > 0 ? 'block' : 'none';
+    const cant = miPedido.reduce((a, i) => a + i.cantidad, 0);
+    const total_monto = miPedido.reduce((a, i) => a + (i.precio * i.cantidad), 0);
+    
+    document.getElementById('cant_items_pedido').innerText = cant;
+    document.getElementById('total_plata_pedido').innerText = total_monto.toFixed(2);
+    btn.style.display = cant > 0 ? 'block' : 'none';
 }
 
 function verMiLista() {
     const c = document.getElementById('items_lista');
     if (!miPedido.length) { c.innerHTML = '<div class="wa-empty">Tu lista está vacía</div>'; }
     else {
+        const total_monto_carrito = miPedido.reduce((a, i) => a + (i.precio * i.cantidad), 0);
         c.innerHTML = miPedido.map((item, i) => `
         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.07);">
             <div>
@@ -382,7 +389,11 @@ function verMiLista() {
                 <button onclick="miPedido.splice(${i},1); verMiLista(); actualizarFAB();"
                         style="background:var(--wa-danger); border:none; color:#fff; border-radius:50%; width:26px; height:26px; cursor:pointer;">×</button>
             </div>
-        </div>`).join('');
+        </div>`).join('') + `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 0; margin-top:8px; border-top: 2px solid var(--wa-green);">
+            <div style="font-weight:800; font-size:16px; color:#fff;">TOTAL A PAGAR:</div>
+            <div style="font-weight:800; font-size:18px; color:var(--wa-green);">$${total_monto_carrito.toFixed(2)}</div>
+        </div>`;
     }
     document.getElementById('modalLista').style.display = 'flex';
 }
@@ -401,6 +412,50 @@ function enviarPedido() {
     })
     .catch(() => alert('❌ Error de conexión.'));
 }
+
+// === NOTIFICACIONES AUTOMÁTICAS ===
+function chequearNotificaciones() {
+    fetch('/api/notificaciones')
+    .then(r => r.json())
+    .then(pedidos => {
+        const container = document.getElementById('notificaciones_pedidos');
+        if (!pedidos.length) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'block';
+        container.innerHTML = pedidos.map(p => {
+            const esListo = p.estado === 'listo';
+            const bg = esListo ? '#d4edda' : '#fff3cd';
+            const border = esListo ? '#c3e6cb' : '#ffeeba';
+            const color = esListo ? '#155724' : '#856404';
+            const icono = esListo ? 'fa-check-circle' : 'fa-clock';
+            const texto = esListo 
+                ? `<strong>¡TU PEDIDO ESTÁ LISTO!</strong><br>Pasa por caja a retirar su mercancia.` 
+                : `<strong>Pedido en preparación...</strong><br>El cajero ya recibió tu pedido de las ${p.fecha}.`;
+            
+            return `
+            <div style="background:${bg}; border:1px solid ${border}; color:${color}; padding:15px; border-radius:12px; margin-bottom:10px; display:flex; align-items:center; gap:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position:relative;">
+                <i class="fas ${icono}" style="font-size:24px;"></i>
+                <div style="flex:1; font-size:14px; line-height:1.4;">${texto}</div>
+                <button onclick="limpiarNotificacion(${p.id})" style="background:none; border:none; color:inherit; font-weight:bold; cursor:pointer; padding:5px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`;
+        }).join('');
+    });
+}
+
+function limpiarNotificacion(id) {
+    fetch(`/api/limpiar_pedido/${id}`, { method: 'POST' })
+    .then(() => chequearNotificaciones());
+}
+
+// Iniciar polling cada 20 segundos
+setInterval(chequearNotificaciones, 20000);
+chequearNotificaciones(); // Primera carga
+    chequearNotificaciones(); // Primera carga
 </script>
 
 {% endblock %}

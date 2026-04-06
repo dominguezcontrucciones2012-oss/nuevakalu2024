@@ -11,7 +11,7 @@
             </h2>
             <small class="text-muted">Solo el Administrador Maestro puede gestionar usuarios</small>
         </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
             <i class="bi bi-person-plus-fill me-1"></i> Nuevo Usuario
         </button>
     </div>
@@ -100,12 +100,20 @@
                             </div>
                         </td>
                         <td>
-                            {% if u.role == 'admin' %}
+                            {% if u.cliente_id %}
+                            <span class="badge bg-success fs-6">
+                                <i class="bi bi-person-circle me-1"></i>Cliente
+                            </span>
+                            {% elif u.proveedor_id %}
+                            <span class="badge bg-warning text-dark fs-6">
+                                <i class="bi bi-truck me-1"></i>Productor
+                            </span>
+                            {% elif u.role == 'admin' %}
                             <span class="badge bg-danger fs-6">
                                 <i class="bi bi-shield-fill-check me-1"></i>Admin
                             </span>
                             {% elif u.role == 'supervisor' %}
-                            <span class="badge bg-warning text-dark fs-6">
+                            <span class="badge bg-info text-dark fs-6">
                                 <i class="bi bi-eye-fill me-1"></i>Supervisor
                             </span>
                             {% else %}
@@ -117,7 +125,7 @@
                         <td class="text-center">
                             <div class="d-flex justify-content-center gap-2">
 
-                                <!-- ✅ BOTÓN WHATSAPP (separado y correcto) -->
+                                <!-- ✅ BOTÓN WHATSAPP -->
                                 {% if u.cliente %}
                                 <a href="https://wa.me/58{{ u.cliente.telefono | replace('-','') | replace(' ','') }}?text=Hola%20{{ u.cliente.nombre | urlencode }}%2C%20ya%20puedes%20ver%20tu%20cuenta%20en%20KALU%20%F0%9F%9B%92%0A%0A%F0%9F%94%97%20Link%3A%20http%3A%2F%2Ftu-link.com%0A%F0%9F%91%A4%20Usuario%3A%20{{ u.username }}%0A%F0%9F%94%91%20Clave%3A%20{{ u.cliente.telefono[-4:] }}"
                                     class="btn btn-sm btn-success" target="_blank" title="Enviar acceso por WhatsApp">
@@ -155,168 +163,108 @@
                             </div>
                         </td>
                     </tr>
-
-                    <!-- Modal Reset Password -->
-                    <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow">
-                                <div class="modal-header bg-warning text-dark">
-                                    <h5 class="modal-title">
-                                        <i class="bi bi-key-fill me-2"></i>Reset Contraseña — {{ u.username }}
-                                    </h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form method="POST" action="{{ url_for('usuarios.reset_password', id=u.id) }}">
-                                    <div class="modal-body">
-                                        <label class="form-label fw-semibold">Nueva Contraseña</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                                            <input type="password" name="nueva_password" class="form-control"
-                                                placeholder="Mínimo 6 caracteres" required minlength="6">
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary"
-                                            data-bs-dismiss="modal">Cancelar</button>
-                                        <button type="submit" class="btn btn-warning text-dark fw-bold">
-                                            <i class="bi bi-check-circle me-1"></i>Actualizar
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Editar Usuario -->
-                    <div class="modal fade" id="modalEdit{{ u.id }}" tabindex="-1">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content border-0 shadow">
-                                <div class="modal-header bg-primary text-white">
-                                    <h5 class="modal-title">
-                                        <i class="bi bi-pencil-square me-2"></i>Editar Perfil — {{ u.username }}
-                                    </h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form method="POST" action="{{ url_for('usuarios.actualizar_usuario', id=u.id) }}">
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-semibold">
-                                                <i class="bi bi-envelope me-1"></i>Correo Gmail (OAuth2)
-                                            </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text"><i class="bi bi-google"></i></span>
-                                                <input type="email" name="email" class="form-control" 
-                                                    value="{{ u.email or '' }}" placeholder="ej: nombre@gmail.com">
-                                            </div>
-                                            <small class="text-muted">Si vinculas un Gmail, el usuario podrá entrar sin clave.</small>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label fw-semibold">
-                                                <i class="bi bi-shield me-1"></i>Rol del Usuario
-                                            </label>
-                                            <select name="role" class="form-select" required>
-                                                <option value="cajero" {% if u.role == 'cajero' %}selected{% endif %}>🧾 Cajero</option>
-                                                <option value="supervisor" {% if u.role == 'supervisor' %}selected{% endif %}>👁️ Supervisor</option>
-                                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>🛡️ Admin</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                        <button type="submit" class="btn btn-primary fw-bold">
-                                            <i class="bi bi-save me-1"></i>Guardar Cambios
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
-                            <i class="bi bi-people fs-3 d-block mb-2"></i>
-                            No hay usuarios registrados todavía.
-                        </td>
-                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-
 </div>
 
-<!-- MODAL CREAR NUEVO USUARIO -->
+<!-- ==========================================
+      MODALES FUERA DE LA TABLA (ELIMINA TRABAS)
+     ========================================== -->
+
+{% for u in usuarios %}
+    <!-- Modal Reset Password -->
+    <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title"><i class="bi bi-key-fill me-2"></i>Reset — {{ u.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('usuarios.reset_password', id=u.id) }}">
+                    <div class="modal-body">
+                        <label class="form-label fw-semibold">Nueva Contraseña</label>
+                        <input type="password" name="nueva_password" class="form-control" placeholder="Mínimo 6 caracteres" required minlength="6">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning text-dark fw-bold">Actualizar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Perfil (EL QUE SE TRABABA) -->
+    <div class="modal fade" id="modalEdit{{ u.id }}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Perfil — {{ u.username }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="forceCleanup()"></button>
+                </div>
+                <form method="POST" action="{{ url_for('usuarios.actualizar_usuario', id=u.id) }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold"><i class="bi bi-google me-1"></i>Correo Gmail (OAuth2)</label>
+                            <input type="email" name="email" class="form-control" value="{{ u.email or '' }}" placeholder="ej: nombre@gmail.com">
+                            <small class="text-muted d-block mt-1">Con este correo podrás entrar con Google.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold"><i class="bi bi-shield me-1"></i>Rol</label>
+                            <select name="role" class="form-select" required>
+                                <option value="cajero" {% if u.role == 'cajero' %}selected{% endif %}>🧾 Cajero</option>
+                                <option value="supervisor" {% if u.role == 'supervisor' %}selected{% endif %}>👁️ Supervisor</option>
+                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>🛡️ Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="forceCleanup()">Cerrar</button>
+                        <button type="submit" class="btn btn-primary fw-bold">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+<!-- Modal Crear Nuevo Usuario -->
 <div class="modal fade" id="modalCrearUsuario" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-person-plus-fill me-2"></i>Crear Nuevo Usuario
-                </h5>
+                <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2"></i>Nuevo Usuario</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('usuarios.crear_usuario') }}">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="bi bi-person me-1"></i>Nombre de Usuario
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-at"></i></span>
-                            <input type="text" name="username" class="form-control" placeholder="ej: maria_cajera"
-                                required>
-                        </div>
-                        <small class="text-muted">Solo letras, números y guión bajo. Sin espacios.</small>
+                        <label class="form-label fw-semibold">Nombre de Usuario</label>
+                        <input type="text" name="username" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="bi bi-envelope me-1"></i>Correo Gmail (Opcional)
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-google"></i></span>
-                            <input type="email" name="email" class="form-control" placeholder="ej: nombre@gmail.com">
-                        </div>
-                        <small class="text-muted">Necesario para entrar con Google Sign-In.</small>
+                        <label class="form-label fw-semibold">Correo Gmail</label>
+                        <input type="email" name="email" class="form-control" placeholder="nombre@gmail.com">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="bi bi-lock me-1"></i>Contraseña
-                        </label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-key"></i></span>
-                            <input type="password" name="password" id="passInput" class="form-control"
-                                placeholder="Mínimo 6 caracteres" required minlength="6">
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePass()">
-                                <i class="bi bi-eye" id="eyeIcon"></i>
-                            </button>
-                        </div>
+                        <label class="form-label fw-semibold">Contraseña</label>
+                        <input type="password" name="password" class="form-control" required minlength="6">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="bi bi-shield me-1"></i>Rol del Usuario
-                        </label>
+                        <label class="form-label fw-semibold">Rol</label>
                         <select name="role" class="form-select" required>
-                            <option value="" disabled selected>-- Selecciona un rol --</option>
-                            <option value="cajero">🧾 Cajero — Solo POS y Clientes</option>
-                            <option value="supervisor">👁️ Supervisor — Inventario y Ventas</option>
-                            <option value="admin">🛡️ Admin — Acceso Total</option>
+                            <option value="cajero">🧾 Cajero</option>
+                            <option value="supervisor">👁️ Supervisor</option>
+                            <option value="admin">🛡️ Admin</option>
                         </select>
-                    </div>
-                    <div class="alert alert-info py-2 mb-0">
-                        <small>
-                            <strong>🧾 Cajero:</strong> Solo puede hacer ventas y ver clientes.<br>
-                            <strong>👁️ Supervisor:</strong> Puede ver inventario y reportes básicos.<br>
-                            <strong>🛡️ Admin:</strong> Acceso total al sistema.
-                        </small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary fw-bold">
-                        <i class="bi bi-person-check-fill me-1"></i>Crear Usuario
-                    </button>
+                    <button type="submit" class="btn btn-primary fw-bold">Crear Usuario</button>
                 </div>
             </form>
         </div>
@@ -325,30 +273,26 @@
 
 <style>
     .avatar-circle {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 1rem;
-        flex-shrink: 0;
+        width: 38px; height: 38px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; flex-shrink: 0;
     }
 </style>
 
 <script>
-    function togglePass() {
-        const input = document.getElementById('passInput');
-        const icon = document.getElementById('eyeIcon');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.replace('bi-eye', 'bi-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.replace('bi-eye-slash', 'bi-eye');
-        }
+    // LIMPIEZA ABSOLUTA DE BACKDROP (EL BORRADOR MÁGICO) 🧼
+    function forceCleanup() {
+        setTimeout(() => {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(b => b.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        }, 100);
     }
+
+    // Aseguramos que siempre se limpie al cerrar cualquier modal
+    document.addEventListener('hidden.bs.modal', forceCleanup);
 </script>
 
 {% endblock %}

@@ -256,11 +256,11 @@
               <datalist id="lista_clientes">
                 {% for c in clientes %}
                 <option value="{{ c.cedula }} - {{ c.nombre }}" data-id="{{ c.id }}" data-tipo="cliente"
-                  data-deuda="{{ c.saldo_usd or 0 }}"></option>
+                  data-deuda="{{ c.saldo_usd or 0 }}" data-telefono="{{ c.telefono or 'N/A' }}"></option>
                 {% endfor %}
                 {% for p in productores %}
                 <option value="{{ p.rif }} - {{ p.nombre }} [PRODUCTOR]" data-id="{{ p.id }}" data-tipo="productor"
-                  data-deuda="{{ p.saldo_pendiente_usd or 0 }}"></option>
+                  data-deuda="{{ p.saldo_pendiente_usd or 0 }}" data-telefono="{{ p.telefono or 'N/A' }}"></option>
                 {% endfor %}
               </datalist>
               <input type="hidden" id="cliente_id">
@@ -405,6 +405,7 @@
     let carrito = JSON.parse(localStorage.getItem("venta_en_espera")) || [];
     let ventasPausadas = JSON.parse(localStorage.getItem("ventas_pausadas")) || [];
     let productoActual = null;
+    let currentPedidoId = null; // 🆔 Guardar ID del pedido cargado
     let lastKeyTime = Date.now();
     let isScanner = false;
     let scannerTimer;
@@ -430,11 +431,19 @@
         document.getElementById("cliente_id").value = opt.dataset.id;
         document.getElementById("cliente_tipo").value = opt.dataset.tipo;
         let deuda = parseFloat(opt.dataset.deuda) || 0;
+        let telf = opt.dataset.telefono || "N/A";
+        
         if (deuda > 0) {
-          alerta.innerHTML = `<div class="alert alert-danger p-2 mb-0 fw-bold alerta-moroso">⚠️ DEUDA: $${deuda.toFixed(2)}</div>`;
+          alerta.innerHTML = `<div class="alert alert-danger p-2 mb-0 fw-bold alerta-moroso">⚠️ DEUDA: $${deuda.toFixed(2)} | 📞 ${telf}</div>`;
         } else {
-          alerta.innerHTML = `<div class="alert alert-success p-2 mb-0 fw-bold">✅ Cliente al día</div>`;
+          alerta.innerHTML = `<div class="alert alert-success p-2 mb-0 fw-bold">✅ Cliente al día | 📞 ${telf}</div>`;
         }
+        
+        // SALTO AL POS (Enfoque automático al producto)
+        setTimeout(() => {
+          document.getElementById("producto_input").focus();
+        }, 100);
+
       } else {
         document.getElementById("cliente_id").value = "";
         alerta.innerHTML = val.length > 0 ? `<div class="alert alert-warning p-2 mb-0 fw-bold small">⚠️ No registrado</div>` : "";
@@ -718,7 +727,8 @@
           pago_transferencia_bs: parseFloat(document.getElementById("pago_debito").value) || 0,
           biopago_bdv: pago_bio,
           es_fiado: esFiado,
-          tasa: tasa_dia || 1
+          tasa: tasa_dia || 1,
+          pedido_id: currentPedidoId // 🔗 Vincular al pedido si existe
         };
         console.log("[POS] Enviando datos al servidor:", data);
 
@@ -980,8 +990,15 @@
               document.getElementById("cliente_input").value = valorInput;
               document.getElementById("cliente_id").value = res.id;
               document.getElementById("cliente_tipo").value = "cliente";
+              
+              const telf = data.telefono || "N/A";
               document.getElementById("cliente_alerta").innerHTML =
-                `<div class="alert alert-success p-2 mb-0 fw-bold">✅ Registrado y seleccionado</div>`;
+                `<div class="alert alert-success p-2 mb-0 fw-bold">✅ Registrado | 📞 ${telf}</div>`;
+
+              // SALTO AL POS (Enfoque automático al producto)
+              setTimeout(() => {
+                document.getElementById("producto_input").focus();
+              }, 100);
 
               const dlist = document.getElementById("lista_clientes");
               if (dlist) {
@@ -1103,6 +1120,7 @@
       const btn = document.getElementById("btn_finalizar");
       btn.disabled = true;
       btn.innerHTML = `<i class="fas fa-check-circle"></i> FINALIZAR VENTA (F4)`;
+      currentPedidoId = null; // 🧹 Limpiar pedido vinculado
       document.getElementById("producto_input").focus();
     }
 
@@ -1178,6 +1196,7 @@
       if (carrito.length > 0 && !confirm("¿Vaciar carrito actual y cargar pedido?")) return;
       fetch(`/api/pedido/${id}`).then(r => r.json()).then(res => {
         if (!res.success) return alert(res.message);
+        currentPedidoId = id; // Guardar ID para el final de la venta
         carrito = res.items.map(i => ({ id: i.producto_id, nombre: i.nombre, precio: i.precio, cant: i.cantidad, subtotal: i.precio * i.cantidad }));
         if (res.cliente) {
           document.getElementById("cliente_input").value = `${res.cliente.cedula} - ${res.cliente.nombre}`;
