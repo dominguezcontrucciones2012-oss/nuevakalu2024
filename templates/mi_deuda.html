@@ -30,40 +30,100 @@
 
 {% if publicidades %}
 <!-- PUBLICIDAD / PROMOCIÓN DINÁMICA -->
-<div id="carouselPublicidad" class="carousel slide animate-in" data-bs-ride="carousel" style="margin-bottom:20px; border-radius:18px; overflow:hidden; box-shadow:0 8px 16px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
-    <div class="carousel-inner">
-        {% for ad in publicidades %}
-        <div class="carousel-item {% if loop.first %}active{% endif %}" style="height:180px; position:relative; background:#0b141a;">
-            {% if ad.tipo == 'video' %}
-                <video src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.8);" autoplay muted loop playsinline></video>
-            {% else %}
-                <img src="{{ url_for('static', filename='publicidad/' + ad.archivo_url) }}" style="width:100%; height:100%; object-fit:cover; display:block; filter:brightness(0.8);" alt="{{ ad.titulo }}">
-            {% endif %}
-            
-            <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(11,20,26,0.9) 0%, rgba(11,20,26,0.1) 70%); display:flex; flex-direction:column; justify-content:flex-end; padding:16px;">
-                <div style="color:#fff; font-weight:800; font-size:18px; text-shadow:0 2px 4px rgba(0,0,0,0.6); line-height:1.2;">
-                    {{ ad.titulo }}
-                </div>
-                {% if ad.descripcion %}
-                <div style="color:rgba(255,255,255,0.85); font-size:12px; margin-top:4px; font-weight:500;">
-                    {{ ad.descripcion }}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
+<div id="kalu-ad-player" class="animate-in" data-ads='{{ publicidades|tojson|safe }}' style="position:relative; width:100%; height:180px; background:#0b141a; border-radius:18px; overflow:hidden; margin-bottom:20px; box-shadow:0 8px 16px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+    <video id="ad-video-element" style="width:100%; height:100%; object-fit:cover; display:none; filter:brightness(0.8);" playsinline></video>
+    <img id="ad-img-element" style="width:100%; height:100%; object-fit:cover; display:none; filter:brightness(0.8);">
+
+    <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(11,20,26,0.9) 0%, rgba(11,20,26,0.1) 70%); display:flex; flex-direction:column; justify-content:flex-end; padding:16px; pointer-events:none;">
+        <div id="ad-title" style="color:#fff; font-weight:800; font-size:18px; text-shadow:0 2px 4px rgba(0,0,0,0.6); line-height:1.2;"></div>
+        <div id="ad-desc" style="color:rgba(255,255,255,0.85); font-size:12px; margin-top:4px; font-weight:500;"></div>
     </div>
-    {% if publicidades|length > 1 %}
-    <button class="carousel-control-prev" type="button" data-bs-target="#carouselPublicidad" data-bs-slide="prev">
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Anterior</span>
-    </button>
-    <button class="carousel-control-next" type="button" data-bs-target="#carouselPublicidad" data-bs-slide="next">
-        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Siguiente</span>
-    </button>
-    {% endif %}
+
+    <div id="ad-play-overlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <button style="background:var(--wa-green); color:#fff; border:none; border-radius:50%; width:60px; height:60px; font-size:24px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+            <i class="fas fa-play" style="margin-left:4px;"></i>
+        </button>
+    </div>
+
+    <div style="position:absolute; bottom:5px; right:10px; color:#fff; font-size:10px; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:10px; z-index:10;">
+        <span id="ad-counter">1 / 1</span>
+    </div>
 </div>
+
+<script>
+    const playerContainer = document.getElementById('kalu-ad-player');
+    const rawAds = JSON.parse(playerContainer.getAttribute('data-ads') || '[]');
+    
+    // Transformar los datos para agregar las URLs estáticas necesarias
+    const adsList = rawAds.map(ad => ({
+        tipo: ad.tipo,
+        url: "/static/publicidad/" + ad.archivo_url,
+        titulo: ad.titulo,
+        descripcion: ad.descripcion || ''
+    }));
+    
+    let currentAdIndex = 0;
+    const videoEl = document.getElementById('ad-video-element');
+    const imgEl = document.getElementById('ad-img-element');
+    const titleEl = document.getElementById('ad-title');
+    const descEl = document.getElementById('ad-desc');
+    const playOverlay = document.getElementById('ad-play-overlay');
+    const counterEl = document.getElementById('ad-counter');
+    let isPlayingQueue = false;
+    let imageTimer = null;
+
+    function renderAd(index) {
+        if (!adsList || adsList.length === 0) return;
+        const ad = adsList[index];
+        titleEl.textContent = ad.titulo;
+        descEl.textContent = ad.descripcion;
+        counterEl.textContent = (index + 1) + " / " + adsList.length;
+
+        videoEl.style.display = 'none';
+        imgEl.style.display = 'none';
+        videoEl.pause();
+        clearTimeout(imageTimer);
+
+        if (ad.tipo === 'video') {
+            videoEl.src = ad.url;
+            videoEl.style.display = 'block';
+            if (isPlayingQueue) {
+                videoEl.play().catch(() => {
+                    playOverlay.style.display = 'flex';
+                    isPlayingQueue = false;
+                });
+            }
+        } else {
+            imgEl.src = ad.url;
+            imgEl.style.display = 'block';
+            if (isPlayingQueue) {
+                imageTimer = setTimeout(nextAd, 5000);
+            }
+        }
+    }
+
+    function nextAd() {
+        if (adsList.length <= 1 && !isPlayingQueue) return;
+        currentAdIndex = (currentAdIndex + 1) % adsList.length;
+        renderAd(currentAdIndex);
+    }
+
+    videoEl.addEventListener('ended', nextAd);
+
+    playOverlay.addEventListener('click', () => {
+        isPlayingQueue = true;
+        playOverlay.style.display = 'none';
+        
+        const ad = adsList[currentAdIndex];
+        if (ad.tipo === 'video') {
+            videoEl.play();
+        } else {
+            imageTimer = setTimeout(nextAd, 5000);
+        }
+    });
+
+    renderAd(0);
+</script>
 {% endif %}
 
 <!-- BOTON QUEJAS Y SUGERENCIAS -->
@@ -184,26 +244,40 @@
         <h4><i class="fas fa-store" style="color:var(--wa-green);"></i> Catálogo KALU</h4>
     </div>
     <input type="text" id="buscadorProductos" class="wa-search" placeholder="🔍 Buscar producto o categoría..." onkeyup="filtrarProductos()">
-    <div style="padding: 0 10px 100px; display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;" id="lista_catalogo">
-        {% for producto in productos %}
+    <div class="wa-catalog-grid" id="lista_catalogo">
+        {% for producto in productos|sort(attribute='nombre') %}
         <div class="product-card-wa item-producto"
              data-nombre="{{ producto.nombre|lower }}"
-             data-categoria="{{ (producto.categoria or '')|lower }}">
+             data-categoria="{{ (producto.categoria or '')|lower }}"
+             data-stock="{{ (producto.stock or 0)|float }}">
+            
             <h4>{{ producto.nombre }}</h4>
-            <div class="price-normal">Normal: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
-            <div class="price-offer">Oferta: ${{ '%.2f'|format(producto.precio_oferta_usd or 0) }}</div>
-            <div style="font-size:12px; color:var(--wa-subtext);">{{ producto.categoria or 'General' }}</div>
-            <button class="btn-app" style="margin-top:8px; font-size:13px; padding:10px;"
-                onclick='agregarAlPedido("{{ producto.id }}", {{ producto.nombre|tojson }}, {{ producto.precio_oferta_usd or producto.precio_normal_usd or 0 }}); cerrarCatalogo();'>
-                <i class="fas fa-plus"></i> Añadir
-            </button>
+            
+            <div class="price-normal" style="font-weight: 800; font-size: 16px;">Precio: ${{ '%.2f'|format(producto.precio_normal_usd or 0) }}</div>
+            <div class="price-offer" style="display:none;"></div>
+            {% set precio_final = producto.precio_normal_usd %}
+
+            <div style="font-size:12px; color:var(--wa-subtext); margin-top: 4px;">{{ producto.categoria or 'General' }}</div>
+            <div style="font-size:11px; color:var(--wa-green); font-weight:600; margin-top: 2px;">
+                <i class="fas fa-boxes"></i> DISPONIBLE: {{ (producto.stock or 0)|float|round(2) }} {{ producto.unidad_medida or 'UND' }}
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                <input type="number" id="qty_{{ producto.id }}" value="1" min="1" step="any" 
+                       style="width: 60px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; text-align: center; font-weight: 700;">
+                
+                <button class="btn-app" style="margin-top:0; font-size:13px; padding:10px; flex:1;"
+                    onclick='const q = parseFloat(document.getElementById("qty_{{ producto.id }}").value || 1); agregarAlPedido("{{ producto.id }}", {{ producto.nombre|tojson }}, {{ precio_final or 0 }}, q);'>
+                    <i class="fas fa-plus"></i> Añadir
+                </button>
+            </div>
         </div>
         {% endfor %}
     </div>
 </div>
 
 <!-- BOTÓN FLOTANTE CARRITO -->
-<div id="btn_flotante_pedido" style="display:none; position:fixed; bottom:90px; right:20px; z-index:999;">
+<div id="btn_flotante_pedido" style="display:none; position:fixed; bottom:90px; right:20px; z-index:3100;">
     <button class="fab-cart" onclick="verMiLista()" style="background:var(--wa-green); border-radius:30px; font-weight:700;">
         <i class="fas fa-shopping-basket"></i>
         $<span id="total_plata_pedido">0.00</span> (<span id="cant_items_pedido">0</span>)
@@ -214,7 +288,13 @@
 <div id="modalLista" class="cart-modal" onclick="if(event.target===this){this.style.display='none';}">
     <div class="cart-backdrop"></div>
     <div class="cart-sheet">
-        <h4><i class="fas fa-shopping-basket" style="color:var(--wa-green);"></i> Mi Lista de Pedido</h4>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+            <h4 style="margin:0;"><i class="fas fa-shopping-basket" style="color:var(--wa-green);"></i> Mi Lista</h4>
+            <button onclick="document.getElementById('modalLista').style.display='none'" 
+                    style="background:none; border:none; color:var(--wa-subtext); font-size:24px; cursor:pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
         <div id="items_lista" style="margin-bottom:16px;"></div>
         <button class="btn-app" onclick="enviarPedido()" style="margin-bottom:10px;">
             <i class="fas fa-paper-plane"></i> ENVIAR PEDIDO AL CAJERO
@@ -304,13 +384,19 @@
     <div class="card-kalu animate-in" style="margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
             <strong style="font-size:15px;">{{ pago.metodo_pago or 'Pago' }}</strong>
-            {% if pago.estado == 'aprobado' %}
-                <span class="badge-wa badge-green"><i class="fas fa-check"></i> APROBADO</span>
-            {% elif pago.estado == 'rechazado' %}
-                <span class="badge-wa badge-red"><i class="fas fa-times"></i> RECHAZADO</span>
-            {% else %}
-                <span class="badge-wa badge-yellow"><i class="fas fa-clock"></i> PENDIENTE</span>
-            {% endif %}
+            <div style="display:flex; align-items:center; gap:10px;">
+                {% if pago.estado == 'aprobado' %}
+                    <span class="badge-wa badge-green"><i class="fas fa-check"></i> APROBADO</span>
+                {% elif pago.estado == 'rechazado' %}
+                    <span class="badge-wa badge-red"><i class="fas fa-times"></i> RECHAZADO</span>
+                {% else %}
+                    <span class="badge-wa badge-yellow"><i class="fas fa-clock"></i> PENDIENTE</span>
+                {% endif %}
+                <button onclick="borrarReportePago({{ pago.id }}, this)" 
+                        style="background:none; border:none; color:var(--wa-subtext); padding:5px; cursor:pointer; font-size:16px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; color:var(--wa-subtext);">
             <div>📅 {{ pago.fecha_pago.strftime('%d/%m/%Y') if pago.fecha_pago else '—' }}</div>
@@ -356,11 +442,32 @@ function filtrarProductos() {
 
 let miPedido = [];
 
-function agregarAlPedido(id, nombre, precio) {
+function agregarAlPedido(id, nombre, precio, cantidad) {
+    // Validar stock
+    const itemEl = document.getElementById(`qty_${id}`).closest('.item-producto');
+    const stockDisponible = parseFloat(itemEl.dataset.stock || 0);
+
     const existe = miPedido.find(i => i.id === id);
-    if (existe) existe.cantidad++;
-    else miPedido.push({ id, nombre, precio, cantidad: 1 });
+    const cantidadActual = existe ? existe.cantidad : 0;
+
+    if ((cantidadActual + cantidad) > stockDisponible) {
+        alert(`⚠️ No hay suficiente stock.\nDisponible: ${stockDisponible}\nEn tu carrito: ${cantidadActual}`);
+        return;
+    }
+
+    if (existe) existe.cantidad += cantidad;
+    else miPedido.push({ id, nombre, precio, cantidad: cantidad });
     actualizarFAB();
+
+    // Efecto visual de agregado
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> ¡Listo!';
+    btn.style.background = '#0dcaf0';
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '';
+    }, 800);
 }
 
 function actualizarFAB() {
@@ -417,33 +524,42 @@ function enviarPedido() {
 function chequearNotificaciones() {
     fetch('/api/notificaciones')
     .then(r => r.json())
-    .then(pedidos => {
+    .then(data => {
+        const pedidos = data.pedidos || [];
+        const stocks = data.stocks || {};
+
+        // 1. Notificaciones
         const container = document.getElementById('notificaciones_pedidos');
         if (!pedidos.length) {
             container.style.display = 'none';
-            return;
+        } else {
+            container.style.display = 'block';
+            container.innerHTML = pedidos.map(p => {
+                const esListo = p.estado === 'listo';
+                return `
+                <div style="background:${esListo ? '#d4edda' : '#fff3cd'}; border:1px solid ${esListo ? '#c3e6cb' : '#ffeeba'}; color:${esListo ? '#155724' : '#856404'}; padding:15px; border-radius:12px; margin-bottom:10px; display:flex; align-items:center; gap:12px;">
+                    <i class="fas ${esListo ? 'fa-check-circle' : 'fa-clock'}" style="font-size:24px;"></i>
+                    <div style="flex:1; font-size:14px;">
+                        ${esListo ? '<strong>¡PEDIDO LISTO!</strong><br>Pasa por caja.' : '<strong>Pedido enviado...</strong><br>Estamos preparando tu pedido.'}
+                    </div>
+                </div>`;
+            }).join('');
         }
-        
-        container.style.display = 'block';
-        container.innerHTML = pedidos.map(p => {
-            const esListo = p.estado === 'listo';
-            const bg = esListo ? '#d4edda' : '#fff3cd';
-            const border = esListo ? '#c3e6cb' : '#ffeeba';
-            const color = esListo ? '#155724' : '#856404';
-            const icono = esListo ? 'fa-check-circle' : 'fa-clock';
-            const texto = esListo 
-                ? `<strong>¡TU PEDIDO ESTÁ LISTO!</strong><br>Pasa por caja a retirar su mercancia.` 
-                : `<strong>Pedido en preparación...</strong><br>El cajero ya recibió tu pedido de las ${p.fecha}.`;
-            
-            return `
-            <div style="background:${bg}; border:1px solid ${border}; color:${color}; padding:15px; border-radius:12px; margin-bottom:10px; display:flex; align-items:center; gap:12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position:relative;">
-                <i class="fas ${icono}" style="font-size:24px;"></i>
-                <div style="flex:1; font-size:14px; line-height:1.4;">${texto}</div>
-                <button onclick="limpiarNotificacion(${p.id})" style="background:none; border:none; color:inherit; font-weight:bold; cursor:pointer; padding:5px;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>`;
-        }).join('');
+
+        // 2. Actualizar Stocks del Catálogo
+        for (const [id, stock] of Object.entries(stocks)) {
+            const qtyInput = document.getElementById(`qty_${id}`);
+            if (qtyInput) {
+                const card = qtyInput.closest('.item-producto');
+                if (card) {
+                    card.dataset.stock = stock;
+                    const lbl = card.querySelector('div[style*="font-size:11px"]');
+                    if (lbl) {
+                        lbl.innerHTML = `<i class="fas fa-boxes"></i> DISPONIBLE: ${parseFloat(stock).toFixed(2)}`;
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -452,10 +568,24 @@ function limpiarNotificacion(id) {
     .then(() => chequearNotificaciones());
 }
 
+function borrarReportePago(id, btn) {
+    if(!confirm("¿Deseas quitar este reporte de tu historial?")) return;
+    fetch(`/eliminar_pago_reportado/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+        if(res.success) {
+            const card = btn.closest('.card-kalu');
+            card.style.opacity = '0';
+            setTimeout(() => card.remove(), 400);
+        } else {
+            alert("Error: " + res.message);
+        }
+    });
+}
+
 // Iniciar polling cada 20 segundos
 setInterval(chequearNotificaciones, 20000);
 chequearNotificaciones(); // Primera carga
-    chequearNotificaciones(); // Primera carga
 </script>
 
 {% endblock %}

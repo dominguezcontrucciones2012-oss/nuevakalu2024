@@ -39,10 +39,20 @@
             <td>Bs {{ '%.2f'|format(c.pago_movil or 0) }}</td>
             <td>Bs {{ '%.2f'|format(c.transferencia or 0) }}</td>
             <td>Bs {{ '%.2f'|format(c.biopago or 0) }}</td>
-            <td>
-                <a href="{{ url_for('cierre.ver_cierre', cierre_id=c.id) }}" class="btn btn-primary btn-sm">
-                    Ver
+            <td class="d-flex gap-1">
+                <a href="{{ url_for('cierre.ver_cierre', cierre_id=c.id) }}" class="btn btn-primary btn-sm" title="Ver Detalle">
+                    <i class="fas fa-eye"></i>
                 </a>
+                {% if current_user.role in ['admin', 'supervisor'] %}
+                <button class="btn btn-info btn-sm" onclick="regenerarDetalles({{ c.id }})" title="Regenerar Datos">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <form action="{{ url_for('cierre.eliminar_cierre', cierre_id=c.id) }}" method="POST" onsubmit="return confirm('⚠️ ¿ELIMINAR ESTE CIERRE? Esto le permitirá volver a realizar el cierre de este día si fue un error.')" style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm" title="Eliminar Registro">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}
@@ -62,5 +72,16 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+
+function regenerarDetalles(id) {
+    if(!confirm("¿Regenerar los detalles (JSON) de este cierre? Se actualizarán las listas de ventas y compras con los datos actuales de la BD.")) return;
+    fetch(`/regenerar_detalles_cierre/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+        alert(res.message);
+        if(res.success) location.reload();
+    })
+    .catch(e => alert("Error de comunicación."));
+}
 </script>
 {% endblock %}

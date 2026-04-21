@@ -1,6 +1,5 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, session
 from models import db, TasaBCV, Producto, LiquidacionCiudad, Proveedor, MovimientoProductor, ahora_ve, hoy_ve, User
-from datetime import datetime # Mantener para datetime.now() en set_tasa_bcv si es necesario
 from decimal import Decimal
 from sqlalchemy import func, desc
 from flask_migrate import Migrate
@@ -12,6 +11,7 @@ import logging
 import pytz
 import os
 from dotenv import load_dotenv
+from utils import seguro_decimal
 
 # Cargar variables de entorno (para CLIENT_ID y CLIENT_SECRET de Google) 🔐
 load_dotenv()
@@ -35,6 +35,7 @@ from routes.caja import caja_bp
 from routes.dueno import dueno_bp
 from cargar_excel import cargar_bp
 from routes.marketing import marketing_bp
+from routes.herramientas import herramientas_bp
 
 # ============================================================
 # ⏰ ZONA HORARIA VENEZUELA
@@ -43,12 +44,17 @@ VE_TZ = pytz.timezone('America/Caracas')
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kalu_master.db'
-app.config['SECRET_KEY'] = 'kalu_secret'
+# Configuración de Base de Datos
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(basedir, 'instance', 'kalu_master.db')}"
+
+# 🔒 SEGURIDAD (Google Standards)
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'kalu_fallback_secret')
 app.config['SESSION_COOKIE_NAME'] = 'kalu_session'
-app.config['SESSION_COOKIE_HTTPONLY'] = True # En producción, SECRET_KEY debe ser una variable de entorno y SESSION_COOKIE_SECURE = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False
+# Si estamos en producción (GCP), forzamos cookies seguras para cumplir con Google OAuth
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('ENV') == 'production'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_PERMANENT'] = False
 app.config['REMEMBER_COOKIE_DURATION'] = 0
@@ -61,7 +67,7 @@ log = logging.getLogger('KALU')
 # ============================================================
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'auth.login'
+login_manager.login_view = 'auth.ingresar'
 login_manager.login_message = "⚠️ Por seguridad, debes iniciar sesión."
 login_manager.login_message_category = "warning"
 
@@ -81,8 +87,10 @@ google = oauth.register(
 
 @login_manager.user_loader
 def load_user(user_id):
-    from models import User
-    return db.session.get(User, int(user_id))
+    user = db.session.get(User, int(user_id))
+    if user and not getattr(user, 'activo', True):
+        return None
+    return user
 
 # ============================================================
 # INICIALIZACIÓN DE BASE DE DATOS
@@ -115,6 +123,7 @@ app.register_blueprint(caja_bp)
 app.register_blueprint(dueno_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(marketing_bp)
+app.register_blueprint(herramientas_bp)
 
 # ============================================================
 # RUTAS PRINCIPALES Y ERRORES
@@ -126,13 +135,16 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    db.session.rollback() # Prevenir bloqueos si hubo un error en DB
+    import traceback
+    log.error(f"❌ ERROR 500: {str(error)}")
+    log.error(traceback.format_exc())
+    db.session.rollback()
     return render_template('500.html'), 500
 
 @app.route('/')
 def index():
     if not current_user.is_authenticated:
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.ingresar'))
 
     if current_user.role in ['admin', 'cajero']:
         return redirect(url_for('pos.pos'))
@@ -143,7 +155,10 @@ def index():
     if current_user.role == 'productor':
         return redirect(url_for('portal.mi_libreta'))
 
-    return redirect(url_for('auth.login'))
+    if current_user.role == 'dueno':
+        return redirect(url_for('dueno.dashboard'))
+
+    return redirect(url_for('auth.ingresar'))
 
 @app.context_processor
 def inject_tasa_actual():
@@ -151,14 +166,14 @@ def inject_tasa_actual():
         hoy = hoy_ve()
         tasa_hoy = TasaBCV.query.filter_by(fecha=hoy).first()
         if tasa_hoy:
-            return dict(tasa_actual=float(tasa_hoy.valor), alerta_tasa=False)
+            return dict(tasa_actual=tasa_hoy.valor, alerta_tasa=False)
         else:
             ultima = TasaBCV.query.order_by(TasaBCV.fecha.desc()).first()
-            valor = float(ultima.valor) if ultima else 0.0
+            valor = ultima.valor if ultima else Decimal('0.00')
             return dict(tasa_actual=valor, alerta_tasa=True)
     except Exception as e:
         log.error(f"Error al inyectar tasa actual: {e}")
-        return dict(tasa_actual=0.0, alerta_tasa=True)
+        return dict(tasa_actual=Decimal('0.00'), alerta_tasa=True)
 
 @app.route('/set_tasa_bcv', methods=['GET', 'POST'])
 def set_tasa_bcv():
@@ -166,7 +181,7 @@ def set_tasa_bcv():
         nuevo_valor = request.form.get('valor')
         if nuevo_valor:
             try:
-                valor_decimal = Decimal(str(nuevo_valor).replace(',', '.'))
+                valor_decimal = seguro_decimal(nuevo_valor)
                 hoy = hoy_ve()
                 tasa_hoy = TasaBCV.query.filter_by(fecha=hoy).first()
 
@@ -193,9 +208,9 @@ def set_tasa_bcv():
 
 @app.route('/liquidar_queso_ciudad', methods=['POST'])
 def liquidar_queso_ciudad():
-    kilos = Decimal(request.form.get('kilos', '0'))
-    precio_vta = Decimal(request.form.get('precio_vta', '0'))
-    gastos = Decimal(request.form.get('gastos', '0'))
+    kilos = seguro_decimal(request.form.get('kilos'))
+    precio_vta = seguro_decimal(request.form.get('precio_vta'))
+    gastos = seguro_decimal(request.form.get('gastos'))
     metodo = request.form.get('metodo_pago', 'Efectivo')
 
     queso = Producto.query.filter(Producto.nombre.ilike('%Queso%')).first()
@@ -235,12 +250,27 @@ def liquidar_queso_ciudad():
 
 
 if __name__ == '__main__':
-    print("\n" + "=" * 50)
-    print("       🚀 SISTEMA KALU 2.0 - ¡DESPEGANDO! 🚀")
-    print("=" * 50)
-    print(" ✅ Base de Datos: kalu_master.db")
-    print(" ✅ Estado:        OPERATIVO")
-    print(" ✅ Puerto:        5002")
-    print(" ✅ Modo:          DEBUG ACTIVADO")
-    print("=" * 50)
-    app.run(host='0.0.0.0', port=5002, debug=True)
+    import socket
+    def get_local_ip():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except:
+            return "127.0.0.1"
+
+    local_ip = get_local_ip()
+    port = int(os.environ.get("PORT", 5002))
+
+    log.info("\n" + "#" * 30)
+    log.info("  KALUNEVA2024 - OPERATIVO")
+    log.info(" " + "#" * 30)
+    log.info(f" [OK] Acceso Local:  http://localhost:{port}")
+    log.info(f" [OK] En Red (CEL): http://{local_ip}:{port}")
+    log.info(" [OK] Base Datos:   kalu_master.db")
+    log.info(" [OK] PIN POS:      1234 (Edit en .env)")
+    log.info("=" * 30 + "\n")
+    
+    app.run(host='0.0.0.0', port=port, debug=True)

@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-4">
+<div class="row mb-5 animate__animated animate__fadeIn">
+    <div class="col-12 d-flex align-items-center gap-3">
+        <div class="icon-box" style="background: rgba(52, 152, 219, 0.2); padding: 15px; border-radius: 12px;">
+            <i class="fas fa-tools fa-2x text-info"></i>
+        </div>
+        <div>
+            <h1 class="display-6 fw-bold text-white mb-0">Caja de Herramientas</h1>
+            <p class="text-info opacity-75 mb-0">Gestión de Mantenimiento Avanzado — <small>Antigravity Powered</small></p>
+        </div>
+    </div>
+</div>
+
+<!-- TABS -->
+<ul class="nav nav-pills mb-4 gap-2" id="toolTabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active btn-glass" id="sales-tab" data-bs-toggle="pill" data-bs-target="#sales" type="button">🧾 Facturas</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link btn-glass" id="closures-tab" data-bs-toggle="pill" data-bs-target="#closures" type="button">🔒 Cierres</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link btn-glass" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button">👥 Usuarios</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link btn-glass text-info" id="security-tab" data-bs-toggle="pill" data-bs-target="#security" type="button">🛡️ Seguridad</button>
+    </li>
+    <li class="nav-item ms-auto">
+         <a href="{{ url_for('reportes.respaldar_db') }}" class="btn btn-outline-success">
+             <i class="fas fa-download me-2"></i> Respaldo DB
+         </a>
+    </li>
+</ul>
+
+<div class="tab-content" id="toolTabsContent">
+    
+    <!-- PESTAÑA VENTAS -->
+    <div class="tab-pane fade show active" id="sales" role="tabpanel">
+        <div class="card card-glass border-0 shadow">
+            <div class="card-header bg-transparent py-3 border-bottom border-secondary border-opacity-25">
+                <h5 class="mb-0 text-white">Últimas 50 Ventas</h5>
+                <small class="text-warning">⚠️ Borrar una venta restaurará stock y revertirá saldos de clientes.</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead style="background: rgba(255,255,255,0.05);">
+                        <tr>
+                            <th class="ps-4">Factura #</th>
+                            <th>Fecha/Hora</th>
+                            <th>Cliente</th>
+                            <th>Monto USD</th>
+                            <th>Es Fiado</th>
+                            <th class="text-end pe-4">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in ventas %}
+                        <tr>
+                            <td class="ps-4"><strong>#{{ v.id }}</strong></td>
+                            <td>{{ v.fecha.strftime('%d/%m/%Y %I:%M %p') }}</td>
+                            <td>{{ v.nombre_cliente_final }}</td>
+                            <td class="fw-bold text-success">${{ "%.2f"|format(v.total_usd) }}</td>
+                            <td>
+                                {% if v.es_fiado %}
+                                <span class="badge rounded-pill bg-warning text-dark">SÍ</span>
+                                {% else %}
+                                <span class="badge rounded-pill bg-success">NO</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <form action="{{ url_for('herramientas.borrar_venta', venta_id=v.id) }}" method="POST" onsubmit="return confirm('¿Seguro que deseas ELIMINAR permanentemente esta factura? Se restaurará el stock.')">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">ANULAR</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA CIERRES -->
+    <div class="tab-pane fade" id="closures" role="tabpanel">
+        <div class="card card-glass border-0 shadow">
+            <div class="card-header bg-transparent py-3 border-bottom border-secondary border-opacity-25 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-white">Historial de Cierres</h5>
+                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalRecuperarCierre">
+                    <i class="fas fa-history me-1"></i> RECUPERAR CIERRE PERDIDO
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Fecha</th>
+                            <th>Ventas USD</th>
+                            <th>Real USD</th>
+                            <th>Diferencia</th>
+                            <th class="text-end pe-4">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in cierres %}
+                        <tr>
+                            <td class="ps-4">{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>${{ "%.2f"|format(c.total_ventas_usd) }}</td>
+                            <td>${{ "%.2f"|format(c.monto_real_usd) }}</td>
+                            <td>
+                                <span class="{% if c.diferencia_usd < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    ${{ "%.2f"|format(c.diferencia_usd) }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('cierre.ver_cierre', cierre_id=c.id) }}" class="btn btn-sm btn-info text-white">
+                                        <i class="fas fa-eye"></i> VER / IMPRIMIR
+                                    </a>
+                                    <form action="{{ url_for('herramientas.reabrir_cierre', cierre_id=c.id) }}" method="POST" onsubmit="return confirm('¿Reabrir cierre?')">
+                                        <button type="submit" class="btn btn-sm btn-warning">🔓 REABRIR</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PESTAÑA USUARIOS -->
+    <div class="tab-pane fade" id="users" role="tabpanel">
+        <div class="card card-glass border-0 shadow">
+            <div class="card-header bg-transparent py-3 border-bottom border-secondary border-opacity-25">
+                <h5 class="mb-0 text-white">Usuarios del Sistema</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Usuario</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th class="text-end pe-4">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr>
+                            <td class="ps-4"><strong>{{ u.username }}</strong></td>
+                            <td>{{ u.role }}</td>
+                            <td>
+                                {% if u.activo %}
+                                <span class="text-success small">● ACTIVO</span>
+                                {% else %}
+                                <span class="text-danger small">○ BLOQUEADO</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                {% if u.username != 'admin' %}
+                                <form action="{{ url_for('herramientas.toggle_usuario', user_id=u.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm {% if u.activo %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if u.activo %}BLOQUEAR{% else %}ACTIVAR{% endif %}
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- PESTAÑA SEGURIDAD -->
+    <div class="tab-pane fade" id="security" role="tabpanel">
+        <div class="card shadow-lg border-0" style="background: rgba(15, 25, 35, 0.9); border-radius: 20px;">
+            <div class="card-header bg-transparent py-4 border-bottom border-info border-opacity-25">
+                <h3 class="mb-0 text-info fw-bold"><i class="fas fa-shield-alt me-2"></i>Auditoría de Seguridad del Sistema</h3>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="p-4 rounded-4 bg-black bg-opacity-40 border border-info border-opacity-25 h-100 shadow-sm">
+                            <h5 class="text-info text-uppercase fw-800 mb-4" style="letter-spacing: 1px;">🛡️ Infraestructura Base</h5>
+                            <div class="d-flex justify-content-between mb-4 align-items-center">
+                                <span class="text-white fw-semibold fs-5">Conexión SSL/HTTPS:</span>
+                                <span class="badge fs-6 px-3 py-2 {% if seguridad.https.startswith('ACTIVO') %}bg-success text-white{% else %}bg-danger text-white{% endif %} shadow-sm">{{ seguridad.https }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-4 align-items-center">
+                                <span class="text-white fw-semibold fs-5">Llave Maestra (Secret):</span>
+                                <span class="badge fs-6 px-3 py-2 bg-success text-white shadow-sm">{{ seguridad.secret_key }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-0 align-items-center">
+                                <span class="text-white fw-semibold fs-5">Protección Cookies:</span>
+                                <span class="badge fs-6 px-3 py-2 bg-success text-white shadow-sm">NIVEL BANCARIO</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-4 rounded-4 bg-black bg-opacity-40 border border-info border-opacity-25 h-100 shadow-sm">
+                            <h5 class="text-info text-uppercase fw-800 mb-4" style="letter-spacing: 1px;">🔐 Integración Segura</h5>
+                            <div class="d-flex justify-content-between mb-4 align-items-center">
+                                <span class="text-white fw-semibold fs-5">Google OAuth 2.0:</span>
+                                <span class="badge fs-6 px-3 py-2 bg-success text-white shadow-sm">{{ seguridad.google_oauth }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-4 align-items-center">
+                                <span class="text-white fw-semibold fs-5">Algoritmo de Hashing:</span>
+                                <span class="badge fs-6 px-3 py-2 bg-info text-dark fw-bold shadow-sm">{{ seguridad.hashing }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-0 align-items-center">
+                                <span class="text-white fw-semibold fs-5">Integridad DB:</span>
+                                <span class="badge fs-6 px-3 py-2 bg-success text-white shadow-sm">VERIFICADO</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 rounded-4 bg-info bg-opacity-10 border border-info border-opacity-25 shadow-sm">
+                    <h5 class="text-info d-block mb-3 fw-bold"><i class="fas fa-info-circle me-2"></i>POLÍTICAS DE PROTECCIÓN DE DATOS</h5>
+                    <p class="text-white fs-5 lh-base mb-0">
+                        Los datos de acceso y transacciones están protegidos mediante el estándar **PBKDF2 con SHA256**. 
+                        Sus datos están blindados contra ataques de fuerza bruta y phishing mediante la validación obligatoria de dominios seguros configurada por Antigravity.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL RECUPERAR CIERRE -->
+<div class="modal fade" id="modalRecuperarCierre" tabindex="-1" aria-labelledby="modalRecuperarCierreLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-dark" style="background: #f8f9fa; border-radius: 15px;">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold" id="modalRecuperarCierreLabel"><i class="fas fa-history me-2"></i>Recuperar Cierre de Caja</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Si por alguna razón no se generó o se perdió el cierre de un día anterior, puedes recuperarlo/generarlo de modo automático desde aquí.</p>
+        <form action="{{ url_for('cierre.ejecutar_cierre_retroactivo') }}" method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Fecha a Recuperar</label>
+            <input type="date" class="form-control border-success" name="fecha_retroactiva" required>
+          </div>
+          <button type="submit" class="btn btn-success w-100 fw-bold" onclick="return confirm('¿Seguro que deseas generar el cierre para esta fecha pasada?')">
+             RECOMPILAR Y RECUPERAR CIERRE
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+    .card-glass {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 20px;
+    }
+    .btn-glass {
+        background: rgba(255,255,255,0.05);
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        transition: 0.3s;
+    }
+    .btn-glass:hover {
+        background: rgba(52, 152, 219, 0.2);
+    }
+    .btn-glass.active {
+        background: #3498db !important;
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    }
+    .table-dark {
+        background: transparent !important;
+    }
+    .table th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #5dade2;
+        border-bottom: 2px solid rgba(255,255,255,0.05);
+    }
+    .table td {
+        border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+</style>
+
+{% endblock %}

@@ -10,14 +10,14 @@ __pycache__/
 venv/
 env/
 
-# Database
-instance/
-*.db
-*.sqlite
-*.sqlite3
+# Environment variables (Temporarily allowed for Cloud Run)
+# .env 
 
-# Environment variables
-.env
+# Database (Temporarily allowed for Cloud Run)
+# instance/
+# *.db
+# *.sqlite
+# *.sqlite3
 
 # Uploads / comprobantes
 static/comprobantes/

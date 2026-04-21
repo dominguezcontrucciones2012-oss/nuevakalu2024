@@ -1,60 +1,130 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="container-fluid py-4">
+<div class="container-fluid" style="min-height: 100vh;">
 
-    <!-- ENCABEZADO -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-0 fw-bold">
-                <i class="bi bi-people-fill text-primary me-2"></i>Gestión de Usuarios
-            </h2>
-            <small class="text-muted">Solo el Administrador Maestro puede gestionar usuarios</small>
-        </div>
-        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
-            <i class="bi bi-person-plus-fill me-1"></i> Nuevo Usuario
+    <!-- ⚡ ESTILOS PREMIUM PARA LA LIBRETA -->
+    <style>
+        .resumen-libreta {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+        .item-resumen {
+            padding: 1rem;
+            transition: background 0.3s;
+        }
+        .item-resumen:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .tarjeta-usuario {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tarjeta-usuario:hover {
+            transform: translateY(-3px);
+            filter: brightness(1.05);
+        }
+        .whatsapp-btn {
+            background-color: #25d366;
+            color: white;
+            border: none;
+        }
+        .whatsapp-btn:hover {
+            background-color: #128c7e;
+            color: white;
+        }
+        .badge-role {
+            font-size: 0.6rem;
+            padding: 0.2rem 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+        }
+    </style>
+
+    <!-- ⚡ ENCABEZADO -->
+    <div class="d-flex justify-content-between align-items-center mb-3 mt-2">
+        <h3 class="fw-bold text-white mb-0" style="text-shadow: 1px 1px 4px rgba(0,0,0,0.3);">
+            <i class="fas fa-users-cog me-2"></i>USUARIOS
+        </h3>
+        <button class="btn btn-primary btn-sm rounded-pill px-4 shadow-lg fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearUsuario">
+            <i class="fas fa-plus me-1"></i> NUEVO
         </button>
     </div>
 
-    <!-- BUZÓN DE PAGOS PENDIENTES -->
-    {% if pagos_clientes or pagos_productores %}
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-warning text-dark fw-bold">
-            <i class="bi bi-bell-fill me-2"></i>
-            PAGOS POR VERIFICAR
-            <span class="badge bg-dark ms-2">{{ pagos_clientes|length + pagos_productores|length }}</span>
+    <!-- RESUMEN SUPERIOR COMPACTO (Estilo Libreta Vibrant) -->
+    <div class="resumen-libreta shadow-lg mb-4">
+        <div class="row g-0">
+            <div class="col-6 col-md-3 border-end border-secondary item-resumen">
+                <small class="text-white-50 fw-bold d-block mb-1" style="font-size: 0.65rem;">DEUDA CLIENTES</small>
+                <span class="fs-5 fw-bold text-danger">${{ "%.2f"|format(total_deuda_clientes or 0) }}</span>
+            </div>
+            <div class="col-6 col-md-3 border-end border-md-secondary item-resumen">
+                <small class="text-white-50 fw-bold d-block mb-1" style="font-size: 0.65rem;">EL HABER (PRODUCTORES)</small>
+                <span class="fs-5 fw-bold text-success">${{ "%.2f"|format(total_haber_productores or 0) }}</span>
+            </div>
+            <div class="col-6 col-md-3 border-end border-secondary item-resumen">
+                <small class="text-white-50 fw-bold d-block mb-1" style="font-size: 0.65rem;">QUESO SEMANA</small>
+                <span class="fs-5 fw-bold text-info">{{ "%.1f"|format(total_queso_semana or 0) }} KG</span>
+            </div>
+            <div class="col-6 col-md-3 item-resumen">
+                <small class="text-white-50 fw-bold d-block mb-1" style="font-size: 0.65rem;">ACCESOS ACTIVOS</small>
+                <span class="fs-5 fw-bold text-warning">{{ usuarios|length }}</span>
+            </div>
         </div>
-        <div class="card-body p-0">
-            <table class="table table-hover align-middle mb-0">
+    </div>
+
+    <!-- 🔍 BÚSQUEDA -->
+    <div class="mb-3">
+        <div class="input-group shadow-sm">
+            <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" id="busquedaUsuario" class="form-control border-start-0" placeholder="Buscar por nombre, usuario o email...">
+        </div>
+    </div>
+
+    <!-- 🔔 BUZÓN DE PAGOS POR VERIFICAR -->
+    {% if pagos_clientes or pagos_productores %}
+    <div class="card shadow-sm border-0 mb-4 border-start border-5 border-warning">
+        <div class="card-header bg-white py-2">
+            <h6 class="mb-0 fw-bold text-dark">
+                <i class="fas fa-money-check-alt text-warning me-2"></i>PAGOS PENDIENTES POR VALIDAR
+            </h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
                 <thead class="table-light">
-                    <tr>
-                        <th class="ps-3">Fecha</th>
-                        <th>Quién Paga</th>
-                        <th>Monto</th>
-                        <th>Estado</th>
+                    <tr style="font-size: 0.75rem;">
+                        <th class="ps-3">FECHA</th>
+                        <th>TIPO</th>
+                        <th>NOMBRE</th>
+                        <th class="text-end">MONTO USD</th>
+                        <th class="text-center">ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for pago in pagos_clientes %}
                     <tr>
-                        <td class="ps-3">{{ pago.fecha.strftime('%d/%m/%Y') }}</td>
-                        <td>
-                            <span class="badge bg-success me-1">Cliente</span>
-                            <strong>{{ pago.cliente.nombre }}</strong>
+                        <td class="ps-3 small">{{ pago.fecha.strftime('%d/%m %H:%M') if pago.fecha else 'S/F' }}</td>
+                        <td><span class="badge bg-success-subtle text-success border border-success-subtle">CLIENTE</span></td>
+                        <td class="fw-bold">{{ pago.cliente.nombre if pago.cliente else 'Sin Cliente' }}</td>
+                        <td class="text-end fw-bold text-success">${{ "%.2f"|format(pago.monto_usd or 0) }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('usuarios.aprobar_pago', tipo='cliente', id=pago.id) }}" class="btn btn-xs btn-success fw-bold py-0 px-2" style="font-size: 0.7rem;">APROBAR</a>
+                            <a href="{{ url_for('usuarios.rechazar_pago', tipo='cliente', id=pago.id) }}" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" onclick="return confirm('¿Rechazar?')">X</a>
                         </td>
-                        <td class="text-success fw-bold">${{ "%.2f"|format(pago.monto_usd) }}</td>
-                        <td><span class="badge bg-warning text-dark">⏳ Pendiente</span></td>
                     </tr>
                     {% endfor %}
                     {% for pago in pagos_productores %}
                     <tr>
-                        <td class="ps-3">{{ pago.fecha.strftime('%d/%m/%Y') }}</td>
-                        <td>
-                            <span class="badge bg-primary me-1">Productor</span>
-                            <strong>{{ pago.proveedor.nombre }}</strong>
+                        <td class="ps-3 small">{{ pago.fecha.strftime('%d/%m %H:%M') if pago.fecha else 'S/F' }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">PROD</span></td>
+                        <td class="fw-bold">{{ pago.proveedor.nombre if pago.proveedor else 'Sin Productor' }}</td>
+                        <td class="text-end fw-bold text-success">${{ "%.2f"|format(pago.monto_usd or 0) }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('usuarios.aprobar_pago', tipo='productor', id=pago.id) }}" class="btn btn-xs btn-success fw-bold py-0 px-2" style="font-size: 0.7rem;">APROBAR</a>
+                            <a href="{{ url_for('usuarios.rechazar_pago', tipo='productor', id=pago.id) }}" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size: 0.7rem;" onclick="return confirm('¿Rechazar?')">X</a>
                         </td>
-                        <td class="text-success fw-bold">${{ "%.2f"|format(pago.monto_usd) }}</td>
-                        <td><span class="badge bg-warning text-dark">⏳ Pendiente</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -63,167 +133,156 @@
     </div>
     {% endif %}
 
-    <!-- TABLA DE USUARIOS -->
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th class="ps-4">#</th>
-                        <th><i class="bi bi-person me-1"></i>Usuario / Email</th>
-                        <th><i class="bi bi-shield-lock me-1"></i>Rol</th>
-                        <th class="text-center">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for u in usuarios %}
-                    <tr>
-                        <td class="ps-4 text-muted">{{ u.id }}</td>
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="avatar-circle bg-primary text-white">
-                                    {{ u.username[0].upper() }}
-                                </div>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-semibold">{{ u.username }}</span>
-                                    {% if u.email %}
-                                    <small class="text-primary" style="font-size: 0.75rem;">
-                                        <i class="bi bi-google me-1"></i>{{ u.email }}
-                                    </small>
-                                    {% else %}
-                                    <small class="text-muted" style="font-size: 0.75rem;">Sin correo vinculado</small>
-                                    {% endif %}
-                                </div>
-                                {% if u.username == current_user.username %}
-                                <span class="badge bg-success ms-1">Tú</span>
-                                {% endif %}
+    <!-- 👥 GRID DE USUARIOS (Estilo Libreta: Tarjetas Delgadas Doble Fila) -->
+    <div class="row row-cols-2 g-2" id="contenedorUsuarios">
+        {% for u in usuarios %}
+        {% set persona_nombre = (u.cliente.nombre if u.cliente and u.cliente.nombre else (u.proveedor.nombre if u.proveedor and u.proveedor.nombre else u.username)) or 'Sin Nombre' %}
+        {% set search_data = (u.username or '') ~ ' ' ~ persona_nombre ~ ' ' ~ (u.email or '') %}
+        <div class="col tarjeta-usuario" data-search="{{ search_data|lower }}">
+            <div class="card shadow-sm border-0 h-100 border-start border-4 
+                {% if u.role == 'admin' %}border-danger
+                {% elif u.role == 'supervisor' %}border-info
+                {% elif u.role == 'cliente' %}border-success
+                {% elif u.role == 'productor' %}border-primary
+                {% else %}border-secondary{% endif %}">
+                
+                <div class="card-body py-2 px-3">
+                    <div class="row align-items-center g-0">
+                        <!-- Identidad -->
+                        <div class="col-5">
+                            <h6 class="fw-bold mb-0 text-dark text-truncate" style="font-size: 0.95rem;">
+                                {{ persona_nombre }}
+                            </h6>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="badge bg-light text-muted border py-0" style="font-size: 0.6rem;">@{{ u.username }}</span>
+                                <span class="badge 
+                                    {% if u.role == 'admin' %}bg-danger-subtle text-danger
+                                    {% elif u.role == 'supervisor' %}bg-info-subtle text-info
+                                    {% elif u.role == 'cliente' %}bg-success-subtle text-success
+                                    {% elif u.role == 'productor' %}bg-primary-subtle text-primary
+                                    {% else %}bg-secondary-subtle text-secondary{% endif %} border-0" style="font-size: 0.6rem; text-transform: uppercase;">
+                                    {{ u.role }}
+                                </span>
                             </div>
-                        </td>
-                        <td>
-                            {% if u.cliente_id %}
-                            <span class="badge bg-success fs-6">
-                                <i class="bi bi-person-circle me-1"></i>Cliente
+                        </div>
+                        
+                        <!-- Estado -->
+                        <div class="col-3 text-center border-start border-end">
+                            <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.55rem; line-height: 1;">GOOGLE / PIN</small>
+                            <span class="fw-bold {{ 'text-success' if u.google_id else 'text-muted opacity-50' }}" style="font-size: 0.9rem;">
+                                <i class="fab fa-google"></i>
                             </span>
-                            {% elif u.proveedor_id %}
-                            <span class="badge bg-warning text-dark fs-6">
-                                <i class="bi bi-truck me-1"></i>Productor
+                            <span class="ms-1 fw-bold {{ 'text-info' if u.pin else 'text-muted opacity-50' }}" style="font-size: 0.9rem;" title="PIN de Seguridad">
+                                <i class="fas fa-shield-alt"></i>
                             </span>
-                            {% elif u.role == 'admin' %}
-                            <span class="badge bg-danger fs-6">
-                                <i class="bi bi-shield-fill-check me-1"></i>Admin
-                            </span>
-                            {% elif u.role == 'supervisor' %}
-                            <span class="badge bg-info text-dark fs-6">
-                                <i class="bi bi-eye-fill me-1"></i>Supervisor
-                            </span>
-                            {% else %}
-                            <span class="badge bg-secondary fs-6">
-                                <i class="bi bi-cash-register me-1"></i>Cajero
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center">
-                            <div class="d-flex justify-content-center gap-2">
+                        </div>
 
-                                <!-- ✅ BOTÓN WHATSAPP -->
-                                {% if u.cliente %}
-                                <a href="https://wa.me/58{{ u.cliente.telefono | replace('-','') | replace(' ','') }}?text=Hola%20{{ u.cliente.nombre | urlencode }}%2C%20ya%20puedes%20ver%20tu%20cuenta%20en%20KALU%20%F0%9F%9B%92%0A%0A%F0%9F%94%97%20Link%3A%20http%3A%2F%2Ftu-link.com%0A%F0%9F%91%A4%20Usuario%3A%20{{ u.username }}%0A%F0%9F%94%91%20Clave%3A%20{{ u.cliente.telefono[-4:] }}"
-                                    class="btn btn-sm btn-success" target="_blank" title="Enviar acceso por WhatsApp">
-                                    <i class="bi bi-whatsapp"></i>
+                        <!-- Acciones (Botones Compactos) -->
+                        <div class="col-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <button class="btn btn-sm btn-outline-primary border-0 px-2" data-bs-toggle="modal" data-bs-target="#modalEdit{{ u.id }}" title="Configurar">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning border-0 px-2" data-bs-toggle="modal" data-bs-target="#modalReset{{ u.id }}" title="Clave">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                {% set fono = u.cliente.telefono if (u.cliente and u.cliente.telefono) else (u.proveedor.telefono if (u.proveedor and u.proveedor.telefono) else None) %}
+                                {% if fono %}
+                                {% set user_code = (u.username|string)[-4:] if u.username and (u.username|string)|length >= 4 else '1234' %}
+                                <a href="https://wa.me/58{{ (fono|string) | replace('-','') | replace(' ','') | replace('(','') | replace(')','') }}?text=Hola%20{{ persona_nombre | urlencode }}%2C%20ya%20puedes%20ver%20tu%20cuenta%20en%20KALU%20%F0%9F%9B%92%0A%0A%F0%9F%94%97%20Link%3A%20https%3A%2F%2Fkalu.app%0A%F0%9F%91%A4%20Usuario%3A%20{{ u.username }}%0A%F0%9F%94%91%20Clave%3A%20{{ user_code }}" target="_blank" class="btn btn-sm whatsapp-btn border-0 px-2 shadow-sm" title="WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
                                 </a>
                                 {% endif %}
-
-                                <!-- Botón Reset Password -->
-                                {% if u.username != 'admin' or current_user.username == 'admin' %}
-                                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
-                                    data-bs-target="#modalReset{{ u.id }}">
-                                    <i class="bi bi-key-fill"></i> Reset
-                                </button>
-                                {% endif %}
-
-                                <!-- Botón Editar Perfil -->
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                                    data-bs-target="#modalEdit{{ u.id }}">
-                                    <i class="bi bi-pencil-square"></i> Perfil
-                                </button>
-
-                                <!-- Botón Eliminar -->
                                 {% if u.username != 'admin' %}
-                                <a href="{{ url_for('usuarios.eliminar_usuario', id=u.id) }}"
-                                    class="btn btn-sm btn-outline-danger"
-                                    onclick="return confirm('⚠️ ¿Seguro que quieres eliminar a {{ u.username }}?')">
-                                    <i class="bi bi-trash-fill"></i> Eliminar
+                                <a href="{{ url_for('usuarios.eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-outline-danger border-0 px-2" onclick="return confirm('¿Eliminar?')">
+                                    <i class="fas fa-trash"></i>
                                 </a>
-                                {% else %}
-                                <button class="btn btn-sm btn-outline-danger" disabled>
-                                    <i class="bi bi-lock-fill"></i> Protegido
-                                </button>
                                 {% endif %}
-
                             </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 
 <!-- ==========================================
-      MODALES FUERA DE LA TABLA (ELIMINA TRABAS)
+      MODALES (Mantenemos la lógica pero compactamos)
      ========================================== -->
 
 {% for u in usuarios %}
-    <!-- Modal Reset Password -->
-    <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title"><i class="bi bi-key-fill me-2"></i>Reset — {{ u.username }}</h5>
+    <!-- Reset Password -->
+    <div class="modal fade" id="modalReset{{ u.id }}" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content border-0">
+                <div class="modal-header bg-warning text-dark py-2">
+                    <h6 class="modal-title fw-bold">Clave: @{{ u.username }}</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ url_for('usuarios.reset_password', id=u.id) }}">
-                    <div class="modal-body">
-                        <label class="form-label fw-semibold">Nueva Contraseña</label>
-                        <input type="password" name="nueva_password" class="form-control" placeholder="Mínimo 6 caracteres" required minlength="6">
+                    <div class="modal-body py-3">
+                        <input type="password" name="nueva_password" class="form-control" placeholder="Nueva contraseña" required>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-warning text-dark fw-bold">Actualizar</button>
+                    <div class="p-2 pt-0">
+                        <button type="submit" class="btn btn-warning w-100 fw-bold">GUARDAR</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Editar Perfil (EL QUE SE TRABABA) -->
-    <div class="modal fade" id="modalEdit{{ u.id }}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <!-- Configurar Perfil -->
+    <div class="modal fade" id="modalEdit{{ u.id }}" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Perfil — {{ u.username }}</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="forceCleanup()"></button>
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="fw-bold">Configuración: {{ u.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ url_for('usuarios.actualizar_usuario', id=u.id) }}">
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label fw-semibold"><i class="bi bi-google me-1"></i>Correo Gmail (OAuth2)</label>
-                            <input type="email" name="email" class="form-control" value="{{ u.email or '' }}" placeholder="ej: nombre@gmail.com">
-                            <small class="text-muted d-block mt-1">Con este correo podrás entrar con Google.</small>
+                            <label class="form-label small fw-bold text-muted">EMAIL GOOGLE / GMAIL</label>
+                            <input type="email" name="email" class="form-control" value="{{ u.email or '' }}" placeholder="usuario@gmail.com">
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold"><i class="bi bi-shield me-1"></i>Rol</label>
-                            <select name="role" class="form-select" required>
-                                <option value="cajero" {% if u.role == 'cajero' %}selected{% endif %}>🧾 Cajero</option>
-                                <option value="supervisor" {% if u.role == 'supervisor' %}selected{% endif %}>👁️ Supervisor</option>
-                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>🛡️ Admin</option>
+                        <div class="mb-0">
+                            <label class="form-label small fw-bold text-muted">ROL EN SISTEMA</label>
+                            <select name="role" class="form-select" required onchange="toggleLinkingFields(this, '{{ u.id }}')">
+                                <option value="cajero" {% if u.role == 'cajero' %}selected{% endif %}>Cajero</option>
+                                <option value="supervisor" {% if u.role == 'supervisor' %}selected{% endif %}>Supervisor</option>
+                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Administrador</option>
+                                <option value="cliente" {% if u.role == 'cliente' %}selected{% endif %}>Cliente (Solo Portal)</option>
+                                <option value="productor" {% if u.role == 'productor' %}selected{% endif %}>Productor (Solo Portal)</option>
                             </select>
                         </div>
+                        <div id="div_link_cliente_{{ u.id }}" class="mt-3" style="display: {{ 'block' if u.role == 'cliente' else 'none' }};">
+                            <label class="form-label small fw-bold text-success">VINCULAR A CLIENTE</label>
+                            <select name="cliente_id" class="form-select border-success">
+                                <option value="">-- Seleccionar Cliente --</option>
+                                {% for c in clientes %}
+                                <option value="{{ c.id }}" {% if u.cliente_id == c.id %}selected{% endif %}>{{ c.nombre }} ({{ c.cedula }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div id="div_link_productor_{{ u.id }}" class="mt-3" style="display: {{ 'block' if u.role == 'productor' else 'none' }};">
+                            <label class="form-label small fw-bold text-primary">VINCULAR A PRODUCTOR</label>
+                            <select name="proveedor_id" class="form-select border-primary">
+                                <option value="">-- Seleccionar Productor --</option>
+                                {% for p in proveedores %}
+                                <option value="{{ p.id }}" {% if u.proveedor_id == p.id %}selected{% endif %}>{{ p.nombre }} ({{ p.rif }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label small fw-bold text-muted">PIN DE SEGURIDAD (4-6 dígitos)</label>
+                            <input type="text" name="pin" class="form-control bg-light" value="{{ u.pin or '' }}" placeholder="Ej: 1234">
+                            <small class="text-muted" style="font-size: 0.65rem;">Necesario para anular ventas o acciones restringidas.</small>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="forceCleanup()">Cerrar</button>
-                        <button type="submit" class="btn btn-primary fw-bold">Guardar Cambios</button>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">GUARDAR CAMBIOS</button>
                     </div>
                 </form>
             </div>
@@ -231,68 +290,95 @@
     </div>
 {% endfor %}
 
-<!-- Modal Crear Nuevo Usuario -->
+<!-- Modal Crear Usuario -->
 <div class="modal fade" id="modalCrearUsuario" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="bi bi-person-plus-fill me-2"></i>Nuevo Usuario</h5>
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white py-2">
+                <h5 class="modal-title fw-bold">NUEVO ACCESO</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('usuarios.crear_usuario') }}">
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Nombre de Usuario</label>
-                        <input type="text" name="username" class="form-control" required>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="small fw-bold">Usuario</label>
+                            <input type="text" name="username" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold">Clave</label>
+                            <input type="password" name="password" class="form-control" required minlength="4">
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Correo Gmail</label>
-                        <input type="email" name="email" class="form-control" placeholder="nombre@gmail.com">
+                        <label class="small fw-bold">Gmail (Opcional)</label>
+                        <input type="email" name="email" class="form-control">
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Contraseña</label>
-                        <input type="password" name="password" class="form-control" required minlength="6">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Rol</label>
-                        <select name="role" class="form-select" required>
-                            <option value="cajero">🧾 Cajero</option>
-                            <option value="supervisor">👁️ Supervisor</option>
-                            <option value="admin">🛡️ Admin</option>
+                    <div>
+                        <label class="small fw-bold">Rol</label>
+                        <select name="role" class="form-select" required onchange="toggleLinkingFields(this, 'new')">
+                            <option value="cajero">Cajero</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="admin">Administrador</option>
+                            <option value="cliente">Cliente (Solo Portal)</option>
+                            <option value="productor">Productor (Solo Portal)</option>
                         </select>
                     </div>
+                    <div id="div_link_cliente_new" class="mt-3" style="display: none;">
+                        <label class="small fw-bold text-success">VINCULAR A CLIENTE</label>
+                        <select name="cliente_id" class="form-select border-success">
+                            <option value="">-- Seleccionar Cliente --</option>
+                            {% for c in clientes %}
+                            <option value="{{ c.id }}">{{ c.nombre }} ({{ c.cedula }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="div_link_productor_new" class="mt-3" style="display: none;">
+                        <label class="small fw-bold text-primary">VINCULAR A PRODUCTOR</label>
+                        <select name="proveedor_id" class="form-select border-primary">
+                            <option value="">-- Seleccionar Productor --</option>
+                            {% for p in proveedores %}
+                            <option value="{{ p.id }}">{{ p.nombre }} ({{ p.rif }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mt-3">
+                        <label class="small fw-bold text-primary">PIN SEGUNDA PUERTA</label>
+                        <input type="text" name="pin" class="form-control border-primary" placeholder="Ej: 1234">
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary fw-bold">Crear Usuario</button>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">CREAR USUARIO</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<style>
-    .avatar-circle {
-        width: 38px; height: 38px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: bold; flex-shrink: 0;
-    }
-</style>
-
 <script>
-    // LIMPIEZA ABSOLUTA DE BACKDROP (EL BORRADOR MÁGICO) 🧼
-    function forceCleanup() {
-        setTimeout(() => {
-            const backdrops = document.querySelectorAll('.modal-backdrop');
-            backdrops.forEach(b => b.remove());
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-        }, 100);
+    // Filtro real-time
+    document.getElementById('busquedaUsuario').addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        document.querySelectorAll('.tarjeta-usuario').forEach(t => {
+            t.style.display = t.dataset.search.includes(query) ? '' : 'none';
+        });
+    });
+
+    function toggleLinkingFields(select, id) {
+        const role = select.value;
+        const divCliente = document.getElementById('div_link_cliente_' + id);
+        const divProductor = document.getElementById('div_link_productor_' + id);
+        
+        divCliente.style.display = (role === 'cliente') ? 'block' : 'none';
+        divProductor.style.display = (role === 'productor') ? 'block' : 'none';
     }
 
-    // Aseguramos que siempre se limpie al cerrar cualquier modal
-    document.addEventListener('hidden.bs.modal', forceCleanup);
+    // Fix backdrops
+    document.addEventListener('hidden.bs.modal', function () {
+        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = 'auto';
+    });
 </script>
 
 {% endblock %}

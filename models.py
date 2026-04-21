@@ -73,9 +73,14 @@ class Venta(db.Model):
     pago_efectivo_bs = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
     pago_movil_bs = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
     pago_transferencia_bs = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
-    biopago_bdv = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
+    biopago_bdv = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
+    pago_debito_bs = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
+    pago_otros_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
     saldo_pendiente_usd = db.Column(db.Numeric(12, 2), default=Decimal('0.00'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    
     detalles = db.relationship('DetalleVenta', backref='venta', lazy=True)
+    user = db.relationship('User', backref='ventas_realizadas')
 
     @property
     def nombre_cliente_final(self):
@@ -110,13 +115,16 @@ class HistorialPago(db.Model):
     monto_bs = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
     tasa_dia = db.Column(db.Numeric(10, 4), default=Decimal('1.00'))
     metodo_pago = db.Column(db.String(50))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    user = db.relationship('User', backref='pagos_registrados')
 
 
 class PagoReportado(db.Model):
     __tablename__ = 'pagos_reportados'
 
     id = db.Column(db.Integer, primary_key=True)
-    cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=True) # Opcional si es productor
+    proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=True) # Para productores
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     fecha_reporte = db.Column(db.DateTime, default=ahora_ve, nullable=False)
@@ -134,6 +142,7 @@ class PagoReportado(db.Model):
     estado = db.Column(db.String(20), default='pendiente')  # pendiente, aprobado, rechazado
 
     cliente = db.relationship('Cliente', backref='pagos_reportados')
+    proveedor = db.relationship('Proveedor', backref='pagos_reportados')
     user = db.relationship('User', backref='pagos_reportados')
 
     def __repr__(self):
@@ -151,6 +160,7 @@ class Proveedor(db.Model):
     vendedor_telefono = db.Column(db.String(20))
     saldo_pendiente_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
     es_productor = db.Column(db.Boolean, default=False)
+    es_obrero = db.Column(db.Boolean, default=False)
 
 
 class Compra(db.Model):
@@ -186,12 +196,18 @@ class CierreCaja(db.Model):
     pago_movil = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
     transferencia = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
     biopago = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
+    tarjeta_debito = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
     tasa_cierre = db.Column(db.Numeric(10, 4), default=Decimal('1.00'))
     total_ventas_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
     total_compras_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
     fiado_dia_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
     detalle_ventas = db.Column(db.Text, default='[]')
     detalle_compras = db.Column(db.Text, default='[]')
+    monto_real_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
+    monto_real_bs = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
+    diferencia_usd = db.Column(db.Numeric(10, 2), default=Decimal('0.00'))
+    diferencia_bs = db.Column(db.Numeric(15, 2), default=Decimal('0.00'))
+    observaciones = db.Column(db.Text)
 
 
 # ==========================================================
@@ -216,7 +232,10 @@ class Asiento(db.Model):
     tasa_referencia = db.Column(db.Numeric(16, 2), nullable=False)
     referencia_tipo = db.Column(db.String(50))
     referencia_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    
     detalles = db.relationship('DetalleAsiento', backref='asiento', lazy=True)
+    user = db.relationship('User', backref='asientos_registrados')
 
 
 class DetalleAsiento(db.Model):
@@ -352,8 +371,10 @@ class User(UserMixin, db.Model):
     # Nuevos campos para Seguridad y Google Sign-In 🔒
     email = db.Column(db.String(100), unique=True, nullable=True)
     google_id = db.Column(db.String(100), unique=True, nullable=True)
+    pin = db.Column(db.String(10), nullable=True) # 🔒 PIN para "Segunda Puerta"
     nombre_completo = db.Column(db.String(150), nullable=True)
     avatar_url = db.Column(db.String(255), nullable=True)
+    activo = db.Column(db.Boolean, default=True) # 🔒 Para bloquear usuarios problemáticos
 
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=True)
     proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=True)
@@ -427,3 +448,31 @@ class QuejaSugerencia(db.Model):
     fecha = db.Column(db.DateTime, default=ahora_ve)
     leido = db.Column(db.Boolean, default=False)
     usuario = db.relationship('User', backref='quejas_enviadas')
+
+# ==========================================================
+#   NUEVO: VENTAS EN ESPERA (PAUSADAS) ⏸️
+# ==========================================================
+
+class VentaPausada(db.Model):
+    __tablename__ = 'ventas_pausadas'
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, default=ahora_ve)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=True)
+    cliente_nombre_manual = db.Column(db.String(150)) # Para cuando no se selecciona de la lista
+    cliente_tipo = db.Column(db.String(20), default='cliente')
+    total_usd = db.Column(db.Numeric(10, 2), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    
+    detalles = db.relationship('DetalleVentaPausada', backref='venta_pausada', lazy=True, cascade="all, delete-orphan")
+    user = db.relationship('User', backref='ventas_pausadas_usuario')
+    cliente = db.relationship('Cliente', backref='ventas_pausadas_cliente')
+
+class DetalleVentaPausada(db.Model):
+    __tablename__ = 'detalles_ventas_pausadas'
+    id = db.Column(db.Integer, primary_key=True)
+    venta_pausada_id = db.Column(db.Integer, db.ForeignKey('ventas_pausadas.id'), nullable=False)
+    producto_id = db.Column(db.Integer, db.ForeignKey('productos.id'), nullable=False)
+    cantidad = db.Column(db.Numeric(12, 3), nullable=False)
+    precio_unitario_usd = db.Column(db.Numeric(10, 2), nullable=False)
+    
+    producto = db.relationship('Producto', backref='items_pausados', lazy=True)

@@ -4,13 +4,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>KALU 2.0 - SISTEMA ADMINISTRATIVO</title>
-   <!-- PWA Support -->
-   <link rel="manifest" href="/static/manifest.json">
-   <meta name="theme-color" content="#1a252f">
-   <meta name="apple-mobile-web-app-capable" content="yes">
-   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-   <link rel="apple-touch-icon" href="/static/logo_pwa.png">
+    <title>KALUNUEVA2024 - Gestión Administrativa</title>
+    <meta name="description" content="Sistema de Gestión Administrativa para Negocios - KALUNUEVA2024. Control de inventario, ventas y proveedores.">
+    <!-- OpenGraph -->
+    <meta property="og:title" content="KALUNUEVA2024">
+    <meta property="og:description" content="Gestión profesional de inventario y ventas.">
+    <meta property="og:image" content="/static/logo_antigravity.png">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1a252f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/favicon.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
   <!-- DataTables + Buttons CSS -->
@@ -90,6 +98,8 @@
       z-index: 1050;
       backdrop-filter: blur(10px);
       border-right: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      box-shadow: 10px 0 30px rgba(0,0,0,0.5);
     }
 
     .sidebar.collapsed {
@@ -97,13 +107,23 @@
     }
 
     .sidebar h3 {
-      padding: 25px;
-      background: rgba(20, 28, 36, 0.5);
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.2);
       color: #3498db;
       font-weight: 800;
       text-align: center;
       margin-bottom: 0;
       letter-spacing: 2px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .sidebar .logo-img {
+      width: 100%;
+      max-width: 200px;
+      padding: 20px;
+      display: block;
+      margin: 0 auto;
+      filter: drop-shadow(0 0 10px rgba(52, 152, 219, 0.5));
     }
 
     .sidebar .menu-label {
@@ -137,6 +157,26 @@
       margin-left: 260px;
       padding: 30px;
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Sidebar Overlay for Mobile */
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      z-index: 1040;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sidebar-overlay.active {
+      display: block;
+      opacity: 1;
     }
 
     .main-content.expanded {
@@ -204,12 +244,109 @@
       transform: translateY(-2px);
     }
   </style>
+  <!-- Standardized Kalu Sliding Drawers -->
+  <style>
+    .drawer-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      z-index: 9990 !important;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .drawer-backdrop.active {
+      display: block !important;
+      opacity: 1 !important;
+    }
+    .payment-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 480px;
+      height: 100vh;
+      background: linear-gradient(135deg, #1a2a3a 0%, #0d151d 100%) !important;
+      backdrop-filter: blur(25px);
+      z-index: 9999 !important;
+      transform: translateX(100%);
+      visibility: hidden;
+      transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.5s;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: -20px 0 60px rgba(0, 0, 0, 0.8);
+      overflow-y: auto;
+      padding: 40px 30px;
+      color: white;
+    }
+    .payment-drawer.active {
+      transform: translateX(0);
+      visibility: visible;
+    }
+    .btn-close-drawer {
+      font-size: 1.8rem;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: all 0.3s;
+    }
+    .btn-close-drawer:hover {
+      opacity: 1;
+      transform: rotate(90deg) scale(1.1);
+      color: #e74c3c;
+    }
+    .total-display-premium {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 24px;
+      padding: 25px;
+      text-align: center;
+      margin-bottom: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .total-display-amount {
+      font-size: 3rem;
+      font-weight: 900;
+      margin: 10px 0;
+      letter-spacing: -2px;
+      text-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .form-dark-premium input, .form-dark-premium select {
+      background: rgba(255, 255, 255, 0.07) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      color: white !important;
+      border-radius: 12px !important;
+      padding: 15px 20px !important;
+      font-weight: 600 !important;
+    }
+    .form-dark-premium input:focus, .form-dark-premium select:focus {
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-color: #3498db !important;
+      box-shadow: 0 0 15px rgba(52, 152, 219, 0.3) !important;
+    }
+    .btn-currency-selector {
+      border-width: 2px !important;
+      padding: 12px !important;
+      font-weight: 800 !important;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    /* Responsive adjustments for drawers */
+    @media (max-width: 576px) {
+      .payment-drawer {
+        width: 100%;
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
-  <button class="btn-toggle-sidebar" id="sidebar-toggle" onclick="toggleSidebar()">
+  <button class="btn-toggle-sidebar" id="sidebar-toggle" onclick="toggleSidebarMenu()">
     <i class="fas fa-bars"></i>
   </button>
+  
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebarMenu()"></div>
 
   <!-- 🚨 BARRA ROJA FLOTANTE — ALERTA TASA BCV -->
   {% if alerta_tasa %}
@@ -228,48 +365,54 @@
   {% endif %}
 
   <div class="sidebar">
-    <h3>KALU 2.0</h3>
+    <img src="/static/logo_antigravity.png" alt="KALUNEVA2024" class="logo-img">
 
     <div class="menu-label">Módulo de Ventas</div>
     <a href="/pos"><i class="fas fa-cash-register me-2"></i> PUNTO DE VENTA</a>
+    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
     <a href="/historial_ventas"><i class="fas fa-receipt me-2"></i> HISTORIAL VENTAS</a>
     <a href="/clientes"><i class="fas fa-users me-2"></i> CLIENTES</a>
+    {% endif %}
     <a href="/morosos"><i class="fas fa-user-clock me-2"></i> CUENTAS X COBRAR</a>
 
     <div class="menu-label">Inventario y Compras</div>
+    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
     <a href="/inventario"><i class="fas fa-boxes me-2"></i> INVENTARIO</a>
+    {% endif %}
     <a href="/compras"><i class="fas fa-shopping-cart me-2"></i> CARGA DE COMPRAS</a>
+    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
     <a href="/cuentas_por_pagar"><i class="fas fa-file-invoice-dollar me-2"></i> CUENTAS X PAGAR</a>
     <a href="/proveedores"><i class="fas fa-truck me-2"></i> PROVEEDORES</a>
+    {% endif %}
 
     <div class="menu-label">Reportes y Caja</div>
     <a href="/reporte_cierre"><i class="fas fa-chart-line me-2"></i> CIERRE DIARIO</a>
-    {% if current_user.role != 'cajero' %}
+    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
     <a href="/reportes"><i class="fas fa-chart-bar me-2"></i> ANÁLISIS Y UTILIDAD</a>
     <a href="{{ url_for('caja.registrar_gasto') }}" class="gasto-link">
       <i class="fas fa-money-bill-wave me-2"></i> REGISTRAR GASTOS / PAGOS
     </a>
     <a href="/contabilidad"><i class="fas fa-book me-2"></i> MOVIMIENTOS CAJA</a>
-    {% endif %}
     <a href="/ia-mercado"><i class="fas fa-robot me-2"></i> IA MERCADO</a>
+    {% endif %}
 
     <div class="menu-label">Productores</div>
     <a href="{{ url_for('productores.libreta') }}">
       <i class="fas fa-book-open me-2"></i> LIBRETA QUESO
     </a>
 
-    {% if current_user.role in ['admin', 'cajero'] %}
+    {% if current_user.role in ['admin', 'dueno'] %}
     <div class="menu-label" style="color: #f39c12;">Marketing y Portal</div>
     <a href="{{ url_for('marketing.admin_publicidad') }}"><i class="fas fa-camera-retro me-2"></i> PUBLICIDAD INFO</a>
     <a href="{{ url_for('marketing.admin_quejas') }}"><i class="fas fa-envelope-open-text me-2"></i> BUZÓN DE QUEJAS</a>
-    {% endif %}
 
-    {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <div class="menu-label-admin">⚙️ Panel Administrador</div>
+    <div class="menu-label-admin">⚙️ Panel Jefe / Dueño</div>
     <a href="{{ url_for('usuarios.lista_usuarios') }}" class="admin-link"><i class="fas fa-user-shield me-2"></i>
       GESTIONAR USUARIOS</a>
     <a href="{{ url_for('cargar.panel_cargar') }}" class="admin-link"><i class="fas fa-file-excel me-2"></i> IMPORTAR
       EXCEL</a>
+    <a href="{{ url_for('herramientas.panel_herramientas') }}" class="admin-link"><i class="fas fa-tools me-2"></i>
+      HERRAMIENTAS MANT.</a>
     <a href="{{ url_for('reportes.respaldar_db') }}" class="admin-link"><i class="fas fa-cloud-download-alt me-2"></i>
       DESCARGAR RESPALDO</a>
     {% endif %}
@@ -296,6 +439,13 @@
       </a>
     </div>
     {% endif %}
+
+    <div class="mt-auto px-4 py-3 text-center opacity-75" style="border-top: 1px solid rgba(255,255,255,0.05);">
+        <small style="color: #5dade2; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <i class="fas fa-rocket"></i> KALUNEVA2024<br>
+            <span style="font-size: 0.7rem; letter-spacing: 1px;">CREADA CON ANTIGRAVITY</span>
+        </small>
+    </div>
   </div>
 
   <div class="main-content">
@@ -309,45 +459,83 @@
     {% endfor %}
     {% endif %}
     {% endwith %}
-    {% block content %}{% endblock %}
+
+    {% block content %}
+    {% endblock %}
+
   </div>
   <script>
-    function toggleSidebar() {
+    function toggleSidebarMenu() {
       const sidebar = document.querySelector('.sidebar');
       const mainContent = document.querySelector('.main-content');
+      const overlay = document.getElementById('sidebar-overlay');
       const toggleBtn = document.getElementById('sidebar-toggle');
       
-      sidebar.classList.toggle('collapsed');
-      mainContent.classList.toggle('expanded');
+      const isMobile = window.innerWidth <= 768;
       
-      const isCollapsed = sidebar.classList.contains('collapsed');
-      localStorage.setItem('sidebarCollapsed', isCollapsed);
-      
-      // Update icon
-      const icon = toggleBtn.querySelector('i');
-      if (isCollapsed) {
-        icon.classList.replace('fa-bars', 'fa-chevron-right');
-        toggleBtn.style.left = '15px';
+      if (isMobile) {
+        sidebar.classList.toggle('show-mobile');
+        overlay.classList.toggle('active');
       } else {
-        icon.classList.replace('fa-chevron-right', 'fa-bars');
-        // Optional: you could move the button if you want it to follow the sidebar
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded');
+        
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+      }
+      
+      // Update icon if needed
+      const icon = toggleBtn.querySelector('i');
+      if (sidebar.classList.contains('collapsed') || (isMobile && !sidebar.classList.contains('show-mobile'))) {
+        // En desktop colapsado o movil oculto
+        if (!isMobile) icon.classList.replace('fa-bars', 'fa-chevron-right');
+      } else {
+        if (!isMobile) icon.classList.replace('fa-chevron-right', 'fa-bars');
       }
     }
+
+    // Compatibilidad con la función anterior por si se llama desde otro lado
+    function toggleSidebar() { toggleSidebarMenu(); }
 
     // Initialize sidebar state
     document.addEventListener('DOMContentLoaded', () => {
       let isCollapsed = localStorage.getItem('sidebarCollapsed');
       
-      // Default to collapsed if it's the first time and we are in POS
-      if (isCollapsed === null && window.location.pathname.includes('/pos')) {
+      // Forzar colapso por defecto en el POS para maximizar espacio
+      if (window.location.pathname.includes('/pos')) {
         isCollapsed = 'true';
       }
       
       if (isCollapsed === 'true') {
-        document.querySelector('.sidebar').classList.add('collapsed');
-        document.querySelector('.main-content').classList.add('expanded');
-        document.getElementById('sidebar-toggle').querySelector('i').classList.replace('fa-bars', 'fa-chevron-right');
+        const sidebar = document.querySelector('.sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        
+        if (sidebar) sidebar.classList.add('collapsed');
+        if (mainContent) mainContent.classList.add('expanded');
+        if (toggleBtn) {
+          const icon = toggleBtn.querySelector('i');
+          if (icon) icon.classList.replace('fa-bars', 'fa-chevron-right');
+        }
       }
+    });
+
+    // 🔒 SEGURO DE DOBLE CLIC: Deshabilita botones al enviar formulario
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        // Solo aplicar a formularios que no tengan la clase 'no-lock'
+        if (form.classList.contains('no-lock')) return;
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            // Un pequeño delay para permitir que la validación nativa de HTML5 ocurra
+            setTimeout(() => {
+                if (form.checkValidity()) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PROCESANDO...';
+                }
+            }, 0);
+        }
     });
   </script>
   <script>
@@ -367,12 +555,130 @@
   <!-- DataTables + Extensiones de Exportación JS -->
 <!-- DataTables + Extensiones de Exportación JS y jQuery se cargan arriba -->
 
+  {% if current_user.role == 'cajero' %}
   <div class="mobile-nav">
-    <a href="/pos"><i class="fas fa-cash-register"></i>Vender</a>
-    <a href="/inventario"><i class="fas fa-boxes"></i>Stock</a>
+    <a href="/pos"><i class="fas fa-cash-register"></i>POS</a>
+    <a href="/compras"><i class="fas fa-shopping-cart"></i>Compras</a>
     <a href="/reporte_cierre"><i class="fas fa-chart-line"></i>Cierre</a>
-    <a href="/clientes"><i class="fas fa-users"></i>Clientes</a>
+    <a href="{{ url_for('productores.libreta') }}"><i class="fas fa-book-open"></i>Libreta</a>
+    <a href="/morosos"><i class="fas fa-user-clock"></i>Morosos</a>
   </div>
+  {% endif %}
+  <!-- MODAL DE PIN PARA SEGURIDAD -->
+  <div class="modal fade" id="pinModal" tabindex="-1" aria-hidden="true" style="z-index: 9999;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow-lg bg-dark text-white" style="border-radius: 20px;">
+        <div class="modal-header border-0 pb-0 justify-content-center">
+          <div class="text-center mt-3">
+            <div class="bg-warning text-dark d-inline-block rounded-circle p-3 mb-2 shadow-sm">
+                <i class="fas fa-shield-alt fa-2x"></i>
+            </div>
+            <h5 class="modal-title w-100 fw-800">AUTORIZACIÓN</h5>
+          </div>
+        </div>
+        <div class="modal-body text-center pt-2">
+          <p class="small opacity-75 mb-4 px-3">Ingrese el PIN de Supervisor para continuar con esta operación.</p>
+          <div class="pin-display mb-4 px-4">
+            <input type="password" id="pin_input_global" class="form-control form-control-lg text-center fw-bold bg-transparent text-white border-0 border-bottom border-warning border-2" 
+                   maxlength="10" placeholder="••••" style="font-size: 2.5rem; letter-spacing: 0.8rem; box-shadow: none;" autocomplete="off">
+          </div>
+          <div id="pin_error_global" class="text-danger small mb-3 fw-bold animate__animated animate__shakeX" style="display:none;"></div>
+          <div class="px-3">
+            <button id="btn_confirm_pin_global" class="btn btn-warning w-100 py-3 fw-bold rounded-4 mb-2 shadow-sm">
+              <i class="fas fa-key me-2"></i> VERIFICAR PIN
+            </button>
+            <button type="button" class="btn btn-link btn-sm text-white-50 text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pinCallbackAction = null;
+
+    /**
+     * Solicita un PIN de supervisor antes de ejecutar una acción.
+     * @param {Function} callback - La función a ejecutar si el PIN es correcto.
+     */
+    function solicitarPinSupervisor(callback) {
+      pinCallbackAction = callback;
+      const modal = new bootstrap.Modal(document.getElementById('pinModal'));
+      document.getElementById('pin_input_global').value = '';
+      document.getElementById('pin_error_global').style.display = 'none';
+      modal.show();
+
+      // Enfoque automático
+      const myModalEl = document.getElementById('pinModal');
+      myModalEl.addEventListener('shown.bs.modal', () => {
+        document.getElementById('pin_input_global').focus();
+      });
+    }
+
+    // Manejador del botón de verificación de PIN
+    document.getElementById('btn_confirm_pin_global').addEventListener('click', async function() {
+      const pin = document.getElementById('pin_input_global').value;
+      const btn = this;
+      const errorDiv = document.getElementById('pin_error_global');
+      
+      if (!pin) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> VERIFICANDO...';
+      errorDiv.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/verify_pin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: pin })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          console.log("✅ PIN Autorizado por:", data.username);
+          const modalEl = document.getElementById('pinModal');
+          const modal = bootstrap.Modal.getInstance(modalEl);
+          modal.hide();
+          
+          if (typeof pinCallbackAction === 'function') {
+            pinCallbackAction(pin, data.username);
+          }
+
+        } else {
+          errorDiv.innerText = '❌ ' + (data.message || 'PIN Incorrecto');
+          errorDiv.style.display = 'block';
+          document.getElementById('pin_input_global').value = '';
+          document.getElementById('pin_input_global').focus();
+        }
+      } catch (error) {
+        console.error("Error verificando PIN:", error);
+        errorDiv.innerText = '❌ Error de conexión';
+        errorDiv.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-key me-2"></i> VERIFICAR PIN';
+      }
+    });
+
+    // --- FUNCIÓN GLOBAL DE FORMATEO ---
+    window.safeFix = function(val, dec = 2) {
+      const n = parseFloat(val);
+      if (isNaN(n)) {
+        console.warn("[Kalu] No se pudo formatear:", val);
+        return (0).toFixed(dec);
+      }
+      return n.toFixed(dec);
+    };
+
+    // Permitir Enter en el input de PIN
+    document.getElementById('pin_input_global').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('btn_confirm_pin_global').click();
+      }
+    });
+  </script>
 </body>
 
 </html>

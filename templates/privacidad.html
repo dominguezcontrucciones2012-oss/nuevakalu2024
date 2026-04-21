@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5 text-white">
+    <div class="card bg-dark border-secondary p-5 rounded-4">
+        <h1 class="text-info"><i class="fas fa-user-shield me-2"></i>Política de Privacidad</h1>
+        <hr class="border-secondary">
+        <p>En **KALUNUEVA2024**, la privacidad de nuestros clientes y trabajadores es nuestra prioridad. Este sistema es una herramienta de gestión interna y no comparte datos con terceros.</p>
+        
+        <h4 class="mt-4 text-info">1. Información Recopilada</h4>
+        <p>Solo recopilamos información necesaria para la gestión de ventas, inventario y cuentas por cobrar (Nombre, Cédula, Teléfono).</p>
+        
+        <h4 class="mt-4 text-info">2. Uso de Google OAuth</h4>
+        <p>Utilizamos el inicio de sesión de Google exclusivamente para verificar la identidad del personal administrativo. No accedemos a sus correos privados ni a otra información fuera de su perfil básico (nombre y email).</p>
+        
+        <h4 class="mt-4 text-info">3. Seguridad</h4>
+        <p>Sus datos están protegidos mediante cifrado SSL y las contraseñas están hasheadas (no son legibles para humanos).</p>
+
+        <div class="mt-5">
+            <a href="{{ url_for('auth.ingresar') }}" class="btn btn-outline-info">Volver al Inicio</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

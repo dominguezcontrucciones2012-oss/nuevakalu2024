@@ -5,8 +5,16 @@ from models import db, User
 
 auth_bp = Blueprint('auth', __name__)
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
-def login():
+@auth_bp.route('/politica-privacidad')
+def privacidad():
+    return render_template('privacidad.html')
+
+@auth_bp.route('/terminos-servicio')
+def terminos():
+    return render_template('terminos.html')
+
+@auth_bp.route('/ingresar', methods=['GET', 'POST'])
+def ingresar():
     if current_user.is_authenticated:
         if current_user.role == 'cliente':
             return redirect(url_for('portal.mi_deuda'))
@@ -15,12 +23,23 @@ def login():
         return redirect(url_for('pos.pos'))
     
     if request.method == 'POST':
-        username = request.form.get('username')
+        username = request.form.get('username', '').strip()
         password = request.form.get('password')
         
-        user = User.query.filter_by(username=username).first()
+        # Buscamos por username exacto o email
+        user = User.query.filter((User.username == username) | (User.email == username)).first()
+        
+        # Si no lo encontramos, intentamos normalizar (útil para Cédulas/RIF con guiones)
+        if not user:
+            username_norm = "".join(filter(str.isalnum, username)).upper()
+            user = User.query.filter(User.username == username_norm).first()
         
         if user and check_password_hash(user.password, password):
+            # 🔓 ACCESO RESTAURADO: Se permite acceso con contraseña mientras se estabiliza Google
+            # if user.role in ['admin', 'dueno', 'cajero', 'supervisor']:
+            #     flash("🔒 Seguridad KALU: El personal administrativo debe ingresar exclusivamente con el botón de Google.", "warning")
+            #     return redirect(url_for('auth.ingresar'))
+
             login_user(user)
             flash(f"👋 ¡Bienvenido de nuevo, {user.username}!", "success")
             
@@ -32,8 +51,8 @@ def login():
                 return redirect(url_for('portal.mi_deuda'))
             elif user.role == 'productor':
                 return redirect(url_for('portal.mi_libreta'))
-            else:
-                return redirect(url_for('pos.pos'))
+            
+            return redirect(url_for('pos.pos'))
         else:
             flash("❌ Usuario o contraseña incorrectos.", "danger")
             
@@ -44,23 +63,22 @@ def login():
 def logout():
     logout_user()
     flash("🔒 Sesión cerrada correctamente.", "info")
-    return redirect(url_for('auth.login'))
+    return redirect(url_for('auth.ingresar'))
 
 # ============================================================
 # 🌐 GOOGLE LOGIN ROUTES
 # ============================================================
 
+@auth_bp.route('/ingresar/google')
 @auth_bp.route('/login/google')
-def login_google():
+def ingresar_google():
     from app import google
-    # Si estamos en el dominio oficial, forzamos HTTPS.
-    # Si estamos probando localmente (127.0.0.1 o localhost), dejamos que Flask decida.
-    scheme = 'https' if not request.host.startswith('127.0.0.1') and not request.host.startswith('localhost') else 'http'
-    redirect_uri = url_for('auth.callback_google', _external=True, _scheme=scheme)
-    # 🚨 SEGURO EXTRA: Forzamos a Google a preguntar qué cuenta usar siempre (prompt='select_account')
+    # Flask genera automáticamente la URL completa con _external=True
+    # respetando el host y puerto configurados o detectados por ProxyFix.
+    redirect_uri = url_for('auth.callback_google', _external=True)
     return google.authorize_redirect(redirect_uri, prompt='select_account')
 
-@auth_bp.route('/callback_google') # 👈 Nombre simplificado para la interna
+@auth_bp.route('/auth/callback-google') # 👈 Ruta única y estandarizada
 def callback_google():
     from app import google
     try:
@@ -68,17 +86,16 @@ def callback_google():
         user_info = token.get('userinfo')
         
         if not user_info:
-            # Reintentar extraer de id_token si userinfo falla
             user_info = google.parse_id_token(token, nonce=None)
 
         if not user_info:
             flash("❌ No se pudo extraer información del perfil de Google.", "danger")
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.ingresar'))
 
         email = user_info.get('email')
         google_id = user_info.get('sub')
 
-        # Buscar usuario administrativo por email
+        # Buscar usuario por email
         user = User.query.filter_by(email=email).first()
 
         if user:
@@ -88,13 +105,25 @@ def callback_google():
             login_user(user)
             flash(f"👋 Acceso seguro vía Google: {user.username}", "success")
             
-            if user.role in ['admin', 'supervisor', 'cajero']:
+            if user.role == 'admin':
+                return redirect(url_for('reportes.panel_reportes'))
+            elif user.role == 'dueno':
+                return redirect(url_for('dueno.dashboard'))
+            elif user.role in ['cajero', 'supervisor']:
                 return redirect(url_for('pos.pos'))
-            return redirect(url_for('portal.mi_deuda'))
+            elif user.role == 'cliente':
+                return redirect(url_for('portal.mi_deuda'))
+            elif user.role == 'productor':
+                return redirect(url_for('portal.mi_libreta'))
+            
+            return redirect(url_for('pos.pos'))
         else:
             flash(f"⛔ ACCESO DENEGADO: El correo {email} NO TIENE PERMISO en KALU. Vincúlalo en la gestión de usuarios primero.", "danger")
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.ingresar'))
             
     except Exception as e:
-        flash(f"❌ Error en la autenticación de Google: {str(e)}", "danger")
-        return redirect(url_for('auth.login'))
+        import traceback
+        print(f"Error Google Auth: {str(e)}")
+        print(traceback.format_exc())
+        flash(f"❌ Error en la autenticación de Google. Verifica tu conexión.", "danger")
+        return redirect(url_for('auth.ingresar'))

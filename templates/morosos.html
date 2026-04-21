@@ -83,7 +83,7 @@
                         <i class="fas fa-eye"></i>
                       </button>
                       <button class="btn btn-success btn-sm"
-                        onclick="abrirModalAbono('{{ c.id }}', '{{ c.nombre }}', '{{ c.saldo_usd }}')">
+                        onclick="abrirAbonoDrawer('{{ c.id }}', '{{ c.nombre }}', '{{ c.saldo_usd }}')">
                         <i class="fas fa-hand-holding-usd"></i> Abonar
                       </button>
                       {% endif %}
@@ -105,57 +105,78 @@
   </div>
 </div>
 
-<!-- MODAL PARA REGISTRAR ABONO -->
-<div class="modal fade" id="modalAbono" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title">
-          <i class="fas fa-money-bill-wave"></i> Registrar Abono / Pago
-        </h5>
-        <button type="button" class="close text-white" onclick="cerrarModal()">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
+<!-- BACKDROP Y DRAWER DE ABONOS (PREMIUM & SECURE) -->
+<div id="drawer_backdrop" class="drawer-backdrop" onclick="toggleAbonoDrawer(false)"></div>
+<div id="panel_abono" class="payment-drawer">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold m-0 text-info"><i class="fas fa-hand-holding-usd me-2"></i> Registrar Abono</h4>
+    <i class="fas fa-times-circle btn-close-drawer" onclick="toggleAbonoDrawer(false)"></i>
+  </div>
 
-      <div class="modal-body">
-        <h4 id="abono_cliente_nombre" class="text-center mb-3 text-primary font-weight-bold"></h4>
+  <div class="total-display-premium mb-3">
+    <h6 id="abono_cliente_nombre" class="text-uppercase fw-800 text-info opacity-75 mb-1">Cargando...</h6>
+    <div class="small opacity-50 mb-1">DEUDA TOTAL PENDIENTE</div>
+    <div class="total-display-amount text-info mb-3">$<span id="abono_deuda_actual">0.00</span></div>
 
-        <div class="alert alert-warning text-center">
-          Deuda Actual: <strong>$<span id="abono_deuda_actual"></span></strong>
+    <div class="row g-2 mb-2 p-2 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);">
+        <div class="col-6 text-center">
+            <div class="small text-white-50 text-uppercase" style="font-size: 0.65rem;">Abonado ($)</div>
+            <div class="fw-bold text-success">$<span id="abono_calc_pagado_usd">0.00</span></div>
         </div>
-
-        <div class="form-group">
-          <label class="font-weight-bold" id="label_monto_abono">Monto del Abono ($)</label>
-          <input type="number" id="monto_abono" class="form-control form-control-lg border-success" step="0.01"
-            placeholder="0.00" />
-          <input type="hidden" id="tasa_sistema" value="{{ tasa_bcv | default(1) }}">
-          <small id="alerta_monto" class="text-danger font-weight-bold mt-1" style="display:none;">
-            ⚠️ El monto supera la deuda pendiente. Corrige el valor.
-          </small>
+        <div class="col-6 text-center">
+            <div class="small text-white-50 text-uppercase" style="font-size: 0.65rem;">Pendiente ($)</div>
+            <div class="fw-bold text-danger">$<span id="abono_calc_faltante_usd">0.00</span></div>
         </div>
+    </div>
+  </div>
 
-        <div class="form-group mt-3">
-          <label class="font-weight-bold">Método de Pago</label>
-          <select id="metodo_abono" class="form-control form-control-lg border-success"
-            onchange="actualizarLabelMonto()">
-            <option value="">-- SELECCIONE PAGO --</option>
-            <option value="EFECTIVO_USD">💵 Efectivo $</option>
-            <option value="EFECTIVO_BS">💴 Efectivo Bs</option>
-            <option value="PAGO_MOVIL">📱 Pago Móvil</option>
-            <option value="DEBITO">💳 Tarjeta Débito</option>
-            <option value="BIOPAGO">🏦 Biopago BDV</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-        <button type="button" class="btn btn-success btn-lg" onclick="procesarAbono()">
-          <i class="fas fa-check"></i> Confirmar Pago
-        </button>
+  <div class="pago-form form-dark-premium">
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">1. ¿Cómo paga el cliente?</label>
+      <div class="btn-group w-100 shadow-sm" role="group">
+        <input type="radio" class="btn-check" name="moneda_pago" id="moneda_usd" checked onchange="actualizarModoMoneda()">
+        <label class="btn btn-outline-success border-2 fw-bold btn-currency-selector" for="moneda_usd"><i class="fas fa-dollar-sign"></i> Dólares</label>
+        
+        <input type="radio" class="btn-check" name="moneda_pago" id="moneda_bs" onchange="actualizarModoMoneda()">
+        <label class="btn btn-outline-info border-2 fw-bold btn-currency-selector" for="moneda_bs"><i class="fas fa-money-bill-wave"></i> Bolívares</label>
       </div>
     </div>
+
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white" id="label_monto_dinamico">Monto a abonar ($)</label>
+      <div class="input-group input-group-lg shadow-sm">
+        <span class="input-group-text border-0" id="simbolo_moneda" style="background: rgba(255,255,255,0.05); color: #fff;">$</span>
+        <input type="number" id="monto_abono_input" class="form-control form-control-lg fw-bold text-end" step="0.01" placeholder="0.00" oninput="validarMontoDinamico()">
+      </div>
+      <div id="conversion_info" class="mt-2 p-2 rounded-3 text-info fw-bold text-center" style="display:none; background: rgba(52, 152, 219, 0.1);">
+        <i class="fas fa-sync fa-spin me-2"></i> EQUIVALENTE: $<span id="monto_en_usd_equivalente">0.00</span>
+      </div>
+      <div id="alerta_monto_max" class="mt-2 p-2 rounded-3 text-warning small fw-bold text-center" style="display:none; background: rgba(241, 196, 15, 0.1);">
+        ⚠️ EL MONTO SUPERA LA DEUDA
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">2. Método de Pago</label>
+      <select id="metodo_abono_select" class="form-select form-select-lg fw-bold">
+        <option value="">-- Seleccione --</option>
+        <option value="EFECTIVO_USD">💵 Efectivo En Dólares</option>
+        <option value="EFECTIVO_BS">💴 Efectivo En Bolívares</option>
+        <option value="PAGO_MOVIL">📱 Pago Móvil</option>
+        <option value="DEBITO">💳 Tarjeta Débito</option>
+        <option value="BIOPAGO">🏦 Biopago BDV</option>
+      </select>
+    </div>
+
+    <input type="hidden" id="tasa_dia_abono" value="{{ tasa_bcv }}">
+
+    <button id="btn_confirmar_abono" class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-lg mt-4 rounded-4" onclick="iniciarProcesoAbono()">
+      <i class="fas fa-lock me-2"></i> CONFIRMAR Y PROCESAR
+    </button>
+    
+    <button class="btn btn-link btn-sm w-100 mt-3 text-white-50 text-decoration-none" onclick="toggleAbonoDrawer(false)">
+      CANCELAR OPERACIÓN
+    </button>
   </div>
 </div>
 
@@ -240,143 +261,157 @@
 </div>
 <script>
   let clienteSeleccionado = null;
+  let deudaMaximaUSD = 0;
 
-  function abrirModalAbono(id, nombre, deuda) {
+  function abrirAbonoDrawer(id, nombre, deuda) {
     clienteSeleccionado = id;
+    deudaMaximaUSD = parseFloat(deuda) || 0;
+    
     document.getElementById("abono_cliente_nombre").innerText = nombre;
-    document.getElementById("abono_deuda_actual").innerText = parseFloat(deuda).toFixed(2);
-
-    actualizarLabelMonto();
-
-    const modal = document.getElementById("modalAbono");
-    modal.classList.add("show");
-    modal.style.display = "block";
-    modal.removeAttribute("aria-hidden");
-    document.body.classList.add("modal-open");
-
-    if (!document.getElementById("modal-backdrop")) {
-      const backdrop = document.createElement("div");
-      backdrop.id = "modal-backdrop";
-      backdrop.className = "modal-backdrop fade show";
-      document.body.appendChild(backdrop);
-    }
+    document.getElementById("abono_deuda_actual").innerText = (parseFloat(deudaMaximaUSD) || 0).toFixed(2);
+    
+    // Resetear formulario
+    document.getElementById("monto_abono_input").value = (parseFloat(deudaMaximaUSD) || 0).toFixed(2);
+    document.getElementById("moneda_usd").checked = true;
+    document.getElementById("metodo_abono_select").value = "";
+    
+    actualizarModoMoneda();
+    toggleAbonoDrawer(true);
   }
 
-  function cerrarModal() {
-    const modal = document.getElementById("modalAbono");
-    modal.classList.remove("show");
-    modal.style.display = "none";
-    modal.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("modal-open");
-
-    const backdrop = document.getElementById("modal-backdrop");
-    if (backdrop) backdrop.remove();
-  }
-
-  function actualizarLabelMonto() {
-    const metodo = document.getElementById("metodo_abono").value;
-    const label = document.getElementById("label_monto_abono");
-    const input = document.getElementById("monto_abono");
-    const alerta = document.getElementById("alerta_monto");
-    const deuda = parseFloat(document.getElementById("abono_deuda_actual").innerText) || 0;
-
-    // Leer tasa BCV desde input oculto
-    const tasa = parseFloat(document.getElementById("tasa_sistema").value) || 1;
-
-    if (metodo === 'EFECTIVO_BS' || metodo === 'PAGO_MOVIL' || metodo === 'DEBITO' || metodo === 'BIOPAGO') {
-      label.textContent = 'Monto del Abono (Bs)';
-      input.value = (deuda * tasa).toFixed(2);
-      input.placeholder = 'Ingresa en Bolívares';
+  function toggleAbonoDrawer(show) {
+    const drawer = document.getElementById("panel_abono");
+    const backdrop = document.getElementById("drawer_backdrop");
+    if (show) {
+      drawer.classList.add("active");
+      backdrop.classList.add("active");
+      document.body.style.overflow = "hidden";
     } else {
-      label.textContent = 'Monto del Abono ($)';
-      input.value = deuda.toFixed(2);
-      input.placeholder = '0.00';
+      drawer.classList.remove("active");
+      backdrop.classList.remove("active");
+      document.body.style.overflow = "";
     }
-    alerta.style.display = 'none';
-    input.style.borderColor = '';
   }
 
-  document.getElementById("monto_abono").addEventListener("input", function () {
-    validarMonto();
-  });
+  function actualizarModoMoneda() {
+    const esBs = document.getElementById("moneda_bs").checked;
+    const tasa = parseFloat(document.getElementById("tasa_dia_abono").value) || 1;
+    const inputMonto = document.getElementById("monto_abono_input");
+    const labelMonto = document.getElementById("label_monto_dinamico");
+    const simbolo = document.getElementById("simbolo_moneda");
 
-  function validarMonto() {
-    const metodo = document.getElementById("metodo_abono").value;
-    const input = document.getElementById("monto_abono");
-    const alerta = document.getElementById("alerta_monto");
-    const deuda = parseFloat(document.getElementById("abono_deuda_actual").innerText) || 0;
-    const tasa = parseFloat(document.getElementById("tasa_sistema").value) || 1;
-    const monto = parseFloat(input.value) || 0;
-
-    let limiteMaximo = deuda;
-    if (metodo === 'EFECTIVO_BS' || metodo === 'PAGO_MOVIL' || metodo === 'DEBITO' || metodo === 'BIOPAGO') {
-      limiteMaximo = deuda * tasa;
-    }
-
-    if (monto > limiteMaximo + 0.05) {
-      alerta.style.display = 'block';
-      input.style.borderColor = 'red';
-      return false;
+    if (esBs) {
+      labelMonto.textContent = "Monto a abonar (Bs)";
+      simbolo.textContent = "Bs";
+      inputMonto.value = (parseFloat(deudaMaximaUSD * tasa) || 0).toFixed(2);
+      document.getElementById("conversion_info").style.display = "block";
     } else {
-      alerta.style.display = 'none';
-      input.style.borderColor = '';
-      return true;
+      labelMonto.textContent = "Monto a abonar ($)";
+      simbolo.textContent = "$";
+      inputMonto.value = (parseFloat(deudaMaximaUSD) || 0).toFixed(2);
+      document.getElementById("conversion_info").style.display = "none";
+    }
+    validarMontoDinamico();
+  }
+
+  function validarMontoDinamico() {
+    const inputMonto = document.getElementById("monto_abono_input");
+    const monto = parseFloat(inputMonto.value) || 0;
+    const esBs = document.getElementById("moneda_bs").checked;
+    const tasa = parseFloat(document.getElementById("tasa_dia_abono").value) || 1;
+    
+    let montoUSD = esBs ? (monto / tasa) : monto;
+    
+    if (esBs) {
+      document.getElementById("monto_en_usd_equivalente").textContent = (parseFloat(montoUSD) || 0).toFixed(2);
+    }
+
+    // Actualizar contadores del drawer
+    const paidEl = document.getElementById("abono_calc_pagado_usd");
+    const lackEl = document.getElementById("abono_calc_faltante_usd");
+    const diff = deudaMaximaUSD - montoUSD;
+
+    if (paidEl) paidEl.innerText = (parseFloat(montoUSD) || 0).toFixed(2);
+    if (lackEl) lackEl.innerText = diff > 0 ? (parseFloat(diff) || 0).toFixed(2) : "0.00";
+
+    const alerta = document.getElementById("alerta_monto_max");
+    const btn = document.getElementById("btn_confirmar_abono");
+
+    if (montoUSD > (deudaMaximaUSD + 0.05)) {
+      alerta.style.display = "block";
+      btn.disabled = true;
+      btn.classList.replace('btn-success', 'btn-warning');
+    } else {
+      alerta.style.display = "none";
+      btn.disabled = monto <= 0;
+      btn.classList.replace('btn-warning', 'btn-success');
     }
   }
 
-  function procesarAbono() {
-    if (!validarMonto()) {
-      alert("⚠️ El monto ingresado supera la deuda pendiente. Corrige antes de continuar.");
-      return;
+  /**
+   * Primera Capa: Solicitar PIN de Supervisor para abonos
+   */
+  function iniciarProcesoAbono() {
+    const montoStr = document.getElementById("monto_abono_input").value;
+    const metodo = document.getElementById("metodo_abono_select").value;
+    const montoIngresado = parseFloat(montoStr) || 0;
+
+    if (montoIngresado <= 0) { 
+        Swal.fire('⚠️ Atención', 'Por favor ingrese un monto válido.', 'warning');
+        return; 
+    }
+    if (!metodo) { 
+        Swal.fire('⚠️ Atención', 'Seleccione un método de pago.', 'warning');
+        return; 
     }
 
-    const monto = (document.getElementById("monto_abono").value || "").trim();
-    const metodo = (document.getElementById("metodo_abono").value || "").trim();
+    // Solicitar autorización
+    solicitarPinSupervisor((pin, supervisor) => {
+        procesarAbonoOptimizado(pin, supervisor);
+    });
+  }
 
-    if (!clienteSeleccionado) {
-      alert("⚠️ Cliente inválido.");
-      return;
-    }
-    if (!metodo) {
-      alert("⚠️ ¡MOSCA! Debe seleccionar un método de pago.");
-      return;
-    }
-    const montoNum = parseFloat(monto);
-    if (!monto || isNaN(montoNum) || montoNum <= 0) {
-      alert("⚠️ ¡Comandante! Ingrese un monto válido mayor a cero.");
-      return;
-    }
+  function procesarAbonoOptimizado(pin, supervisor) {
+    const montoStr = document.getElementById("monto_abono_input").value;
+    const metodo = document.getElementById("metodo_abono_select").value;
+    const esBs = document.getElementById("moneda_bs").checked;
+    const tasa = parseFloat(document.getElementById("tasa_dia_abono").value) || 1;
+    const montoIngresado = parseFloat(montoStr) || 0;
+    const montoUSD = esBs ? (montoIngresado / tasa) : montoIngresado;
 
-    // 🛡️ ANTI DOBLE CLIC
-    const btn = document.querySelector('#modalAbono .btn-success.btn-lg');
-    if (btn.disabled) return;
+    // Bloqueo anti-doble-clic
+    const btn = document.getElementById("btn_confirmar_abono");
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTORIZANDO...';
 
-    const body = new URLSearchParams();
-    body.append("monto_usd", monto);
-    body.append("metodo_pago", metodo);
+    const params = new URLSearchParams();
+    params.append("monto_usd", (parseFloat(montoUSD) || 0).toFixed(4));
+    params.append("metodo_pago", metodo);
+    params.append("supervisor_pin", pin); // Pasamos el PIN para auditar en el backend
 
     fetch("/clientes/abono/" + clienteSeleccionado, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
+      body: params.toString()
     })
-      .then((response) => {
-        if (response.ok) {
-          cerrarModal();
-          window.location.reload();
-        } else {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
-          response.text().then(t => alert("❌ Error en el servidor:\n" + t));
-        }
-      })
-      .catch((err) => {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pago';
-        alert("❌ Error de conexión: " + err);
-      });
+    .then(async r => {
+      const resp = r.ok ? await r.text() : await r.text();
+      if (!r.ok) throw new Error(resp);
+      
+      toggleAbonoDrawer(false);
+      Swal.fire({
+          icon: 'success',
+          title: '¡Pago Exitoso!',
+          text: `Abono de $${(parseFloat(montoUSD) || 0).toFixed(2)} procesado correctamente.`,
+          timer: 2000,
+          showConfirmButton: false
+      }).then(() => window.location.reload());
+    })
+    .catch(err => {
+      Swal.fire('❌ Error', err.message, 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-lock me-2"></i> CONFIRMAR Y PROCESAR';
+    });
   }
 
   function verFacturasPendientes(id, nombre) {
@@ -387,17 +422,8 @@
     document.getElementById("facturas_error").style.display = "none";
     document.getElementById("facturas_tbody").innerHTML = "";
 
-    const modal = document.getElementById("modalFacturas");
-    modal.classList.add("show");
-    modal.style.display = "block";
-    modal.removeAttribute("aria-hidden");
-    document.body.classList.add("modal-open");
-    if (!document.getElementById("modal-backdrop")) {
-      const backdrop = document.createElement("div");
-      backdrop.id = "modal-backdrop";
-      backdrop.className = "modal-backdrop fade show";
-      document.body.appendChild(backdrop);
-    }
+    const modal = new bootstrap.Modal(document.getElementById("modalFacturas"));
+    modal.show();
 
     fetch("/clientes/detalles_deuda/" + id)
       .then(r => r.json())
@@ -409,18 +435,13 @@
         }
         const tbody = document.getElementById("facturas_tbody");
         data.forEach(f => {
-          tbody.innerHTML += `
-            <tr>
+          tbody.innerHTML += `<tr>
               <td>#${f.id}</td>
               <td>${f.fecha}</td>
-              <td class="text-danger font-weight-bold">$${f.total_usd.toFixed(2)}</td>
-              <td class="text-success">$${f.pagado_usd.toFixed(2)}</td>
-              <td class="text-danger font-weight-bold">$${f.pendiente.toFixed(2)}</td>
-              <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="verDetalleProductos(${f.id})">
-                  <i class="fas fa-eye"></i>
-                </button>
-              </td>
+              <td class="text-danger fw-bold">$${(parseFloat(f.total_usd) || 0).toFixed(2)}</td>
+              <td class="text-success">$${(parseFloat(f.pagado_usd) || 0).toFixed(2)}</td>
+              <td class="text-danger fw-bold">$${(parseFloat(f.pendiente) || 0).toFixed(2)}</td>
+              <td><button class="btn btn-sm btn-outline-primary" onclick="verDetalleProductos(${f.id})"><i class="fas fa-eye"></i></button></td>
             </tr>`;
         });
         document.getElementById("facturas_contenido").style.display = "block";
@@ -432,16 +453,6 @@
       });
   }
 
-  function cerrarModalFacturas() {
-    const modal = document.getElementById("modalFacturas");
-    modal.classList.remove("show");
-    modal.style.display = "none";
-    modal.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("modal-open");
-    const backdrop = document.getElementById("modal-backdrop");
-    if (backdrop) backdrop.remove();
-  }
-
   function verDetalleProductos(ventaId) {
     document.getElementById("det_venta_id").innerText = ventaId;
     document.getElementById("det_loading").style.display = "block";
@@ -449,10 +460,8 @@
     document.getElementById("det_error").style.display = "none";
     document.getElementById("det_venta_tbody").innerHTML = "";
 
-    const modal = document.getElementById("modalDetalleVenta");
-    modal.classList.add("show");
-    modal.style.display = "block";
-    modal.removeAttribute("aria-hidden");
+    const modal = new bootstrap.Modal(document.getElementById("modalDetalleVenta"));
+    modal.show();
 
     fetch("/detalle_venta/" + ventaId + "/json")
       .then(r => r.json())
@@ -460,12 +469,13 @@
         document.getElementById("det_loading").style.display = "none";
         const tbody = document.getElementById("det_venta_tbody");
         data.forEach(p => {
-          tbody.innerHTML += `
-            <tr>
+          const pu = parseFloat(p.precio_unitario) || 0;
+          const ct = parseFloat(p.cantidad) || 0;
+          tbody.innerHTML += `<tr>
               <td>${p.nombre}</td>
-              <td>${p.cantidad}</td>
-              <td>$${p.precio_unitario.toFixed(2)}</td>
-              <td class="font-weight-bold">$${(p.cantidad * p.precio_unitario).toFixed(2)}</td>
+              <td>${ct}</td>
+              <td>$${(parseFloat(pu) || 0).toFixed(2)}</td>
+              <td class="fw-bold">$${(parseFloat(ct * pu) || 0).toFixed(2)}</td>
             </tr>`;
         });
         document.getElementById("det_contenido").style.display = "block";
@@ -477,17 +487,21 @@
       });
   }
 
-  function cerrarModalDetalle() {
-    const modal = document.getElementById("modalDetalleVenta");
-    modal.classList.remove("show");
-    modal.style.display = "none";
-    modal.setAttribute("aria-hidden", "true");
+  document.addEventListener("DOMContentLoaded", function() {
+    const buscador = document.getElementById("buscador_kalu");
+    if(buscador) {
+      buscador.addEventListener("keyup", function() {
+        const query = this.value.toLowerCase();
+        const rows = document.querySelectorAll("#tabla_morosos tbody tr");
+        rows.forEach(row => {
+          row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+        });
+      });
+    }
+  });
 
-    // ESTO ES LO QUE FALTA: Quitar la mancha oscura de la pantalla
-    const backdrop = document.getElementById("modal-backdrop");
-    if (backdrop) backdrop.remove();
-    document.body.classList.remove("modal-open");
-  }
+  function cerrarModalFacturas() { bootstrap.Modal.getInstance(document.getElementById('modalFacturas')).hide(); }
+  function cerrarModalDetalle() { bootstrap.Modal.getInstance(document.getElementById('modalDetalleVenta')).hide(); }
 
   document.addEventListener("DOMContentLoaded", function() {
       const buscador = document.getElementById("buscador_kalu");

@@ -11,52 +11,94 @@
         </button>
     </div>
 
-    <div class="row">
+    <!-- RESUMEN SUPERIOR COMPACTO -->
+    <div class="card shadow-sm border-0 mb-3 bg-light">
+        <div class="card-body p-2">
+            <div class="row align-items-center text-center g-0">
+                <div class="col-md-3 border-end">
+                    <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">QUESO SEMANA (Kg)</small>
+                    <span class="fs-4 fw-bold text-primary">{{ "%.1f"|format(total_kilos_semana) }} <small class="fs-6">kg</small></span>
+                </div>
+                <div class="col-md-3 border-end">
+                    <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">DEUDAS (POR PAGAR)</small>
+                    <span class="fs-4 fw-bold text-danger">${{ "%.2f"|format(total_deuda) }}</span>
+                </div>
+                <div class="col-md-3 border-end">
+                    <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">HABER (ADELANTOS)</small>
+                    <span class="fs-4 fw-bold text-success">${{ "%.2f"|format(total_haber) }}</span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">SALDO NETO</small>
+                    <span class="fs-4 fw-bold text-dark">${{ "%.2f"|format(total_deuda - total_haber) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTONES DE FILTRO -->
+    <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-sm btn-outline-primary active" onclick="filtrarLibreta('todos', this)">Todos</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="filtrarLibreta('productor', this)">Productores de Queso</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="filtrarLibreta('personal', this)">Personal / Nómina</button>
+    </div>
+
+    <!-- TARJETAS DELGADAS DOBLE COLUMNA EN MÓVIL TAMBIÉN -->
+    <div class="row row-cols-2 row-cols-md-2 g-2">
         {% for p in productores %}
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-body text-center">
-                    <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-3"
-                        style="width: 80px; height: 80px;">
-                        <i class="fas fa-user-tie fa-3x text-secondary"></i>
-                    </div>
-                    <h5 class="fw-bold mb-1">{{ p.nombre }}</h5>
-                    <p class="text-muted small mb-3"><i class="fas fa-id-card"></i> {{ p.rif }}</p>
-
-                    <div class="d-flex justify-content-between px-3 mb-3">
-                        <div class="text-center">
-                            <span class="d-block small text-muted">Saldo</span>
-                            {% if p.saldo_pendiente_usd >= 0 %}
-                            <span class="fw-bold text-success">A FAVOR: ${{ "%.2f"|format(p.saldo_pendiente_usd)
-                                }}</span>
-                            {% else %}
-                            <span class="fw-bold text-danger">TE DEBE: ${{ "%.2f"|format(p.saldo_pendiente_usd | abs)
-                                }}</span>
-                            {% endif %}
+        <div class="col item-libreta" data-tipo="{{ 'personal' if p.es_obrero else 'productor' }}">
+            <div class="card shadow-sm border-0 h-100 border-start border-4 {{ 'border-danger' if p.saldo_pendiente_usd > 0 else 'border-success' }}">
+                <div class="card-body py-2 px-3">
+                    <div class="row align-items-center g-0">
+                        <!-- Nombre -->
+                        <div class="col-5">
+                            <h6 class="fw-bold mb-0 text-dark text-truncate" style="font-size: 0.95rem;">{{ p.nombre }}</h6>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="badge bg-light text-muted border" style="font-size: 0.6rem;">{{ p.rif }}</span>
+                                {% if p.es_obrero %}
+                                <span class="badge bg-danger-subtle text-danger border-danger-subtle" style="font-size: 0.65rem;">
+                                    <i class="fas fa-user-clock"></i> PERSONAL
+                                </span>
+                                {% endif %}
+                                {% if p.kilos_semana > 0 %}
+                                <span class="badge bg-primary-subtle text-primary border-primary-subtle" style="font-size: 0.65rem;">
+                                    <i class="fas fa-cheese"></i> {{ "%.1f"|format(p.kilos_semana) }} kg
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="text-center border-start ps-3">
-                            <span class="d-block small text-muted">Kilos (Año)</span>
-                            <span class="fw-bold text-primary">{{ "%.2f"|format(p.total_kilos or 0) }} kg</span>
+                        
+                        <!-- Saldo -->
+                        <div class="col-3 text-center border-start border-end">
+                            <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.55rem; line-height: 1;">SALDO USD</small>
+                            <span class="fw-bold {{ 'text-danger' if p.saldo_pendiente_usd > 0 else 'text-success' }}" style="font-size: 1.1rem;">
+                                ${{ "%.2f"|format(p.saldo_pendiente_usd|abs) }}
+                            </span>
                         </div>
-                    </div>
 
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal"
-                            data-bs-target="#modalHistorial{{ p.id }}">
-                            <i class="fas fa-eye"></i> VER LIBRETA
-                        </button>
-                        <button class="btn btn-success fw-bold" data-bs-toggle="modal"
-                            data-bs-target="#modalQueso{{ p.id }}">
-                            <i class="fas fa-plus"></i> RECIBIR QUESO
-                        </button>
-                        <button class="btn btn-danger fw-bold" data-bs-toggle="modal"
-                            data-bs-target="#modalPago{{ p.id }}">
-                            <i class="fas fa-money-bill-wave"></i> PAGAR / ADELANTO
-                        </button>
-                        <button class="btn btn-primary fw-bold" data-bs-toggle="modal"
-                            data-bs-target="#modalAbono{{ p.id }}">
-                            <i class="fas fa-hand-holding-usd"></i> ABONAR EFECTIVO (POS)
-                        </button>
+                        <!-- Acciones -->
+                        <div class="col-4 text-end">
+                            <div class="btn-group shadow-sm">
+                                <button class="btn btn-sm btn-outline-secondary border-0 px-2" data-bs-toggle="modal" data-bs-target="#modalHistorial{{ p.id }}" title="Ver Historial">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-success border-0 px-2" data-bs-toggle="modal" data-bs-target="#modalQueso{{ p.id }}" title="Recibir Queso">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger border-0 px-2" 
+                                    onclick="abrirDrawerPago('{{ p.id }}', '{{ p.nombre }}', '{{ p.saldo_pendiente_usd }}', 'PAGO')" title="Pagar">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info text-white border-0 px-2" 
+                                    onclick="abrirDrawerPago('{{ p.id }}', '{{ p.nombre }}', '{{ p.saldo_pendiente_usd }}', 'ABONO')" title="Abono">
+                                    <i class="fas fa-credit-card"></i>
+                                </button>
+                                {% if not p.usuario %}
+                                <a href="{{ url_for('usuarios.generar_acceso_productor', proveedor_id=p.id) }}" class="btn btn-sm btn-dark text-white border-0 px-2 rounded-end" title="Crear Acceso Sistema">
+                                    <i class="fas fa-key"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -65,40 +107,76 @@
     </div>
 </div>
 
-<!-- MODAL RANKING -->
-<div class="modal fade" id="modalRanking" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title fw-bold"><i class="fas fa-crown"></i> RANKING {{ anio_actual }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>PRODUCTOR</th>
-                            <th class="text-center">KILOS</th>
-                            <th class="text-center">CONSTANCIA</th>
-                            <th class="text-end">PUNTOS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in ranking %}
-                        <tr>
-                            <td class="fw-bold">{{ r.nombre }}</td>
-                            <td class="text-center">{{ r.total_kilos }} kg</td>
-                            <td class="text-center">{{ r.semanas_fiel }} sem</td>
-                            <td class="text-end fw-bold text-success fs-5">{{ r.puntos_totales }} pts</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+<!-- BACKDROP Y DRAWER DE PAGOS/ABONOS (PREMIUM & SECURE) -->
+<div id="drawer_backdrop" class="drawer-backdrop" onclick="toggleDrawer(false)"></div>
+<div id="panel_pago_productor" class="payment-drawer">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold m-0" id="drawer_titulo">
+      <i class="fas fa-money-bill-wave me-2"></i> Registrar Pago
+    </h4>
+    <i class="fas fa-times-circle btn-close-drawer" onclick="toggleDrawer(false)"></i>
+  </div>
+
+  <div class="total-display-premium">
+    <h6 id="pago_nombre_productor" class="text-uppercase fw-800 opacity-75 mb-1">Cargando...</h6>
+    <div class="small opacity-50 mb-1">SALDO ACTUAL</div>
+    <div class="total-display-amount" id="pago_saldo_display">$0.00</div>
+  </div>
+
+  <div class="pago-form form-dark-premium">
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">1. ¿En qué moneda registra?</label>
+      <div class="btn-group w-100 shadow-sm" role="group">
+        <input type="radio" class="btn-check" name="moneda_toggle" id="moneda_usd" checked onchange="actualizarModoMoneda()">
+        <label class="btn btn-outline-success border-2 fw-bold btn-currency-selector" for="moneda_usd"><i class="fas fa-dollar-sign"></i> Dólares</label>
+        
+        <input type="radio" class="btn-check" name="moneda_toggle" id="moneda_bs" onchange="actualizarModoMoneda()">
+        <label class="btn btn-outline-info border-2 fw-bold btn-currency-selector" for="moneda_bs"><i class="fas fa-money-bill-wave"></i> Bolívares</label>
+      </div>
     </div>
+
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white" id="label_monto_dinamico">Monto a registrar ($)</label>
+      <div class="input-group input-group-lg shadow-sm">
+        <span class="input-group-text border-0" id="simbolo_moneda" style="background: rgba(255,255,255,0.05); color: #fff;">$</span>
+        <input type="number" id="monto_input" class="form-control form-control-lg fw-bold text-end" step="0.01" placeholder="0.00" oninput="validarMontoDinamico()">
+      </div>
+      <div id="conversion_info" class="mt-2 p-2 rounded-3 text-info fw-bold text-center" style="display:none; background: rgba(52, 152, 219, 0.1);">
+        <i class="fas fa-sync fa-spin me-2"></i> EQUIVALENTE: $<span id="monto_equivalente_usd">0.00</span>
+      </div>
+    </div>
+
+    <div class="mb-4">
+        <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">2. Método / Caja</label>
+        <select id="metodo_select" class="form-select form-select-lg fw-bold">
+            <option value="EFECTIVO">💵 EFECTIVO (DÓLARES)</option>
+            <option value="EFECTIVO_BS">💴 EFECTIVO (BOLÍVARES)</option>
+            <option value="PAGO_MOVIL">📱 PAGO MÓVIL (Bs)</option>
+            <option value="TRANSFERENCIA">🏦 TRANSFERENCIA (Bs)</option>
+            <option value="RECARGA">📞 RECARGA TELEFÓNICA</option>
+        </select>
+    </div>
+
+    <div class="mb-4">
+        <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">3. Datos Opcionales</label>
+        <input type="text" id="beneficiario_input" class="form-control mb-2" placeholder="Beneficiario (Si es tercero)">
+        <input type="text" id="referencia_input" class="form-control" placeholder="Referencia / Nota">
+    </div>
+
+    <input type="hidden" id="drawer_productor_id">
+    <input type="hidden" id="tasa_dia" value="{{ tasa_bcv }}">
+
+    <button type="button" id="btn_confirmar" class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-lg mt-4 rounded-4" onclick="iniciarProcesoProductor()">
+      <i class="fas fa-lock me-2"></i> CONFIRMAR REGISTRO
+    </button>
+    
+    <button class="btn btn-link btn-sm w-100 mt-3 text-white-50 text-decoration-none" onclick="toggleDrawer(false)">
+      CANCELAR
+    </button>
+  </div>
 </div>
 
+<!-- MODALES RESTANTES (QUESO Y HISTORIAL) -->
 {% for p in productores %}
 <!-- MODAL REGISTRAR QUESO -->
 <div class="modal fade" id="modalQueso{{ p.id }}" tabindex="-1">
@@ -146,55 +224,12 @@
     </div>
 </div>
 
-<!-- MODAL REGISTRAR PAGO / ADELANTO -->
-<div class="modal fade" id="modalPago{{ p.id }}" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">Registrar Pago / Adelanto: {{ p.nombre }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('productores.registrar_pago_productor') }}" method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="proveedor_id" value="{{ p.id }}">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Monto a Entregar ($)</label>
-                        <input type="number" step="0.01" name="monto" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Método de Salida</label>
-                        <select name="metodo" class="form-select">
-                            <option value="EFECTIVO">💵 EFECTIVO (DÓLARES)</option>
-                            <option value="EFECTIVO_BS">💴 EFECTIVO (BOLÍVARES)</option>
-                            <option value="PAGO_MOVIL">📱 PAGO MÓVIL (Bs)</option>
-                            <option value="TRANSFERENCIA">🏦 TRANSFERENCIA (Bs)</option>
-                            <option value="RECARGA">📞 RECARGA TELEFÓNICA</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Beneficiario (Si es tercero)</label>
-                        <input type="text" name="beneficiario" class="form-control" placeholder="Nombre de la persona">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Referencia / Nota</label>
-                        <input type="text" name="referencia" class="form-control"
-                            placeholder="Nro de confirmación o motivo">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-danger w-100 fw-bold">GUARDAR PAGO</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- MODAL HISTORIAL -->
 <div class="modal fade" id="modalHistorial{{ p.id }}" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Historial de Movimientos: {{ p.nombre }}</h5>
+                <h5 class="modal-title">Historial: {{ p.nombre }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -204,21 +239,42 @@
                             <th>Fecha</th>
                             <th>Tipo</th>
                             <th>Descripción</th>
-                            <th class="text-end">Debe</th>
-                            <th class="text-end">Haber</th>
+                            <th class="text-end">Suma (+)</th>
+                            <th class="text-end">Resta (-)</th>
                             <th class="text-end">Saldo</th>
+                            <th style="width: 40px;"></th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for mov in p.movimientos | sort(attribute='fecha', reverse=True) %}
                         <tr>
                             <td>{{ mov.fecha.strftime('%d/%m/%y') }}</td>
-                            <td><span class="badge bg-secondary">{{ mov.tipo }}</span></td>
-                            <td class="small">{{ mov.descripcion }}</td>
-                            <td class="text-end text-danger">{{ "%.2f"|format(mov.debe) if mov.debe > 0 else '-' }}</td>
-                            <td class="text-end text-success">{{ "%.2f"|format(mov.haber) if mov.haber > 0 else '-' }}
+                            <td>
+                                {% if mov.tipo == 'NOMINA' %}
+                                    <span class="badge bg-info">Sueldo</span>
+                                {% elif mov.tipo == 'PAGO' %}
+                                    <span class="badge bg-primary">Pago</span>
+                                {% elif mov.tipo == 'ABONO' %}
+                                    <span class="badge bg-success">Abono</span>
+                                {% elif mov.tipo == 'ENTREGA_QUESO' %}
+                                    <span class="badge bg-warning text-dark">Entrega</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ mov.tipo }}</span>
+                                {% endif %}
                             </td>
+                            <td class="small">{{ mov.descripcion }}</td>
+                            <td class="text-end text-success">{{ "%.2f"|format(mov.haber) if mov.haber > 0 else '-' }}</td>
+                            <td class="text-end text-danger">{{ "%.2f"|format(mov.debe) if mov.debe > 0 else '-' }}</td>
                             <td class="text-end fw-bold">${{ "%.2f"|format(mov.saldo_momento) }}</td>
+                            <td class="text-center">
+                                {% if current_user.role in ['admin', 'dueno'] %}
+                                <form action="{{ url_for('productores.eliminar_movimiento', mov_id=mov.id) }}" method="POST" onsubmit="return confirm('¿Reversar saldo y borrar?')">
+                                    <button class="btn btn-link text-danger p-0 border-0">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -227,76 +283,247 @@
         </div>
     </div>
 </div>
+{% endfor %}
 
-<!-- MODAL ABONAR EFECTIVO (PARA DEUDA POS) -->
-<div class="modal fade" id="modalAbono{{ p.id }}" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Abono en Efectivo: {{ p.nombre }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- MODAL RANKING DEL AÑO -->
+<div class="modal fade" id="modalRanking" tabindex="-1" aria-labelledby="modalRankingLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white;">
+                <h5 class="modal-title fw-bold" id="modalRankingLabel"><i class="fas fa-trophy me-2"></i> RANKING DE PRODUCTORES {{ anio_actual }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form action="{{ url_for('productores.abonar_efectivo_productor') }}" method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="proveedor_id" value="{{ p.id }}">
-                    <div class="mb-3 text-center">
-                        <p class="text-muted mb-1">Saldo Actual en Libreta:</p>
-                        <h4
-                            class="fw-bold {% if p.saldo_pendiente_usd < 0 %}text-danger{% else %}text-success{% endif %}">
-                            ${{ "%.2f"|format(p.saldo_pendiente_usd) }}
-                        </h4>
-                    </div>
-                    <select name="metodo" id="metodoAbono{{ p.id }}" class="form-select"
-                        onchange="autoMontoAbono({{ p.id }}, '{{ p.saldo_pendiente_usd }}')">
-                        <option value="">-- Seleccione Método --</option> <!-- Agregué esto para que obligue a tocar -->
-                        <option value="EFECTIVO_USD">💵 EFECTIVO (DÓLARES)</option>
-                        <option value="EFECTIVO_BS">💴 EFECTIVO (BOLÍVARES)</option>
-                        <option value="PAGO_MOVIL">📱 PAGO MÓVIL / BANCO (Bs)</option>
-                    </select>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Monto que entrega el Productor</label>
-                        <input type="number" step="0.01" name="monto" id="montoAbono{{ p.id }}"
-                            class="form-control form-control-lg text-center fw-bold" placeholder="0.00" required>
-                        <div class="form-text text-muted" id="notaAbono{{ p.id }}"></div>
-                    </div>
-                    <div class="alert alert-info small">
-                        <i class="fas fa-info-circle"></i> Este abono restará la deuda del productor y sumará el dinero
-                        a tu caja/banco.
-                    </div>
+            <div class="modal-body p-0" style="background: #fdfcf0;">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead style="background: rgba(0,0,0,0.03);">
+                            <tr class="text-secondary small text-uppercase">
+                                <th class="ps-4">Puesto</th>
+                                <th>Productor</th>
+                                <th class="text-center">Total Kilos</th>
+                                <th class="text-center">Semanas Único</th>
+                                <th class="text-end pe-4">Puntos Totales</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in ranking %}
+                            <tr>
+                                <td class="ps-4">
+                                    {% if loop.index == 1 %}
+                                        <span class="fs-4">🥇</span>
+                                    {% elif loop.index == 2 %}
+                                        <span class="fs-4">🥈</span>
+                                    {% elif loop.index == 3 %}
+                                        <span class="fs-4">🥉</span>
+                                    {% else %}
+                                        <span class="fw-bold text-muted ms-2">#{{ loop.index }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ r.nombre }}</div>
+                                    <small class="text-muted">Productor Aliado</small>
+                                </td>
+                                <td class="text-center fw-bold text-primary">{{ r.total_kilos }} kg</td>
+                                <td class="text-center">
+                                    <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle">{{ r.semanas_fiel }} semanas</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <span class="fs-5 fw-bold text-warning">{{ r.puntos_totales }} <small class="text-muted" style="font-size: 0.6rem;">pts</small></span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fas fa-info-circle me-2"></i> No hay datos de ranking para este año.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">REGISTRAR ABONO</button>
-                </div>
-            </form>
+            </div>
+            <div class="modal-footer bg-light border-0">
+                <p class="small text-muted mb-0">
+                    <i class="fas fa-lightbulb text-warning me-1"></i> 
+                    Los puntos se calculan por: Kilos traídos + Fidelidad semanal + Compras en el negocio.
+                </p>
+            </div>
         </div>
     </div>
 </div>
-{% endfor %}
 
 <script>
-    // 🔵 BOTÓN AZUL: Auto-rellena con la DEUDA TOTAL al seleccionar método
-    const TASA_BCV = {{ tasa_bcv | default (40) }};
+    const TASA_BCV = parseFloat('{{ tasa_bcv | default(40) }}');
+    let saldoActualUSD = 0;
+    let modoGlobal = 'PAGO';
 
-    function autoMontoAbono(id, saldoPendiente) {
-        const metodo = document.getElementById('metodoAbono' + id).value;
-        const campoMonto = document.getElementById('montoAbono' + id);
-        const nota = document.getElementById('notaAbono' + id);
-
-        const deudaAbsoluta = Math.abs(parseFloat(saldoPendiente));
-
-        if (metodo === 'EFECTIVO_USD') {
-            campoMonto.value = deudaAbsoluta.toFixed(2);
-            nota.textContent = '✅ Cobrando deuda total: $' + deudaAbsoluta.toFixed(2);
-            nota.className = 'form-text text-success fw-bold';
+    function toggleDrawer(show) {
+        const panel = document.getElementById('panel_pago_productor');
+        const backdrop = document.getElementById('drawer_backdrop');
+        if (show) {
+            panel.classList.add('active');
+            backdrop.classList.add('active');
+            document.body.style.overflow = 'hidden';
         } else {
-            const montoBs = (deudaAbsoluta * TASA_BCV).toFixed(2);
-            campoMonto.value = montoBs;
-            nota.textContent = '✅ Total en Bs: ' + montoBs + ' (Tasa: ' + TASA_BCV + ')';
-            nota.className = 'form-text text-primary fw-bold';
+            panel.classList.remove('active');
+            backdrop.classList.remove('active');
+            document.body.style.overflow = '';
+            resetFormularioPago();
         }
     }
 
-    // 🟢 CALCULAR TOTAL DE QUESO (Kilos x Precio)
+    function resetFormularioPago() {
+        document.getElementById('monto_input').value = '';
+        document.getElementById('beneficiario_input').value = '';
+        document.getElementById('referencia_input').value = '';
+        document.getElementById('moneda_usd').checked = true;
+        document.getElementById('conversion_info').style.display = 'none';
+        document.getElementById('metodo_select').value = 'EFECTIVO';
+        
+        const btn = document.getElementById('btn_confirmar');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-lock me-2"></i> CONFIRMAR REGISTRO';
+    }
+
+    function abrirDrawerPago(id, nombre, saldo, modo) {
+        modoGlobal = modo;
+        saldoActualUSD = parseFloat(saldo) || 0;
+        
+        document.getElementById('drawer_productor_id').value = id;
+        document.getElementById('pago_nombre_productor').textContent = nombre;
+        document.getElementById('pago_saldo_display').textContent = '$' + Math.abs(saldoActualUSD).toFixed(2);
+        
+        const titulo = document.getElementById('drawer_titulo');
+        const btn = document.getElementById('btn_confirmar');
+
+        if (modo === 'PAGO') {
+            titulo.innerHTML = '<i class="fas fa-money-bill-wave me-2"></i> REGISTRAR PAGO (A ÉL)';
+            titulo.className = 'fw-bold m-0 text-danger';
+            btn.className = 'btn btn-danger btn-lg w-100 py-3 fw-bold shadow-lg mt-4 rounded-4';
+        } else {
+            titulo.innerHTML = '<i class="fas fa-credit-card me-2"></i> REGISTRAR ABONO (DE ÉL)';
+            titulo.className = 'fw-bold m-0 text-primary';
+            btn.className = 'btn btn-primary btn-lg w-100 py-3 fw-bold shadow-lg mt-4 rounded-4';
+        }
+
+        // Reset inputs
+        document.getElementById('monto_input').value = Math.abs(saldoActualUSD).toFixed(2);
+        document.getElementById('moneda_usd').checked = true;
+        document.getElementById('beneficiario_input').value = '';
+        document.getElementById('referencia_input').value = '';
+        
+        actualizarModoMoneda();
+        toggleDrawer(true);
+    }
+
+    function actualizarModoMoneda() {
+        const esBs = document.getElementById('moneda_bs').checked;
+        const inputMonto = document.getElementById('monto_input');
+        const labelMonto = document.getElementById('label_monto_dinamico');
+        const simbolo = document.getElementById('simbolo_moneda');
+        const conversionInfo = document.getElementById('conversion_info');
+        const cajaSelect = document.getElementById('metodo_select');
+
+        if (esBs) {
+            labelMonto.textContent = 'Monto a registrar (Bs)';
+            simbolo.textContent = 'Bs';
+            inputMonto.value = (Math.abs(saldoActualUSD) * TASA_BCV).toFixed(2);
+            conversionInfo.style.display = 'block';
+            if (cajaSelect.value === 'EFECTIVO') cajaSelect.value = 'EFECTIVO_BS';
+        } else {
+            labelMonto.textContent = 'Monto a registrar ($)';
+            simbolo.textContent = '$';
+            inputMonto.value = Math.abs(saldoActualUSD).toFixed(2);
+            conversionInfo.style.display = 'none';
+            if (cajaSelect.value === 'EFECTIVO_BS') cajaSelect.value = 'EFECTIVO';
+        }
+        validarMontoDinamico();
+    }
+
+    function validarMontoDinamico() {
+        const inputMonto = document.getElementById('monto_input');
+        const monto = parseFloat(inputMonto.value) || 0;
+        const esBs = document.getElementById('moneda_bs').checked;
+        
+        let montoUSD = esBs ? (monto / TASA_BCV) : monto;
+        
+        if (esBs) {
+            document.getElementById('monto_equivalente_usd').textContent = montoUSD.toFixed(2);
+        }
+        
+        const btn = document.getElementById('btn_confirmar');
+        btn.disabled = (monto <= 0);
+    }
+
+    function iniciarProcesoProductor() {
+        const monto = parseFloat(document.getElementById('monto_input').value) || 0;
+        if (monto <= 0) {
+            Swal.fire('⚠️ Atención', 'Por favor ingrese un monto válido.', 'warning');
+            return;
+        }
+
+        solicitarPinSupervisor((pin, supervisor) => {
+            procesarPagoSistema(pin, supervisor);
+        });
+    }
+
+    function procesarPagoSistema(pin, supervisor) {
+        const btn = document.getElementById('btn_confirmar');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> PROCESANDO...';
+
+        const producerId = document.getElementById('drawer_productor_id').value;
+        const monto = parseFloat(document.getElementById('monto_input').value) || 0;
+        const esBs = document.getElementById('moneda_bs').checked;
+        const metodo = document.getElementById('metodo_select').value;
+        const beneficiario = document.getElementById('beneficiario_input').value;
+        const referencia = document.getElementById('referencia_input').value;
+        
+        const endpoint = modoGlobal === 'PAGO' 
+            ? "{{ url_for('productores.registrar_pago_productor') }}" 
+            : "{{ url_for('productores.abonar_efectivo_productor') }}";
+
+        const formData = new URLSearchParams();
+        formData.append('proveedor_id', producerId);
+        formData.append('monto', monto);
+        formData.append('moneda_entregada', esBs ? 'Bs' : 'USD');
+        formData.append('metodo', metodo);
+        formData.append('beneficiario', beneficiario);
+        formData.append('referencia', referencia);
+        formData.append('supervisor_pin', pin);
+
+        fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                toggleDrawer(false);
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Operación Exitosa!',
+                    text: data.message || 'Se ha registrado el movimiento correctamente.',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire('❌ Error', data.message || 'Error al procesar', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            Swal.fire('❌ Error', 'Fallo de conexión o error del servidor', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+
     function calcularTotal(id) {
         const kilos = parseFloat(document.getElementById('kilos' + id).value) || 0;
         const precio = parseFloat(document.getElementById('precio' + id).value) || 0;
@@ -304,10 +531,29 @@
         document.getElementById('totalQueso' + id).textContent = '$' + total.toFixed(2);
     }
 
-    // 🟡 MOSTRAR/OCULTAR campo de monto según método de pago
     function togglePago(select, id) {
         const div = document.getElementById('divMontoPago' + id);
         div.style.display = (select.value !== 'CREDITO') ? 'block' : 'none';
+    }
+
+    function filtrarLibreta(tipo, btn) {
+        // Actualizar botones
+        document.querySelectorAll('.btn-outline-primary, .btn-outline-danger').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Filtrar tarjetas
+        const items = document.querySelectorAll('.item-libreta');
+        items.forEach(item => {
+            if (tipo === 'todos') {
+                item.style.display = 'block';
+            } else {
+                if (item.getAttribute('data-tipo') === tipo) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            }
+        });
     }
 </script>
 {% endblock %}

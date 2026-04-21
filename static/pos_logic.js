@@ -165,6 +165,13 @@ function procesarVenta(tipo) {
   const pTr = parseFloat(document.getElementById("pago_debito")?.value) || 0;
   const pBio = parseFloat(document.getElementById("pago_bio")?.value) || 0;
 
+  const safeUUID = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'kalu-' + Date.now() + '-' + Math.floor(Math.random() * 1e9);
+  };
+
   const data = {
     cliente_id: document.getElementById("cliente_id").value,
     cliente_tipo: document.getElementById("cliente_tipo")?.value || "cliente",
@@ -177,7 +184,7 @@ function procesarVenta(tipo) {
     pago_movil_bs: pPm,
     pago_transferencia_bs: pTr,
     biopago_bdv: pBio,
-    transaction_token: crypto.randomUUID()
+    transaction_token: safeUUID()
   };
 
   fetch("/procesar_venta", {

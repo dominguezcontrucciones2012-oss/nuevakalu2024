@@ -1,18 +1,28 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
+from routes.decorators import staff_required
 from decimal import Decimal
 from datetime import datetime
 from models import db, Proveedor, CuentaPorPagar, AbonoCuentaPorPagar, MovimientoCaja, TasaBCV
+from utils import seguro_decimal
+from routes.usuarios import crear_acceso_sistema
+import logging
 
 proveedores_bp = Blueprint('proveedores', __name__)
+logger = logging.getLogger('KALU.proveedores')
 
 # ========== LISTA DE PROVEEDORES ==========
 @proveedores_bp.route('/proveedores')
+@login_required
+@staff_required
 def lista_proveedores():
     todos = Proveedor.query.all()
     return render_template('proveedores.html', proveedores=todos)
 
 # ========== GUARDAR PROVEEDOR ==========
 @proveedores_bp.route('/guardar_proveedor', methods=['POST'])
+@login_required
+@staff_required
 def guardar_proveedor():
     try:
         nombre = request.form.get('nombre')
@@ -29,11 +39,18 @@ def guardar_proveedor():
             direccion=request.form.get('direccion'),
             vendedor_nombre=request.form.get('vendedor_nombre'),
             vendedor_telefono=request.form.get('vendedor_telefono'),
-            es_productor=True if request.form.get('es_productor') else False
+            es_productor=True if request.form.get('es_productor') else False,
+            es_obrero=True if request.form.get('es_obrero') else False
         )
         db.session.add(nuevo)
+        db.session.flush() # Obtener ID para el enlace de usuario
+        
+        # Generar acceso automático si es productor
+        if nuevo.es_productor:
+            crear_acceso_sistema(nuevo, 'productor')
+
         db.session.commit()
-        flash("✅ Proveedor guardado con éxito", "success")
+        flash("✅ Proveedor y Acceso al Portal guardado con éxito", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"❌ Error al guardar: {str(e)}", "danger")
@@ -41,6 +58,8 @@ def guardar_proveedor():
 
 # ========== EDITAR PROVEEDOR ==========
 @proveedores_bp.route('/editar_proveedor/<int:id>', methods=['POST'])
+@login_required
+@staff_required
 def editar_proveedor(id):
     try:
         prov = Proveedor.query.get_or_404(id)
@@ -51,6 +70,7 @@ def editar_proveedor(id):
         prov.vendedor_nombre   = request.form.get('vendedor_nombre')
         prov.vendedor_telefono = request.form.get('vendedor_telefono')
         prov.es_productor      = True if request.form.get('es_productor') else False
+        prov.es_obrero         = True if request.form.get('es_obrero') else False
         db.session.commit()
         flash("✅ Proveedor actualizado con éxito", "success")
     except Exception as e:
@@ -60,6 +80,8 @@ def editar_proveedor(id):
 
 # ========== ELIMINAR PROVEEDOR ==========
 @proveedores_bp.route('/eliminar_proveedor/<int:id>', methods=['POST'])
+@login_required
+@staff_required
 def eliminar_proveedor(id):
     try:
         prov = Proveedor.query.get_or_404(id)
@@ -70,92 +92,16 @@ def eliminar_proveedor(id):
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
 
-# ========== CUENTAS POR PAGAR (A QUIÉN LE DEBES) ==========
-@proveedores_bp.route('/cuentas_por_pagar')
-def lista_cuentas_por_pagar():
-    cuentas = CuentaPorPagar.query.filter(
-        CuentaPorPagar.saldo_pendiente_usd > 0
-    ).order_by(CuentaPorPagar.fecha.desc()).all()
-    total = sum(c.saldo_pendiente_usd for c in cuentas) if cuentas else 0
-    return render_template('cuentas_por_pagar.html', cuentas=cuentas, total=total)
+# Nota: Se eliminó lista_cuentas_por_pagar para usar la de compras_bp (compras.py) 
+# que maneja correctamente la tasa de cambio y el flujo premium.
 
-# ========== REGISTRAR PAGO A PROVEEDOR (CONECTADO A CAJA) ==========
-@proveedores_bp.route('/pagar_factura/<int:id>', methods=['POST'])
-def pagar_factura(id):
-    try:
-        cuenta = CuentaPorPagar.query.get_or_404(id)
-        monto_pago_usd = Decimal(str(request.form.get('monto_usd', '0')))
-        metodo         = request.form.get('metodo_pago', 'EFECTIVO_USD')
-        referencia     = request.form.get('referencia', '')
-
-        if monto_pago_usd <= 0:
-            flash("⚠️ El monto debe ser mayor a 0", "danger")
-            return redirect(url_for('proveedores.lista_cuentas_por_pagar'))
-
-        if monto_pago_usd > cuenta.saldo_pendiente_usd:
-            flash("⚠️ El monto no puede ser mayor al saldo pendiente", "danger")
-            return redirect(url_for('proveedores.lista_cuentas_por_pagar'))
-
-        # 1. Registrar el abono en la cuenta del proveedor
-        nuevo_abono = AbonoCuentaPorPagar(
-            cuenta_id  = cuenta.id,
-            fecha      = datetime.now(),
-            monto_usd  = monto_pago_usd,
-            metodo_pago= metodo,
-            referencia = referencia,
-            descripcion= f"Pago a {cuenta.proveedor.nombre} | Factura {cuenta.numero_factura}"
-        )
-        db.session.add(nuevo_abono)
-
-        # 2. Actualizar saldos de la factura
-        cuenta.monto_abonado_usd   = (cuenta.monto_abonado_usd or Decimal('0.00')) + monto_pago_usd
-        cuenta.saldo_pendiente_usd = (cuenta.saldo_pendiente_usd or Decimal('0.00')) - monto_pago_usd
-
-        if cuenta.saldo_pendiente_usd <= 0:
-            cuenta.saldo_pendiente_usd = Decimal('0.00')
-            cuenta.estatus = 'Pagada'
-
-        # 3. DESCONTAR DE MOVIMIENTOCAJA AUTOMÁTICAMENTE
-        tasa_obj = TasaBCV.query.order_by(TasaBCV.fecha.desc()).first()
-        tasa = Decimal(str(tasa_obj.valor)) if tasa_obj else Decimal('1.00')
-
-        # Mapeo de métodos a cajas
-        if metodo == 'EFECTIVO_USD':
-            tipo_caja = 'Caja USD'
-            monto_caja = monto_pago_usd
-        elif metodo == 'EFECTIVO_BS':
-            tipo_caja = 'Caja Bs'
-            monto_caja = monto_pago_usd * tasa
-        else: # PAGO_MOVIL, BIOPAGO, TARJETA
-            tipo_caja = 'Banco'
-            monto_caja = monto_pago_usd * tasa
-
-        # Registrar el egreso en la caja
-        nuevo_egreso = MovimientoCaja(
-            fecha           = datetime.now(),
-            tipo_movimiento = 'EGRESO',
-            tipo_caja       = tipo_caja,
-            categoria       = 'Pago Proveedor',
-            monto           = monto_caja,
-            tasa_dia        = tasa,
-            descripcion     = f"Pago Factura #{cuenta.numero_factura} - {cuenta.proveedor.nombre} ({metodo})",
-            modulo_origen   = 'Proveedores',
-            referencia_id   = cuenta.id
-        )
-        db.session.add(nuevo_egreso)
-
-        # UN SOLO COMMIT PARA TODO
-        db.session.commit()
-        flash(f"✅ Pago de ${monto_pago_usd} registrado y descontado de {tipo_caja}", "success")
-
-    except Exception as e:
-        db.session.rollback()
-        flash(f"❌ Error crítico al procesar pago: {str(e)}", "danger")
-        
-    return redirect(url_for('proveedores.lista_cuentas_por_pagar'))
+# Nota: Se eliminó pagar_factura de este blueprint para centralizar en compras_bp.abonar_pago 
+# (AJAX) que registra correctamente en caja y contabilidad.
 
 # ========== HISTORIAL DE PAGOS A PROVEEDORES ==========
 @proveedores_bp.route('/historial_pagos_proveedores')
+@login_required
+@staff_required
 def historial_pagos_proveedores():
     pagos = AbonoCuentaPorPagar.query.order_by(
         AbonoCuentaPorPagar.fecha.desc()

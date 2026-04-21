@@ -15,7 +15,7 @@ def allowed_file(filename):
 @marketing_bp.route('/publicidad', methods=['GET', 'POST'])
 @login_required
 def admin_publicidad():
-    if current_user.role not in ['admin', 'cajero']:
+    if current_user.role not in ['admin', 'dueno']:
         flash('⛔ Acceso denegado', 'danger')
         return redirect(url_for('index'))
 
@@ -88,7 +88,7 @@ def admin_publicidad():
 @marketing_bp.route('/quejas', methods=['GET', 'POST'])
 @login_required
 def admin_quejas():
-    if current_user.role not in ['admin', 'cajero']:
+    if current_user.role not in ['admin', 'dueno']:
         flash('⛔ Acceso denegado', 'danger')
         return redirect(url_for('index'))
 

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>🤖 Reporte Gerencial Semanal (IA KALU)</h2>
+        <div>
+            <span class="badge bg-{{ 'secondary' if cached else 'success' }} me-2">
+                {{ 'Recuperado de Caché (Ahorrando Créditos)' if cached else 'Generado Hoy' }}
+            </span>
+            <button onclick="window.print()" class="btn btn-primary d-print-none">
+                <i class="fas fa-file-pdf"></i> Imprimir / Guardar PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="alert alert-info d-print-none">
+        <i class="fas fa-info-circle"></i> Este reporte automatizado es analizado por tu Inteligencia Artificial a partir de tu propia base de datos (fecha de lectura: <strong>{{ fecha }}</strong>). Se genera cada 7 días para ahorrar créditos.
+    </div>
+
+    <textarea id="raw-markdown" style="display:none;">{{ reporte_html | safe }}</textarea>
+
+    <!-- Render Container for Markdown -->
+    <div class="card shadow border-0">
+        <div class="card-body p-4 bg-white text-dark markdown-body" id="reporte-content">
+            <!-- El contenido Markdown se inyectará aquí procesado -->
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        #reporte-content, #reporte-content * {
+            visibility: visible;
+        }
+        #reporte-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        .d-print-none {
+            display: none !important;
+        }
+    }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+        color: #1e3a8a;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        font-weight: 700;
+    }
+    .markdown-body ul, .markdown-body ol {
+        margin-bottom: 1rem;
+    }
+    .markdown-body li {
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var rawText = document.getElementById("raw-markdown").value;
+        document.getElementById("reporte-content").innerHTML = marked.parse(rawText);
+    });
+</script>
+{% endblock %}

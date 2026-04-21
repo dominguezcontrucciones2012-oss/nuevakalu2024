@@ -22,6 +22,17 @@
 
             <div>
                 <label class="wa-label">
+                    <i class="fas fa-envelope" style="margin-right:6px;"></i>Correo Electrónico
+                </label>
+                <input type="email" name="email" class="wa-input" value="{{ current_user.email or '' }}"
+                    placeholder="ejemplo@correo.com" autocomplete="email" style="color:#e9edef;">
+                <small style="color:var(--wa-subtext); font-size:11px;">
+                    Usado para recuperación de cuenta y acceso con Google.
+                </small>
+            </div>
+
+            <div>
+                <label class="wa-label">
                     <i class="fas fa-user" style="margin-right:6px;"></i>Nombre de usuario
                 </label>
                 <input type="text" name="username" class="wa-input" value="{{ current_user.username }}" required

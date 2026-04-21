@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kalu2-v2';
+const CACHE_NAME = 'kalu2-v5';
 const ASSETS = [
   '/',
   '/pos',

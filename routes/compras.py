@@ -1,16 +1,23 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
-from models import db, Producto, Proveedor, Compra, CompraDetalle, CuentaPorPagar, AbonoCuentaPorPagar, MovimientoCaja, TasaBCV
+from flask_login import login_required, current_user
+from routes.decorators import staff_required
+from models import db, Producto, Proveedor, Compra, CompraDetalle, CuentaPorPagar, AbonoCuentaPorPagar, MovimientoCaja, TasaBCV, AuditoriaInventario
+import logging
 from decimal import Decimal
 from datetime import datetime
+from utils import seguro_decimal
 import io
 import openpyxl
 
 compras_bp = Blueprint('compras', __name__)
+logger = logging.getLogger('KALU.compras')
 
 # ==========================================================
 #   LISTA DE COMPRAS + CARGA RÁPIDA
 # ==========================================================
 @compras_bp.route('/compras')
+@login_required
+@staff_required
 def lista_compras():
     compras     = Compra.query.order_by(Compra.fecha.desc()).all()
     proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
@@ -21,6 +28,8 @@ def lista_compras():
 #   BUSCAR PRODUCTO POR CÓDIGO (Para el escáner)
 # ==========================================================
 @compras_bp.route('/buscar_producto/<codigo>')
+@login_required
+@staff_required
 def buscar_producto(codigo):
     prod = Producto.query.filter_by(codigo=codigo).first()
     if prod:
@@ -28,7 +37,7 @@ def buscar_producto(codigo):
             'id':     prod.id,
             'codigo': prod.codigo,
             'nombre': prod.nombre,
-            'costo':  float(prod.costo_usd or 0)
+            'costo':  str(seguro_decimal(prod.costo_usd))
         })
     return jsonify({'id': None})
 
@@ -37,6 +46,8 @@ def buscar_producto(codigo):
 #   BUSCAR PRODUCTO POR NOMBRE (búsqueda parcial)
 # ==========================================================
 @compras_bp.route('/buscar_producto_nombre/<texto>')
+@login_required
+@staff_required
 def buscar_producto_nombre(texto):
     texto = texto.strip()
     if not texto:
@@ -48,7 +59,7 @@ def buscar_producto_nombre(texto):
             'id':     p.id,
             'codigo': p.codigo,
             'nombre': p.nombre,
-            'costo':  float(p.costo_usd or 0)
+            'costo':  str(seguro_decimal(p.costo_usd))
         })
     return jsonify(resultados)
 
@@ -57,16 +68,17 @@ def buscar_producto_nombre(texto):
 #   CREAR PRODUCTO RÁPIDO (Producto nuevo desde compras)
 # ==========================================================
 @compras_bp.route('/crear_producto_rapido', methods=['POST'])
+@login_required
+@staff_required
 def crear_producto_rapido():
     try:
         data          = request.get_json()
         codigo        = data.get('codigo', '').strip()
         nombre        = data.get('nombre', '').strip()
-        costo         = Decimal(str(data.get('costo', 0)))
-        precio        = Decimal(str(data.get('precio', 0)))
-        precio_oferta = Decimal(str(data.get('precio_oferta', 0)))
-        # ✅ CORREGIDO: Decimal en vez de int para aceptar kilos y bultos
-        stock_inicial = Decimal(str(data.get('stock', 0)))
+        costo         = seguro_decimal(data.get('costo'))
+        precio        = seguro_decimal(data.get('precio'))
+        precio_oferta = seguro_decimal(data.get('precio_oferta'))
+        stock_inicial = seguro_decimal(data.get('stock'))
 
         if not nombre:
             return jsonify({'id': None, 'message': 'Falta el nombre'}), 400
@@ -77,7 +89,7 @@ def crear_producto_rapido():
                 'id':     existente.id,
                 'codigo': existente.codigo,
                 'nombre': existente.nombre,
-                'costo':  float(existente.costo_usd or 0)
+                'costo':  str(existente.costo_usd or Decimal('0.00'))
             })
 
         nuevo = Producto(
@@ -95,12 +107,12 @@ def crear_producto_rapido():
             'id':     nuevo.id,
             'codigo': nuevo.codigo,
             'nombre': nuevo.nombre,
-            'costo':  float(nuevo.costo_usd or 0)
+            'costo':  str(nuevo.costo_usd.quantize(Decimal('0.01'))) if nuevo.costo_usd else "0.00"
         })
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error crear_producto_rapido: {e}")
+        logger.error(f"❌ Error crear_producto_rapido: {e}")
         return jsonify({'id': None, 'message': str(e)}), 500
 
 
@@ -108,6 +120,8 @@ def crear_producto_rapido():
 #   PROCESAR COMPRA RÁPIDA (Guardar factura + subir stock)
 # ==========================================================
 @compras_bp.route('/procesar_compra_rapida', methods=['POST'])
+@login_required
+@staff_required
 def procesar_compra_rapida():
     try:
         data         = request.get_json()
@@ -155,6 +169,19 @@ def procesar_compra_rapida():
                 )
                 db.session.add(detalle)
 
+                # 📜 AUDITORIA
+                antes = prod.stock - cantidad_item
+                db.session.add(AuditoriaInventario(
+                    usuario_id      = current_user.id,
+                    usuario_nombre  = current_user.username,
+                    producto_id     = prod.id,
+                    producto_nombre = prod.nombre,
+                    accion          = 'COMPRA_MERCANCIA',
+                    cantidad_antes  = antes,
+                    cantidad_despues = prod.stock,
+                    fecha           = datetime.now()
+                ))
+
         # 4. Lógica financiera según método de pago
         if metodo_pago in ('Contado USD', 'Contado Bs'):
             mov = MovimientoCaja(
@@ -180,12 +207,26 @@ def procesar_compra_rapida():
             prov = Proveedor.query.get(proveedor_id)
             prov.saldo_pendiente_usd = (prov.saldo_pendiente_usd or Decimal('0.00')) + total_usd
 
+        # 🔄 SINCRONIZACIÓN CON LIBRETA PRODUCTOR (Si el proveedor es productor)
+        prov = Proveedor.query.get(proveedor_id)
+        if prov and prov.es_productor:
+            from models import MovimientoProductor
+            debe = total_usd if metodo_pago in ('Contado USD', 'Contado Bs') else Decimal('0.00')
+            db.session.add(MovimientoProductor(
+                proveedor_id=prov.id,
+                tipo='COMPRA_MERCANCIA',
+                descripcion=f"Compra de mercancía (Fac: {num_factura}) - Modulo Compras",
+                haber=total_usd,
+                debe=debe,
+                saldo_momento=prov.saldo_pendiente_usd,
+            ))
+
         db.session.commit()
         return jsonify({'status': 'success'})
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error procesar_compra_rapida: {e}")
+        logger.error(f"❌ Error procesar_compra_rapida: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -193,6 +234,8 @@ def procesar_compra_rapida():
 #   ABONAR A PROVEEDOR (Bajar deuda de una factura)
 # ==========================================================
 @compras_bp.route('/compras/abonar', methods=['POST'])
+@login_required
+@staff_required
 def abonar_proveedor():
     try:
         data        = request.get_json()
@@ -201,16 +244,18 @@ def abonar_proveedor():
         moneda      = data.get('moneda', 'USD')
         tasa        = Decimal(str(data.get('tasa_bcv', 1) or 1))
 
-        monto_raw = Decimal(str(data.get('monto_usd', 0)))
+        # ✅ FIX: El frontend envía monto_usd (ya convertido) y monto_real (monto crudo ingresado)
+        monto_usd   = Decimal(str(data.get('monto_usd', 0)))
+        monto_real  = Decimal(str(data.get('monto_real', monto_usd)))
 
-        if moneda == 'Bs' or caja_origen == 'Caja Bs':
-            monto_usd = (monto_raw / tasa).quantize(Decimal('0.01'))
-        else:
-            monto_usd = monto_raw
+        # 🛡️ ROBUSTEZ: Si moneda es Bs y el frontend mandó USD == BS (error de tasa 1), recalculamos
+        if moneda == 'Bs' and abs(monto_usd - monto_real) < 0.01 and tasa > 1:
+            monto_usd = (monto_real / tasa).quantize(Decimal('0.01'))
+            logger.info(f"🔄 Recalculado monto_usd de seguridad: {monto_real} Bs -> {monto_usd} USD (Tasa: {tasa})")
 
         cxp = CuentaPorPagar.query.get(cxp_id)
         if not cxp or monto_usd <= 0:
-            return jsonify({'status': 'error', 'message': 'Datos inválidos'})
+            return jsonify({'status': 'error', 'message': 'Datos inválidos o monto en cero'})
 
         # ✅ VALIDACIÓN DE SEGURIDAD REPARADA
         # 🛑 BLOQUEO: Verificar que la caja tiene saldo suficiente
@@ -220,11 +265,12 @@ def abonar_proveedor():
             .filter_by(tipo_caja=caja_origen, tipo_movimiento='EGRESO').scalar() or Decimal('0')
         saldo_caja = Decimal(str(ingresos)) - Decimal(str(egresos))
 
-        if monto_raw > saldo_caja:
+        if monto_real > saldo_caja:
             return jsonify({
                 'status': 'error',
-                'message': f'❌ Saldo insuficiente en {caja_origen}. Disponible: {saldo_caja:.2f}, necesitas: {monto_raw:.2f}'
+                'message': f'❌ Saldo insuficiente en {caja_origen}. Disponible: {saldo_caja.quantize(Decimal("0.01"))}, necesitas: {monto_real.quantize(Decimal("0.01"))}'
             })
+
         if monto_usd > cxp.saldo_pendiente_usd + Decimal('0.05'):
             return jsonify({
                 'status': 'error',
@@ -235,9 +281,10 @@ def abonar_proveedor():
             cuenta_id   = cxp.id,
             monto_usd   = monto_usd,
             metodo_pago = caja_origen,
-            descripcion = f'Abono a factura {cxp.numero_factura} | '
-                          f'{"Bs " + str(monto_raw) + " @ " + str(tasa) if moneda == "Bs" else "$" + str(monto_usd)}'
+            descripcion = f'Abono Fac {cxp.numero_factura} | '
+                          f'{"Bs " + str(monto_real) + " @ " + str(tasa) if moneda == "Bs" else "$" + str(monto_usd)}'
         )
+
         db.session.add(nuevo_abono)
 
         cxp.monto_abonado_usd   += monto_usd
@@ -254,34 +301,54 @@ def abonar_proveedor():
         if prov.saldo_pendiente_usd < 0:
             prov.saldo_pendiente_usd = Decimal('0.00')
 
+        # 💰 REGISTRO EN CAJA (Siempre como EGRESO para abonos)
+        # La descripción ahora es bilingüe para mayor claridad del dueño
+        desc_mov = f'Abono Fac {cxp.numero_factura} ({moneda}) | Ref: ${monto_usd:.2f} / {monto_real:,.2f} Bs'
+        
         mov = MovimientoCaja(
             tipo_caja       = caja_origen,
             tipo_movimiento = 'EGRESO',
             categoria       = 'Pago a Proveedor',
-            monto           = monto_raw,
-            descripcion     = f'Abono a proveedor: {prov.nombre} | Factura: {cxp.numero_factura} | '
-                              f'{"Bs " + str(monto_raw) + " (equiv. $" + str(monto_usd) + ")" if moneda == "Bs" else "$" + str(monto_usd)}',
-            modulo_origen   = 'Abono Proveedor',
-            referencia_id   = cxp.id
+            monto           = monto_real,
+            tasa_dia        = tasa,
+            descripcion     = desc_mov,
+            modulo_origen   = 'CXP/Compras',
+            referencia_id   = cxp.id,
+            user_id         = current_user.id
         )
+
         db.session.add(mov)
+
+        # 🔄 SINCRONIZACIÓN CON LIBRETA PRODUCTOR (Si el proveedor es productor)
+        if prov and prov.es_productor:
+            from models import MovimientoProductor
+            db.session.add(MovimientoProductor(
+                proveedor_id=prov.id,
+                tipo='PAGO_CXP',
+                descripcion=f"Abono a factura {cxp.numero_factura} desde CXP",
+                debe=monto_usd,
+                haber=0,
+                saldo_momento=prov.saldo_pendiente_usd
+            ))
 
         db.session.commit()
         return jsonify({
             'status':     'success',
-            'monto_usd':  float(monto_usd),
-            'monto_raw':  float(monto_raw),
+            'monto_usd':  str(monto_usd.quantize(Decimal('0.01'))),
+            'monto_real': str(monto_real.quantize(Decimal('0.01'))),
             'moneda':     moneda
         })
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error abonar_proveedor: {e}")
+        logger.error(f"❌ Error abonar_proveedor: {e}")
         return jsonify({'status': 'error', 'message': str(e)})
 # ==========================================================
 #   DESCARGAR PLANTILLA EXCEL
 # ==========================================================
 @compras_bp.route('/inventario/plantilla_excel')
+@login_required
+@staff_required
 def descargar_plantilla():
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -302,6 +369,8 @@ def descargar_plantilla():
 #   CARGAR INVENTARIO DESDE EXCEL
 # ==========================================================
 @compras_bp.route('/inventario/cargar_excel', methods=['POST'])
+@login_required
+@staff_required
 def cargar_excel():
     archivo = request.files.get('archivo_excel')
     if not archivo:
@@ -319,13 +388,26 @@ def cargar_excel():
                 continue
             prod = Producto.query.filter_by(codigo=str(codigo)).first()
             if prod:
-                prod.costo_usd         = Decimal(str(costo or 0))
-                prod.precio_normal_usd = Decimal(str(precio or 0))
+                prod.costo_usd         = Decimal(str(costo)) if costo is not None else Decimal('0')
+                prod.precio_normal_usd = Decimal(str(precio)) if precio is not None else Decimal('0')
                 prod.precio_oferta_usd = Decimal(str(oferta or precio or 0))
                 # ✅ CORREGIDO: Decimal en vez de int para kilos
+                antes_stock = prod.stock
                 prod.stock             = Decimal(str(stock or 0))
                 prod.unidad_medida     = str(unidad or 'UND').strip().upper()
                 actualizados += 1
+
+                # 📜 AUDITORIA
+                db.session.add(AuditoriaInventario(
+                    usuario_id      = current_user.id,
+                    usuario_nombre  = current_user.username,
+                    producto_id     = prod.id,
+                    producto_nombre = prod.nombre,
+                    accion          = 'CARGA_EXCEL_UPDATE',
+                    cantidad_antes  = antes_stock,
+                    cantidad_despues = prod.stock,
+                    fecha           = datetime.now()
+                ))
             else:
                 nuevo = Producto(
                     codigo            = str(codigo),
@@ -337,6 +419,19 @@ def cargar_excel():
                     unidad_medida     = str(unidad or 'UND').strip().upper()
                 )
                 db.session.add(nuevo)
+                db.session.flush() # Para obtener el ID
+
+                # 📜 AUDITORIA
+                db.session.add(AuditoriaInventario(
+                    usuario_id      = current_user.id,
+                    usuario_nombre  = current_user.username,
+                    producto_id     = nuevo.id,
+                    producto_nombre = nuevo.nombre,
+                    accion          = 'CARGA_EXCEL_NUEVO',
+                    cantidad_antes  = 0,
+                    cantidad_despues = nuevo.stock,
+                    fecha           = datetime.now()
+                ))
                 creados += 1
         db.session.commit()
         return jsonify({'status': 'success', 'creados': creados, 'actualizados': actualizados})
@@ -349,12 +444,13 @@ def cargar_excel():
 #   VISTA CUENTAS POR PAGAR
 # ==========================================================
 @compras_bp.route('/cuentas_por_pagar')
+@login_required
+@staff_required
 def cuentas_por_pagar():
-    from models import TasaBCV
     cuentas     = CuentaPorPagar.query.order_by(CuentaPorPagar.fecha.desc()).all()
     proveedores = Proveedor.query.order_by(Proveedor.nombre).all()
     tasa_obj    = TasaBCV.query.order_by(TasaBCV.fecha.desc()).first()
-    tasa_bcv    = float(tasa_obj.valor) if tasa_obj else 1.0
+    tasa_bcv    = Decimal(str(tasa_obj.valor)) if tasa_obj else Decimal('1.00')
     return render_template('cuentas_por_pagar.html',
                            cuentas=cuentas,
                            proveedores=proveedores,
@@ -362,6 +458,8 @@ def cuentas_por_pagar():
 
 
 @compras_bp.route('/compras/<int:compra_id>/detalle')
+@login_required
+@staff_required
 def detalle_compra(compra_id):
     compra = Compra.query.get_or_404(compra_id)
     return render_template('detalle_compra.html', compra=compra)

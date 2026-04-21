@@ -1,11 +1,15 @@
 from flask import Blueprint, render_template, jsonify, request, flash, redirect, url_for, abort
 from flask_login import login_required, current_user  # 👈 NUEVO
 from functools import wraps                            # 👈 NUEVO
-from models import db, CuentaContable, Asiento, DetalleAsiento, TasaBCV
+from models import db, CuentaContable, Asiento, DetalleAsiento, TasaBCV, AuditoriaInventario
 from datetime import datetime
 from decimal import Decimal
+from utils import seguro_decimal
+
+import logging
 
 contabilidad_bp = Blueprint('contabilidad', __name__)
+logger = logging.getLogger('KALU.contabilidad')
 
 # ============================================================
 # 🔒 DECORADOR DE SEGURIDAD
@@ -15,15 +19,20 @@ def solo_admin(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash("⚠️ Debes iniciar sesión primero.", "warning")
-            return redirect(url_for('auth.login'))
-        if current_user.role not in ['admin', 'supervisor']:
+            return redirect(url_for('auth.ingresar'))
+        if current_user.role not in ['admin', 'supervisor', 'dueno']:
             flash("🚫 No tienes permiso para acceder a contabilidad.", "danger")
             abort(403)
         return f(*args, **kwargs)
     return decorated_function
 
 
-def sembrar_cuentas():
+def sembrar_cuentas(force=False):
+    if not force:
+        # Si ya hay cuentas, no re-sembrar a menos que se fuerce
+        if CuentaContable.query.first():
+            return
+    
     cuentas_base = [
         ('1',           'ACTIVO',                       'ACTIVO'),
         ('1.1',         'ACTIVO CORRIENTE',              'ACTIVO'),
@@ -50,11 +59,13 @@ def sembrar_cuentas():
         ('4.1.01',      'VENTAS CONTADO',                'INGRESO'),
         ('4.1.02',      'VENTAS FIADO',                  'INGRESO'),
         ('4.1.03',      'ABONOS RECIBIDOS',              'INGRESO'),
+        ('4.1.04',      'SOBRANTE DE CAJA',               'INGRESO'),
         ('5',           'GASTOS',                        'GASTO'),
         ('5.1',         'GASTOS OPERACIONALES',          'GASTO'),
         ('5.1.01',      'COSTO DE VENTAS',               'GASTO'),
         ('5.1.02',      'COMPRAS DE MERCANCÍA',          'GASTO'),
         ('5.1.03',      'GASTOS GENERALES',              'GASTO'),
+        ('5.1.04',      'FALTANTE DE CAJA',               'GASTO'),
     ]
     for codigo, nombre, tipo in cuentas_base:
         if not CuentaContable.query.filter_by(codigo=codigo).first():
@@ -62,29 +73,41 @@ def sembrar_cuentas():
     db.session.commit()
 
 
-def registrar_asiento(descripcion, tasa, referencia_tipo, referencia_id, movimientos, commit=True):
+def registrar_asiento(descripcion, tasa, referencia_tipo, referencia_id, movimientos, commit=True, user_id=None):
+    sembrar_cuentas() 
     try:
         asiento = Asiento(
-            fecha=datetime.now().date(),
+            fecha=datetime.now(),
             descripcion=descripcion,
             tasa_referencia=Decimal(str(tasa)),
             referencia_tipo=referencia_tipo,
-            referencia_id=referencia_id
+            referencia_id=referencia_id,
+            user_id=user_id or (current_user.id if current_user and current_user.is_authenticated else None)
         )
         db.session.add(asiento)
         db.session.flush()
 
+        # VALIDACIÓN DE BALANCE (Debe == Haber)
+        sum_debe = sum(Decimal(str(m.get('debe_usd', 0))) for m in movimientos)
+        sum_haber = sum(Decimal(str(m.get('haber_usd', 0))) for m in movimientos)
+        
+        if abs(sum_debe - sum_haber) > Decimal('0.05'):
+             logger.error(f"❌ ASIENTO DESBALANCEADO: {descripcion} | Debe: {sum_debe} Haber: {sum_haber}")
+             # No lanzamos excepción para no romper el flujo de venta, pero logueamos fuerte
+             # Opcional: ajustar automáticamente si la diferencia es mínima
+        
         for mov in movimientos:
             cuenta = CuentaContable.query.filter_by(codigo=mov['cuenta_codigo']).first()
             if not cuenta:
+                logger.warning(f"⚠️ Cuenta no encontrada: {mov['cuenta_codigo']}")
                 continue
             detalle = DetalleAsiento(
                 asiento_id=asiento.id,
                 cuenta_id=cuenta.id,
-                debe_usd=Decimal(str(mov.get('debe_usd', 0))),
-                haber_usd=Decimal(str(mov.get('haber_usd', 0))),
-                debe_bs=Decimal(str(mov.get('debe_bs', 0))),
-                haber_bs=Decimal(str(mov.get('haber_bs', 0))),
+                debe_usd=Decimal(str(mov.get('debe_usd', 0))).quantize(Decimal('0.01')),
+                haber_usd=Decimal(str(mov.get('haber_usd', 0))).quantize(Decimal('0.01')),
+                debe_bs=Decimal(str(mov.get('debe_bs', 0))).quantize(Decimal('0.01')),
+                haber_bs=Decimal(str(mov.get('haber_bs', 0))).quantize(Decimal('0.01')),
             )
             db.session.add(detalle)
 
@@ -98,7 +121,7 @@ def registrar_asiento(descripcion, tasa, referencia_tipo, referencia_id, movimie
     except Exception as e:
         if commit:
             db.session.rollback()
-        print(f"❌ Error registrando asiento: {e}")
+        logger.error(f"Error registrando asiento: {e}")
         raise e
 
 
@@ -170,8 +193,8 @@ def balance():
     cuentas = CuentaContable.query.order_by(CuentaContable.codigo).all()
     resumen = []
     for cuenta in cuentas:
-        total_debe_usd  = sum(d.debe_usd  for d in cuenta.movimientos) or Decimal('0.00')
-        total_haber_usd = sum(d.haber_usd for d in cuenta.movimientos) or Decimal('0.00')
+        total_debe_usd  = sum((d.debe_usd  for d in cuenta.movimientos), Decimal('0.00'))
+        total_haber_usd = sum((d.haber_usd for d in cuenta.movimientos), Decimal('0.00'))
 
         # ✅ CORRECCIÓN: cada tipo de cuenta tiene su propia fórmula
         if cuenta.tipo in ['ACTIVO', 'GASTO']:
@@ -208,7 +231,7 @@ def ver_asiento(id):
 @solo_admin
 def registrar_gasto_operativo():
     descripcion   = request.form.get('descripcion', '').strip()
-    monto_usd     = Decimal(str(request.form.get('monto_usd', 0)))
+    monto_usd     = seguro_decimal(request.form.get('monto_usd', '0'))
     cuenta_origen = request.form.get('cuenta_origen')
 
     if not descripcion or monto_usd <= 0:
@@ -220,7 +243,7 @@ def registrar_gasto_operativo():
 
     registrar_asiento(
         descripcion=f"GASTO: {descripcion}",
-        tasa=float(tasa),
+        tasa=tasa,
         referencia_tipo='GASTO',
         referencia_id=0,
         movimientos=[
@@ -268,8 +291,8 @@ def api_asientos():
 def registrar_devolucion():
     venta_id        = request.form.get('venta_id')
     producto_id     = request.form.get('producto_id')
-    cantidad        = Decimal(request.form.get('cantidad', 0))
-    monto_reembolso = Decimal(request.form.get('monto_reembolso', 0))
+    cantidad        = seguro_decimal(request.form.get('cantidad', '0'))
+    monto_reembolso = seguro_decimal(request.form.get('monto_reembolso', '0'))
     motivo          = request.form.get('motivo', 'Devolución de mercancía')
 
     if cantidad <= 0 or monto_reembolso < 0:
@@ -281,7 +304,7 @@ def registrar_devolucion():
 
     registrar_asiento(
         descripcion=f"DEVOLUCIÓN: {motivo} (Venta #{venta_id})",
-        tasa=float(tasa),
+        tasa=tasa,
         referencia_tipo='DEVOLUCION',
         referencia_id=venta_id,
         movimientos=[
@@ -296,7 +319,20 @@ def registrar_devolucion():
     from models import Producto
     producto = Producto.query.get(producto_id)
     if producto and cantidad > 0:
+        antes = producto.stock
         producto.stock += cantidad
+        
+        # 📜 AUDITORIA
+        db.session.add(AuditoriaInventario(
+            usuario_id=current_user.id,
+            usuario_nombre=current_user.username,
+            producto_id=producto.id,
+            producto_nombre=producto.nombre,
+            accion='DEVOLUCION_VENTA',
+            cantidad_antes=antes,
+            cantidad_despues=producto.stock,
+            fecha=datetime.now()
+        ))
         db.session.commit()
 
     flash(f'✅ Devolución de ${monto_reembolso:.2f} procesada y stock actualizado.', 'success')

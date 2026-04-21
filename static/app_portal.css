@@ -387,16 +387,26 @@ body::before {
 
 .wa-search::placeholder { color: rgba(255,255,255,0.4); }
 
+/* Catalog Grid - SIEMPRE 2 COLUMNAS POR PEDIDO DEL DUEÑO */
+.wa-catalog-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    padding: 0 4px 100px !important;
+}
+
 /* Product card in catalog */
 .product-card-wa {
     background: var(--wa-card);
     border: 1px solid var(--wa-border);
-    border-radius: 14px;
-    padding: 10px;
+    border-radius: 16px;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     height: 100%;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
 .product-card-wa h4 { 
@@ -410,7 +420,8 @@ body::before {
     height: 32px;
     line-height: 1.2;
 }
-.product-card-wa .price-normal { font-size: 11px; color: var(--wa-subtext); text-decoration: line-through; }
+.product-card-wa .price-normal { font-size: 11px; color: var(--wa-subtext); text-decoration: none; }
+.product-card-wa .strike-price { text-decoration: line-through !important; }
 .product-card-wa .price-offer  { font-size: 16px; font-weight: 800; color: var(--wa-green); }
 
 /* ========== CART MODAL ========== */
@@ -455,7 +466,7 @@ body::before {
     position: fixed;
     bottom: 90px;
     right: 20px;
-    z-index: 999;
+    z-index: 3100;
     background: var(--wa-green);
     color: #111;
     border: none;

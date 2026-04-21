@@ -4,8 +4,11 @@ from functools import wraps
 from models import db, Producto
 from decimal import Decimal
 from datetime import datetime
+from utils import seguro_decimal
+import logging
 
 inventario_bp = Blueprint('inventario', __name__)
+logger = logging.getLogger('KALU.inventario')
 
 CATEGORIAS = [
     "VÍVERES",
@@ -24,8 +27,8 @@ def solo_admin(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash("⚠️ Debes iniciar sesión primero.", "warning")
-            return redirect(url_for('auth.login'))
-        if current_user.role not in ['admin', 'supervisor']:
+            return redirect(url_for('auth.ingresar'))
+        if current_user.role not in ['admin', 'supervisor', 'dueno']:
             flash("🚫 No tienes permiso para acceder al inventario.", "danger")
             abort(403)
         return f(*args, **kwargs)
@@ -83,12 +86,11 @@ def agregar_producto():
             codigo=codigo,
             nombre=nombre,
             categoria=request.form.get('categoria'),
-            costo_usd=Decimal(request.form.get('costo_usd', '0')),
-            precio_normal_usd=Decimal(request.form.get('precio_normal_usd', '0')),
-            precio_oferta_usd=Decimal(request.form.get('precio_oferta_usd', '0')),
-            # ✅ FIX: Acepta decimales para kilos/litros
-            stock=Decimal(str(request.form.get('stock', '0')).replace(',', '.')),
-            stock_minimo=Decimal(str(request.form.get('stock_minimo', '5')).replace(',', '.'))
+            costo_usd=seguro_decimal(request.form.get('costo_usd', '0')),
+            precio_normal_usd=seguro_decimal(request.form.get('precio_normal_usd', '0')),
+            precio_oferta_usd=seguro_decimal(request.form.get('precio_oferta_usd', '0')),
+            stock=seguro_decimal(request.form.get('stock', '0')),
+            stock_minimo=seguro_decimal(request.form.get('stock_minimo', '5'))
         )
 
         if nuevo.stock < 0:
@@ -103,6 +105,7 @@ def agregar_producto():
         db.session.flush()
         registrar_auditoria('AGREGAR PRODUCTO', nuevo, 0, nuevo.stock)
         db.session.commit()
+        logger.info(f"PRODUCTO AGREGADO: {nuevo.nombre} (ID: {nuevo.id}) | Stock Inicial: {nuevo.stock} | Por: {current_user.username}")
         flash(f"✅ Producto '{nuevo.nombre}' agregado por {current_user.username}", "success")
 
     except Exception as e:
@@ -125,12 +128,11 @@ def editar_producto(id):
         prod.codigo = request.form.get('codigo')
         prod.nombre = request.form.get('nombre')
         prod.categoria = request.form.get('categoria')
-        prod.costo_usd = Decimal(request.form.get('costo_usd', '0'))
-        prod.precio_normal_usd = Decimal(request.form.get('precio_normal_usd', '0'))
-        prod.precio_oferta_usd = Decimal(request.form.get('precio_oferta_usd', '0'))
-        # ✅ FIX: Acepta decimales para kilos/litros
-        prod.stock = Decimal(str(request.form.get('stock', '0')).replace(',', '.'))
-        prod.stock_minimo = Decimal(str(request.form.get('stock_minimo', '5')).replace(',', '.'))
+        prod.costo_usd = seguro_decimal(request.form.get('costo_usd', '0'))
+        prod.precio_normal_usd = seguro_decimal(request.form.get('precio_normal_usd', '0'))
+        prod.precio_oferta_usd = seguro_decimal(request.form.get('precio_oferta_usd', '0'))
+        prod.stock = seguro_decimal(request.form.get('stock', '0'))
+        prod.stock_minimo = seguro_decimal(request.form.get('stock_minimo', '5'))
 
         if prod.stock < 0:
             flash("❌ El stock no puede ser negativo.", "danger")
@@ -138,6 +140,7 @@ def editar_producto(id):
 
         registrar_auditoria('EDITAR PRODUCTO', prod, stock_antes, prod.stock)
         db.session.commit()
+        logger.info(f"PRODUCTO EDITADO: {prod.nombre} (ID: {prod.id}) | Stock: {stock_antes} -> {prod.stock} | Por: {current_user.username}")
         flash(f"✅ Producto '{prod.nombre}' actualizado por {current_user.username}", "success")
         return redirect(url_for('inventario.lista_inventario') + f'#prod-{id}')
 
@@ -155,6 +158,7 @@ def eliminar_producto(id):
         registrar_auditoria('ELIMINAR PRODUCTO', prod, prod.stock, 0)
         db.session.delete(prod)
         db.session.commit()
+        logger.warning(f"PRODUCTO ELIMINADO: {prod.nombre} (ID: {prod.id}) | Stock Final: {prod.stock} | Por: {current_user.username}")
         flash(f"✅ Producto '{prod.nombre}' eliminado por {current_user.username}", "success")
     except Exception as e:
         db.session.rollback()
@@ -183,15 +187,15 @@ def ver_auditoria():
 def reporte_inventario():
     from models import TasaBCV
     tasa_obj = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
-    tasa = float(tasa_obj.valor) if tasa_obj else 1.0
+    tasa = tasa_obj.valor if tasa_obj else Decimal('1.00')
 
     productos = Producto.query.order_by(Producto.categoria).all()
 
     data = []
     for p in productos:
-        costo     = float(p.costo_usd or 0)
-        precio    = float(p.precio_normal_usd or 0)
-        stock     = float(p.stock or 0)
+        costo     = p.costo_usd or Decimal('0.00')
+        precio    = p.precio_normal_usd or Decimal('0.00')
+        stock     = p.stock or Decimal('0.000')
         invertido = costo * stock
         valor_venta = precio * stock
         ganancia    = valor_venta - invertido
@@ -210,7 +214,7 @@ def reporte_inventario():
             'ganancia_usd':   ganancia,
             'invertido_bs':   invertido * tasa,
             'valor_venta_bs': valor_venta * tasa,
-            'bajo_minimo':  stock <= float(p.stock_minimo or 0)
+            'bajo_minimo':  stock <= (p.stock_minimo or Decimal('0.000'))
         })
 
     totales = {
@@ -240,7 +244,9 @@ def reporte_inventario():
                            data=data,
                            totales=totales,
                            categorias_resumen=categorias_resumen,
-                           tasa=tasa,
+                           tasa=tasa,  # Mantener como Decimal
+                           categorias=CATEGORIAS,
+                           categoria_filtro='TODAS',
                            fecha=datetime.now())
 
 # ============================================================
@@ -252,7 +258,7 @@ def reporte_inventario():
 def imprimir_inventario():
     from models import TasaBCV
     tasa_obj = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
-    tasa = float(tasa_obj.valor) if tasa_obj else 1.0
+    tasa = tasa_obj.valor if tasa_obj else Decimal('1.00')
 
     categoria_filtro = request.args.get('categoria', 'TODAS')
     productos = Producto.query.order_by(Producto.categoria, Producto.nombre).all()
@@ -262,9 +268,13 @@ def imprimir_inventario():
 
     data = []
     for p in productos:
-        costo   = float(p.costo_usd or 0)
-        precio  = float(p.precio_normal_usd or 0)
-        stock   = float(p.stock or 0)
+        costo   = p.costo_usd or Decimal('0.00')
+        precio  = p.precio_normal_usd or Decimal('0.00')
+        stock   = p.stock or Decimal('0.000')
+        invertido   = costo * stock
+        valor_venta = precio * stock
+        ganancia    = valor_venta - invertido
+        
         data.append({
             'codigo':       p.codigo,
             'nombre':       p.nombre,
@@ -272,9 +282,10 @@ def imprimir_inventario():
             'stock':        stock,
             'costo_usd':    costo,
             'precio_usd':   precio,
-            'invertido_usd': costo * stock,
-            'valor_venta_usd': precio * stock,
-            'bajo_minimo':  stock <= float(p.stock_minimo or 0)
+            'invertido_usd': invertido,
+            'valor_venta_usd': valor_venta,
+            'ganancia_usd':   ganancia,
+            'bajo_minimo':  stock <= (p.stock_minimo or Decimal('0.000'))
         })
 
     totales = {

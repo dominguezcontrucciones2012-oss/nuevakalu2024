@@ -12,35 +12,65 @@
         </div>
         <div>
             {% if ya_cerrado %}
-            <div class="d-flex gap-2">
-                <span class="badge bg-success fs-6 px-4 py-3 shadow">✅ CAJA CERRADA</span>
+            <div class="d-flex gap-2 align-items-center">
+                <span class="badge bg-success fs-6 px-4 py-3 shadow-sm rounded-pill">✅ CAJA CERRADA</span>
                 <a href="{{ url_for('cierre.ver_cierre', cierre_id=ya_cerrado.id) }}"
-                    class="btn btn-info shadow text-white">
-                    👁️ Ver Reporte Detallado
+                    class="btn btn-info shadow-sm text-white rounded-pill px-4">
+                    <i class="fas fa-eye me-2"></i> Reporte Detallado
                 </a>
+                <button onclick="window.print()" class="btn btn-outline-dark shadow-sm rounded-pill px-4">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
             </div>
-            <!-- CIERRE RETROACTIVO -->
-            <div class="card mt-3 border-warning">
-                <div class="card-header bg-warning fw-bold">
-                    <i class="fas fa-history"></i> Cierre Retroactivo (fecha pasada)
+            {% else %}
+            <!-- FORMULARIO DE CIERRE CIEGO -->
+            <div class="card border-danger shadow">
+                <div class="card-header bg-danger text-white fw-bold">
+                    <i class="fas fa-lock"></i> DECLARACIÓN PARA CIERRE DE CAJA
                 </div>
                 <div class="card-body">
-                    <form action="{{ url_for('cierre.ejecutar_cierre_retroactivo') }}" method="POST"
-                        onsubmit="return confirm('¿Seguro que deseas hacer el cierre de esta fecha?')">
-                        <div class="input-group">
-                            <input type="date" name="fecha_retroactiva" class="form-control fw-bold" required>
-                            <button type="submit" class="btn btn-warning fw-bold">
-                                <i class="fas fa-lock"></i> CERRAR ESA FECHA
-                            </button>
+                    <form action="{{ url_for('cierre.ejecutar_cierre') }}" method="POST"
+                        onsubmit="return confirm('¿Confirmas que has contado el dinero físico correctamente? Esta acción registrará diferencias en contabilidad.')">
+                        
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Dólares Físicos ($)</label>
+                                <input type="number" step="0.01" name="real_usd" class="form-control form-control-sm border-danger" placeholder="0.00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Bolívares Físicos (Bs)</label>
+                                <input type="number" step="0.01" name="real_bs" class="form-control form-control-sm border-danger" placeholder="0.00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Pago Móvil (Bs)</label>
+                                <input type="number" step="0.01" name="real_pago_movil" class="form-control form-control-sm border-danger" placeholder="0.00" required>
+                            </div>
                         </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Punto / Débito (Bs)</label>
+                                <input type="number" step="0.01" name="real_debito" class="form-control form-control-sm border-danger" placeholder="0.00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Transferencia (Bs)</label>
+                                <input type="number" step="0.01" name="real_transferencia" class="form-control form-control-sm border-danger" placeholder="0.00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold">Biopago (Bs)</label>
+                                <input type="number" step="0.01" name="real_biopago" class="form-control form-control-sm border-danger" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold">Observaciones / Novedades</label>
+                            <textarea name="observaciones" class="form-control form-control-sm" rows="1" placeholder="Ej: Se dañó un billete, faltó sencillo..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100 fw-bold">
+                             🔒 FINALIZAR Y CERRAR DÍA
+                        </button>
                     </form>
                 </div>
             </div>
-            {% else %}
-            <form action="{{ url_for('cierre.ejecutar_cierre') }}" method="POST"
-                onsubmit="return confirm('¿Confirmas el cierre de caja de hoy? Esta acción es definitiva.')">
-                <button type="submit" class="btn btn-danger btn-lg shadow">🔒 Cerrar Caja Ahora</button>
-            </form>
             {% endif %}
         </div>
     </div>
@@ -52,7 +82,7 @@
                 <div class="card-body text-center">
                     <div class="fs-1">💵</div>
                     <h6 class="text-muted">Efectivo USD</h6>
-                    <h3 class="text-success fw-bold">$ {{ "%.2f"|format(r.efectivo_usd) }}</h3>
+                    <h3 class="text-success fw-bold">$ {{ "%.2f"|format(r.efectivo_usd|default(0)) }}</h3>
                 </div>
             </div>
         </div>
@@ -61,7 +91,7 @@
                 <div class="card-body text-center">
                     <div class="fs-1">🇻🇪</div>
                     <h6 class="text-muted">Efectivo Bs</h6>
-                    <h3 class="text-primary fw-bold">Bs {{ "%.2f"|format(r.efectivo_bs) }}</h3>
+                    <h3 class="text-primary fw-bold">Bs {{ "%.2f"|format(r.efectivo_bs|default(0)) }}</h3>
                 </div>
             </div>
         </div>
@@ -78,21 +108,30 @@
 
     <!-- FILA 2: MÁS ENTRADAS -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card border-0 shadow-sm h-100 border-bottom border-primary border-4 bg-light">
-                <div class="card-body text-center">
-                    <i class="fas fa-credit-card fa-2x mb-2 text-primary"></i>
-                    <h6 class="text-muted">Tarjeta Débito</h6>
-                    <h3 class="text-primary fw-bold">Bs {{ "%.2f"|format(r.debito) }}</h3>
+                <div class="card-body text-center p-2">
+                    <i class="fas fa-credit-card fa-lg mb-1 text-primary"></i>
+                    <h6 class="text-muted small">T. Débito</h6>
+                    <h4 class="text-primary fw-bold">Bs {{ "%.2f"|format(r.debito) }}</h4>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm h-100 border-bottom border-info border-4 bg-light">
+                <div class="card-body text-center p-2">
+                    <i class="fas fa-exchange-alt fa-lg mb-1 text-info"></i>
+                    <h6 class="text-muted small">Transf.</h6>
+                    <h4 class="text-info fw-bold">Bs {{ "%.2f"|format(r.transferencia) }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
             <div class="card border-0 shadow-sm h-100 border-bottom border-warning border-4 bg-light">
-                <div class="card-body text-center">
-                    <i class="fas fa-cheese fa-2x mb-2 text-warning"></i>
-                    <h6 class="text-muted">Cobro en Queso</h6>
-                    <h3 class="text-warning fw-bold">$ {{ "%.2f"|format(r.cobro_queso) }}</h3>
+                <div class="card-body text-center p-2">
+                    <i class="fas fa-cheese fa-lg mb-1 text-warning"></i>
+                    <h6 class="text-muted small">Queso</h6>
+                    <h4 class="text-warning fw-bold">$ {{ "%.2f"|format(r.cobro_queso) }}</h4>
                 </div>
             </div>
         </div>
@@ -169,13 +208,13 @@
                     </thead>
                     <tbody>
                         {% for m in movs_hoy %}
-                        <tr class="{{ 'table-danger' if m.tipo_movimiento == 'SALIDA' else 'table-success' }}">
-                            <td class="ps-3"><small>{{ m.fecha.strftime('%I:%M %p') }}</small></td>
+                        <tr class="{{ 'table-danger' if m.tipo_movimiento == 'EGRESO' else 'table-success' }}">
+                            <td class="ps-3"><small>{{ m.fecha.strftime('%I:%M %p') if m.fecha else 'S/F' }}</small></td>
                             <td>
-                                {% if m.tipo_movimiento == 'SALIDA' %}
-                                <span class="badge bg-danger">📤 SALIDA</span>
+                                {% if m.tipo_movimiento == 'EGRESO' %}
+                                <span class="badge bg-danger">📤 EGRESO</span>
                                 {% else %}
-                                <span class="badge bg-success">📥 ENTRADA</span>
+                                <span class="badge bg-success">📥 INGRESO</span>
                                 {% endif %}
                             </td>
                             <td>{{ m.categoria or '-' }}</td>
@@ -200,12 +239,25 @@
     {% endif %}
 
     <!-- TOTAL GENERAL -->
-    <div class="card border-0 shadow-lg mb-5" style="background: linear-gradient(135deg, #1a1a2e, #16213e);">
-        <div class="card-body text-center py-4">
-            <h5 class="text-white-50 mb-1 text-uppercase" style="letter-spacing:2px;">Ventas Totales (Equivalente USD)
-            </h5>
-            <h1 class="text-white fw-bold display-3">$ {{ "%.2f"|format(r.total_general) }}</h1>
-            <span class="badge bg-light text-dark px-3 py-2 fs-6">{{ r.conteo }} venta(s) procesada(s) hoy</span>
+    <div class="card border-0 shadow-lg mb-5 total-banner">
+        <div class="card-body text-center py-5">
+            <h5 class="text-white-50 mb-1 text-uppercase fw-bold" style="letter-spacing:3px;">Ventas Totales del Día</h5>
+            <h1 class="text-white fw-bold display-2 mb-0">$ {{ "%.2f"|format(r.total_ventas) }}</h1>
+            <div class="d-flex justify-content-center gap-4 mt-3">
+                <div class="text-info">
+                    <small class="d-block text-white-50">Cobrado (Caja/Banco)</small>
+                    <span class="h4 fw-bold">$ {{ "%.2f"|format(r.total_general) }}</span>
+                </div>
+                <div class="text-danger">
+                    <small class="d-block text-white-50">Fiado (Cuentas por Cobrar)</small>
+                    <span class="h4 fw-bold">$ {{ "%.2f"|format(r.fiado) }}</span>
+                </div>
+            </div>
+            <div class="mt-4">
+                <span class="badge bg-white text-dark px-4 py-2 fs-6 rounded-pill shadow-sm">
+                    <i class="fas fa-shopping-basket me-2"></i>{{ r.conteo }} venta(s) procesada(s)
+                </span>
+            </div>
         </div>
     </div>
 
@@ -227,6 +279,7 @@
                             <th class="text-center text-primary">🇻🇪 Efect. Bs</th>
                             <th class="text-center text-info">📱 P. Móvil</th>
                             <th class="text-center text-primary">💳 Débito</th>
+                            <th class="text-center text-info">💸 Transf.</th>
                             <th class="text-center text-secondary">💳 Biopago</th>
                             <th class="text-center">Estado</th>
                         </tr>
@@ -235,47 +288,52 @@
                         {% for v in ventas_hoy %}
                         <tr>
                             <td class="ps-3 fw-bold text-muted">#{{ v.id }}</td>
-                            <td><small class="text-muted">{{ v.fecha.strftime('%I:%M %p') }}</small></td>
-                            <td class="fw-semibold">{{ v.nombre_cliente_final }}</td>
-                            <td class="text-center fw-bold">$ {{ "%.2f"|format(v.total_usd) }}</td>
+                            <td><small class="text-muted">{{ v.hora.strftime('%I:%M %p') if v.hora else 'S/F' }}</small></td>
+                            <td class="fw-semibold">{{ v.cliente }}</td>
+                            <td class="text-center fw-bold text-dark">$ {{ "%.2f"|format(v.total_usd) }}</td>
                             <td class="text-center text-success">
-                                {% if v.pago_efectivo_usd and v.pago_efectivo_usd > 0 %}$ {{
-                                "%.2f"|format(v.pago_efectivo_usd) }}{% else %}-{% endif %}
+                                {% if v.efectivo_usd and v.efectivo_usd > 0 %}$ {{
+                                "%.2f"|format(v.efectivo_usd) }}{% else %}-{% endif %}
                             </td>
                             <td class="text-center text-primary">
-                                {% if v.pago_efectivo_bs and v.pago_efectivo_bs > 0 %}Bs {{
-                                "%.2f"|format(v.pago_efectivo_bs) }}{% else %}-{% endif %}
+                                {% if v.efectivo_bs and v.efectivo_bs > 0 %}Bs {{
+                                "%.2f"|format(v.efectivo_bs) }}{% else %}-{% endif %}
                             </td>
                             <td class="text-center text-info">
-                                {% if v.pago_movil_bs and v.pago_movil_bs > 0 %}Bs {{ "%.2f"|format(v.pago_movil_bs)
+                                {% if v.pago_movil and v.pago_movil > 0 %}Bs {{ "%.2f"|format(v.pago_movil)
                                 }}{% else %}-{% endif %}
                             </td>
                             <td class="text-center text-primary">
-                                {% if v.pago_transferencia_bs and v.pago_transferencia_bs > 0 %}Bs {{
-                                "%.2f"|format(v.pago_transferencia_bs) }}{% else %}-{% endif %}
+                                {% if v.debito and v.debito > 0 %}Bs {{
+                                "%.2f"|format(v.debito) }}{% else %}-{% endif %}
+                            </td>
+                            <td class="text-center text-info">
+                                {% if v.transferencia and v.transferencia > 0 %}Bs {{
+                                "%.2f"|format(v.transferencia) }}{% else %}-{% endif %}
                             </td>
                             <td class="text-center text-secondary">
-                                {% if v.biopago_bdv and v.biopago_bdv > 0 %}Bs {{ "%.2f"|format(v.biopago_bdv) }}{% else
+                                {% if v.biopago and v.biopago > 0 %}Bs {{ "%.2f"|format(v.biopago) }}{% else
                                 %}-{% endif %}
                             </td>
                             <td class="text-center">
                                 {% if v.es_fiado %}
-                                <span class="badge bg-danger">FIADO</span>
+                                <span class="badge bg-danger shadow-sm">FIADO</span>
                                 {% else %}
-                                <span class="badge bg-success">CONTADO</span>
+                                <span class="badge bg-success shadow-sm">CONTADO</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                     <tfoot class="table-dark">
-                        <tr>
-                            <td colspan="3" class="ps-3 fw-bold">TOTALES</td>
-                            <td class="text-center fw-bold text-warning">$ {{ "%.2f"|format(r.total_general) }}</td>
+                        <tr class="align-middle">
+                            <td colspan="3" class="ps-3 fw-bold">TOTALES COBRADOS (EXCLUYE FIADO)</td>
+                            <td class="text-center fw-bold text-warning fs-5">$ {{ "%.2f"|format(r.total_general) }}</td>
                             <td class="text-center fw-bold text-success">$ {{ "%.2f"|format(r.efectivo_usd) }}</td>
                             <td class="text-center fw-bold text-primary">Bs {{ "%.2f"|format(r.efectivo_bs) }}</td>
                             <td class="text-center fw-bold text-info">Bs {{ "%.2f"|format(r.pago_movil) }}</td>
                             <td class="text-center fw-bold text-primary">Bs {{ "%.2f"|format(r.debito) }}</td>
+                            <td class="text-center fw-bold text-info">Bs {{ "%.2f"|format(r.transferencia) }}</td>
                             <td class="text-center fw-bold text-secondary">Bs {{ "%.2f"|format(r.biopago) }}</td>
                             <td></td>
                         </tr>
@@ -309,7 +367,7 @@
                     <tbody>
                         {% for c in cierres_historial %}
                         <tr>
-                            <td>{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ c.fecha.strftime('%d/%m/%Y') if c.fecha else 'S/F' }}</td>
                             <td class="text-end fw-bold text-warning">$ {{ "%.2f"|format(c.total_ventas_usd or 0) }}
                             </td>
                             <td class="text-end text-success">$ {{ "%.2f"|format(c.monto_usd) }}</td>
@@ -335,13 +393,48 @@
 
 <style>
     .card {
-        border-radius: 12px;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .total-banner {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        border-radius: 20px;
+        position: relative;
         overflow: hidden;
     }
 
     .table thead th {
         font-size: 0.75rem;
         text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+
+    @media print {
+        .btn, .card-header.bg-danger, .card-body form, #historial_cierres_card {
+            display: none !important;
+        }
+        .container-fluid {
+            width: 100%;
+            padding: 0;
+        }
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+        }
+        .total-banner {
+            background: #000 !important;
+            color: #fff !important;
+        }
     }
 </style>
 

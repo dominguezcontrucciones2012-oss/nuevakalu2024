@@ -27,7 +27,7 @@
                     <form method="POST">
                         <div class="mb-3">
                             <label class="form-label">Categoría:</label>
-                            <select name="categoria" class="form-select" required>
+                            <select name="categoria" id="categoria_select" class="form-select" required>
                                 <option value="Nomina">👷 Pago de Obrero (Nómina)</option>
                                 <option value="Servicios">💡 Servicios (Luz, Internet)</option>
                                 <option value="Inventario">📦 Compra de Mercancía</option>
@@ -35,6 +35,20 @@
                                 <option value="Retiro Personal">💼 Retiro del Dueño</option>
                                 <option value="Otros">📝 Otros Gastos</option>
                             </select>
+                        </div>
+
+                        <!-- SELECCION DE OBRERO (Solo visible si es Nomina) -->
+                        <div id="obrero_div" class="mb-3" style="display: block;">
+                            <label class="form-label">Seleccionar Obrero:</label>
+                            <select name="obrero_id" class="form-select">
+                                <option value="">-- No vincular a libreta --</option>
+                                {% for o in obreros %}
+                                <option value="{{ o.id }}">{{ o.nombre }} (Saldo: {{ "%.2f"|format(o.saldo_pendiente_usd) }}$)</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text text-info">
+                                <i class="fas fa-info-circle"></i> Al seleccionar uno, se cobrará lo que deba automáticamente.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -47,19 +61,64 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Monto:</label>
-                            <input type="number" step="0.01" name="monto" class="form-control" placeholder="0.00"
+                            <label class="form-label">¿En qué moneda estás ingresando el monto?</label>
+                            <div class="d-flex gap-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="moneda_input" id="moneda_usd" value="USD" checked>
+                                    <label class="form-check-label" for="moneda_usd">💵 Dólares ($)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="moneda_input" id="moneda_bs" value="Bs">
+                                    <label class="form-check-label" for="moneda_bs">💸 Bolívares (Bs)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold" id="label_monto">Monto:</label>
+                            <input type="number" step="0.01" name="monto" id="input_monto" class="form-control form-control-lg border-primary" placeholder="0.00"
                                 required>
-                            <small class="text-muted">
-                                Ingresa en $ si es Caja USD, en Bs si es Caja Bs o Banco.
+                            <small class="text-muted" id="help_monto">
+                                Ingresa el monto del gasto.
+                            </small>
+                        </div>
+
+                        <!-- MONTO EFECTIVO (Solo para Nomina) -->
+                        <div id="payout_div" class="mb-3" style="display: none;">
+                            <label class="form-label fw-bold text-info">💸 ¿Cuánto dinero físico SALE de la caja hoy?</label>
+                            <input type="number" step="0.01" name="monto_pago_efectivo" id="input_payout" class="form-control border-info" value="0" placeholder="0.00">
+                            <small class="text-muted italic">
+                                ℹ️ Si pones 0, el sueldo se acumula completo en la libreta (sirve para pagar deudas del obrero).
                             </small>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Concepto:</label>
+                            <label class="form-label">Concepto / Referencia:</label>
                             <input type="text" name="concepto" class="form-control"
-                                placeholder="Ej: Pago semana Luis obrero" required>
+                                placeholder="Ej: Semana 15 Abril" required>
                         </div>
+
+                        <script>
+                            document.getElementById('categoria_select').addEventListener('change', function() {
+                                const obreroDiv = document.getElementById('obrero_div');
+                                const payoutDiv = document.getElementById('payout_div');
+                                const labelMonto = document.getElementById('label_monto');
+                                const helpMonto = document.getElementById('help_monto');
+
+                                if (this.value === 'Nomina') {
+                                    obreroDiv.style.display = 'block';
+                                    payoutDiv.style.display = 'block';
+                                    labelMonto.innerText = 'Sueldo Total Ganado:';
+                                    helpMonto.innerText = 'El sistema sumará esto a su libreta.';
+                                } else {
+                                    obreroDiv.style.display = 'none';
+                                    payoutDiv.style.display = 'none';
+                                    labelMonto.innerText = 'Monto:';
+                                    helpMonto.innerText = 'Ingresa el monto del gasto.';
+                                }
+                            });
+
+                        </script>
 
                         <button type="submit" class="btn btn-danger w-100 fw-bold">
                             💾 Guardar Egreso

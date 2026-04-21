@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from decimal import Decimal
 from datetime import datetime
+from utils import seguro_decimal
 from flask import Blueprint, render_template, request, flash, redirect, url_for, send_file
 from werkzeug.utils import secure_filename
 from flask_login import login_required, current_user
@@ -9,7 +10,8 @@ from functools import wraps
 from flask import abort
 from models import (db, Cliente, Producto, Proveedor, Venta, DetalleVenta,
                     Compra, CompraDetalle, CuentaPorPagar, HistorialPago, TasaBCV,
-                    MovimientoCaja)  # 👈 AGREGADO
+                    MovimientoCaja, AuditoriaInventario)
+from routes.contabilidad import registrar_asiento
 
 cargar_bp = Blueprint('cargar', __name__)
 
@@ -24,7 +26,7 @@ def solo_admin(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
             flash("⚠️ Debes iniciar sesión primero.", "warning")
-            return redirect(url_for('auth.login'))
+            return redirect(url_for('auth.ingresar'))
         if current_user.role not in ['admin', 'supervisor']:
             flash("🚫 No tienes permiso para acceder a esta sección.", "danger")
             abort(403)
@@ -96,8 +98,8 @@ def cargar_clientes():
                         telefono         = str(row.get('telefono', '') or '').strip(),
                         direccion        = str(row.get('direccion', '') or '').strip(),
                         fecha_nacimiento = fecha_nac,
-                        saldo_usd        = Decimal(str(row.get('saldo_usd', 0) or 0)),
-                        saldo_bs         = Decimal(str(row.get('saldo_bs',  0) or 0)),
+                        saldo_usd        = seguro_decimal(row.get('saldo_usd')),
+                        saldo_bs         = seguro_decimal(row.get('saldo_bs')),
                         puntos           = int(row.get('puntos', 0) or 0),
                     )
                     db.session.add(cliente)
@@ -153,7 +155,7 @@ def cargar_proveedores():
                         direccion            = str(row.get('direccion', '') or '').strip(),
                         vendedor_nombre      = str(row.get('vendedor_nombre', '') or '').strip(),
                         vendedor_telefono    = str(row.get('vendedor_telefono', '') or '').strip(),
-                        saldo_pendiente_usd  = Decimal(str(row.get('saldo_pendiente_usd', 0) or 0)),
+                        saldo_pendiente_usd  = seguro_decimal(row.get('saldo_pendiente_usd')),
                     )
                     db.session.add(prov)
                     creados += 1
@@ -196,24 +198,50 @@ def cargar_inventario():
                 if prod:
                     prod.nombre             = nombre
                     prod.categoria          = str(row.get('categoria', '') or '').strip()
-                    prod.costo_usd          = Decimal(str(row.get('costo_usd', 0) or 0))
-                    prod.precio_normal_usd  = Decimal(str(row.get('precio_normal_usd', 0) or 0))
-                    prod.precio_oferta_usd  = Decimal(str(row.get('precio_oferta_usd', 0) or 0))
-                    prod.stock              = int(row.get('stock', 0) or 0)
+                    prod.costo_usd          = seguro_decimal(row.get('costo_usd'))
+                    prod.precio_normal_usd  = seguro_decimal(row.get('precio_normal_usd'))
+                    prod.precio_oferta_usd  = seguro_decimal(row.get('precio_oferta_usd'))
+                    antes_stock = prod.stock
+                    prod.stock              = seguro_decimal(row.get('stock'))
                     prod.stock_minimo       = int(row.get('stock_minimo', 5) or 5)
                     actualizados += 1
+
+                    # 📜 AUDITORIA
+                    db.session.add(AuditoriaInventario(
+                        usuario_id=current_user.id,
+                        usuario_nombre=current_user.username,
+                        producto_id=prod.id,
+                        producto_nombre=prod.nombre,
+                        accion='CARGA_EXCEL_STOCK_UPDATE',
+                        cantidad_antes=antes_stock,
+                        cantidad_despues=prod.stock,
+                        fecha=datetime.now()
+                    ))
                 else:
                     prod = Producto(
                         codigo            = codigo,
                         nombre            = nombre,
                         categoria         = str(row.get('categoria', '') or '').strip(),
-                        costo_usd         = Decimal(str(row.get('costo_usd', 0) or 0)),
-                        precio_normal_usd = Decimal(str(row.get('precio_normal_usd', 0) or 0)),
-                        precio_oferta_usd = Decimal(str(row.get('precio_oferta_usd', 0) or 0)),
-                        stock             = int(row.get('stock', 0) or 0),
+                        costo_usd         = seguro_decimal(row.get('costo_usd')),
+                        precio_normal_usd = seguro_decimal(row.get('precio_normal_usd')),
+                        precio_oferta_usd = seguro_decimal(row.get('precio_oferta_usd')),
+                        stock             = seguro_decimal(row.get('stock')),
                         stock_minimo      = int(row.get('stock_minimo', 5) or 5),
                     )
                     db.session.add(prod)
+                    db.session.flush()
+
+                    # 📜 AUDITORIA
+                    db.session.add(AuditoriaInventario(
+                        usuario_id=current_user.id,
+                        usuario_nombre=current_user.username,
+                        producto_id=prod.id,
+                        producto_nombre=prod.nombre,
+                        accion='CARGA_EXCEL_NUEVO_PRODUCTO',
+                        cantidad_antes=0,
+                        cantidad_despues=prod.stock,
+                        fecha=datetime.now()
+                    ))
                     creados += 1
             except Exception:
                 errores += 1
@@ -268,7 +296,7 @@ def cargar_compras():
                 compra = Compra(
                     proveedor_id   = prov.id,
                     numero_factura = nro_fac,
-                    total_usd      = Decimal(str(row.get('total_usd', 0) or 0)),
+                    total_usd      = seguro_decimal(row.get('total_usd')),
                     estado         = str(row.get('estado', 'Pendiente') or 'Pendiente').strip(),
                     metodo_pago    = str(row.get('metodo_pago', 'Credito') or 'Credito').strip(),
                     fecha          = fecha,
@@ -280,7 +308,7 @@ def cargar_compras():
                 if cod_prod and cod_prod != 'nan':
                     prod = Producto.query.filter_by(codigo=cod_prod).first()
                     if prod:
-                        cantidad = int(row.get('cantidad', 1) or 1)
+                        cantidad = Decimal(str(row.get('cantidad', 1) or 1))
                         costo    = Decimal(str(row.get('costo_unitario', 0) or 0))
                         detalle  = CompraDetalle(
                             compra_id      = compra.id,
@@ -289,7 +317,20 @@ def cargar_compras():
                             costo_unitario = costo,
                         )
                         db.session.add(detalle)
+                        antes_compra = prod.stock
                         prod.stock += cantidad
+
+                        # 📜 AUDITORIA
+                        db.session.add(AuditoriaInventario(
+                            usuario_id=current_user.id,
+                            usuario_nombre=current_user.username,
+                            producto_id=prod.id,
+                            producto_nombre=prod.nombre,
+                            accion='CARGA_EXCEL_COMPRA_HISTORICA',
+                            cantidad_antes=antes_compra,
+                            cantidad_despues=prod.stock,
+                            fecha=datetime.now()
+                        ))
 
                 creados += 1
             except Exception:
@@ -365,7 +406,7 @@ def cargar_ventas():
                 if cod_prod and cod_prod != 'nan':
                     prod = Producto.query.filter_by(codigo=cod_prod).first()
                     if prod:
-                        cantidad = int(row.get('cantidad', 1) or 1)
+                        cantidad = Decimal(str(row.get('cantidad', 1) or 1))
                         precio   = Decimal(str(row.get('precio_unitario_usd', 0) or 0))
                         detalle  = DetalleVenta(
                             venta_id            = venta.id,
@@ -374,7 +415,20 @@ def cargar_ventas():
                             precio_unitario_usd = precio,
                         )
                         db.session.add(detalle)
+                        antes_venta = prod.stock
                         prod.stock = max(0, prod.stock - cantidad)
+
+                        # 📜 AUDITORIA
+                        db.session.add(AuditoriaInventario(
+                            usuario_id=current_user.id,
+                            usuario_nombre=current_user.username,
+                            producto_id=prod.id,
+                            producto_nombre=prod.nombre,
+                            accion='CARGA_EXCEL_VENTA_HISTORICA',
+                            cantidad_antes=antes_venta,
+                            cantidad_despues=prod.stock,
+                            fecha=datetime.now()
+                        ))
 
                 if es_fiado and cliente_id:
                     cli = Cliente.query.get(cliente_id)
@@ -536,8 +590,6 @@ def cargar_saldos_caja():
         df = pd.read_excel(ruta)
         df.columns = [c.strip().lower() for c in df.columns]
 
-        from routes.contabilidad import registrar_asiento
-
         creados = errores = 0
         for _, row in df.iterrows():
             try:
@@ -545,8 +597,8 @@ def cargar_saldos_caja():
                 if not tipo_caja or tipo_caja == 'nan':
                     continue
 
-                monto_usd   = Decimal(str(row.get('monto_usd', 0) or 0))
-                monto_bs    = Decimal(str(row.get('monto_bs',  0) or 0))
+                monto_usd   = seguro_decimal(row.get('monto_usd'))
+                monto_bs    = seguro_decimal(row.get('monto_bs'))
                 descripcion = str(row.get('descripcion', '') or '').strip()
                 if not descripcion:
                     descripcion = f"Saldo inicial cargado por Excel en {tipo_caja}"

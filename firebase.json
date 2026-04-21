@@ -2,9 +2,26 @@
   "auth": {
     "providers": {
       "googleSignIn": {
-        "oAuthBrandDisplayName": "KALU Admin System",
-        "supportEmail": "ffernandocconde17@gmail.com"
+        "oAuthBrandDisplayName": "KALUNUEVA2024",
+        "supportEmail": "dominguezcontrucciones2012@gmail.com"
       }
     }
+  },
+  "hosting": {
+    "public": "static",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "nuevakalu",
+          "region": "us-central1"
+        }
+      }
+    ]
   }
 }

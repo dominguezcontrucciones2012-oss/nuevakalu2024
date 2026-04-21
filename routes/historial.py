@@ -31,5 +31,5 @@ def ver_historial():
         'historial.html',
         ventas_paginadas=ventas_paginadas,
         ventas=ventas_paginadas.items,
-        total_historico=float(total_historico)
+        total_historico=total_historico
     )

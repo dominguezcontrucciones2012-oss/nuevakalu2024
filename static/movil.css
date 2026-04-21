@@ -1,8 +1,16 @@
 /* ESTO SOLO SE ACTIVA EN CELULARES */
 @media (max-width: 768px) {
-    /* 1. Escondemos el menú lateral para que no tape la pantalla */
+    /* 1. Cambio: El menú lateral ahora es "off-canvas" en móviles */
     .sidebar {
-        display: none !important;
+        display: block !important;
+        transform: translateX(-100%);
+        width: 80% !important;
+        max-width: 300px;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    }
+
+    .sidebar.show-mobile {
+        transform: translateX(0);
     }
 
     /* 2. Hacemos que el contenido use todo el ancho del teléfono */
@@ -10,41 +18,12 @@
         margin-left: 0 !important;
         padding: 15px !important;
         width: 100% !important;
+        padding-top: 70px !important; /* Espacio para el botón de hamburguesa */
     }
 
-    /* 3. Ponemos un menú cómodo abajo tipo App */
-    body::after {
-        content: "";
-        display: block;
-        height: 70px; /* Espacio para que el menú no tape el contenido */
-    }
-
-    /* Creamos la barra de navegación inferior */
+    /* Escondemos la barra inferior si el usuario quiere menú lateral */
     .mobile-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 65px;
-        background: #1a252f;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        border-top: 2px solid #3498db;
-        z-index: 9999;
-    }
-
-    .mobile-nav a {
-        color: #bdc3c7;
-        text-decoration: none;
-        text-align: center;
-        font-size: 0.7rem;
-    }
-
-    .mobile-nav a i {
-        display: block;
-        font-size: 1.3rem;
-        margin-bottom: 2px;
+        display: none !important;
     }
 }
 

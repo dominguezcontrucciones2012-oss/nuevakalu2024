@@ -97,57 +97,67 @@
     </div>
 </div>
 
-<!-- MODAL ABONAR -->
-<div class="modal fade" id="modalAbonar" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content shadow">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-hand-holding-usd"></i> Registrar Abono</h5>
-                <button type="button" class="close text-white" onclick="cerrarModal()">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-1"><strong>Proveedor:</strong> <span id="abono_proveedor"></span></p>
-                <p class="mb-3"><strong>Factura:</strong> <span id="abono_factura"></span></p>
+<!-- BACKDROP Y DRAWER DE ABONOS (PREMIUM & SECURE) -->
+<div id="drawer_backdrop" class="drawer-backdrop" onclick="toggleAbonoDrawer(false)"></div>
+<div id="panel_abono" class="payment-drawer">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold m-0 text-danger"><i class="fas fa-hand-holding-usd me-2"></i> Pagar a Proveedor</h4>
+    <i class="fas fa-times-circle btn-close-drawer" onclick="toggleAbonoDrawer(false)"></i>
+  </div>
 
-                <div class="form-group">
-                    <label class="font-weight-bold text-danger">Saldo Pendiente:</label>
-                    <h4 class="text-danger" id="abono_saldo"></h4>
-                </div>
+  <div class="total-display-premium">
+    <h6 id="abono_proveedor_nombre" class="text-uppercase fw-800 text-danger opacity-75 mb-1">Cargando...</h6>
+    <div id="abono_factura_info" class="small opacity-50 mb-1">FACTURA: ---</div>
+    <div class="small opacity-50 mb-1">SALDO PENDIENTE</div>
+    <div class="total-display-amount text-danger">$<span id="abono_deuda_actual">0.00</span></div>
+  </div>
 
-                <div class="form-group">
-                    <label id="label_monto" class="font-weight-bold">Monto a Abonar ($)</label>
-                    <input type="number" id="abono_monto" class="form-control form-control-lg" step="0.01"
-                        placeholder="0.00" />
-                </div>
-
-                <div class="form-group">
-                    <label class="font-weight-bold">Caja de Origen</label>
-                    <select id="abono_caja" class="form-control">
-                        <option value="Caja USD">Caja Principal $</option>
-                        <option value="Caja Bs">Caja Principal Bs</option>
-                        <option value="Banco">Banco (Transferencia/PM)</option>
-                    </select>
-                </div> <!-- ✅ CIERRE del form-group de Caja -->
-
-                <!-- Campo tasa (solo visible cuando se elige Caja Bs) -->
-                <div class="form-group" id="grupo_tasa" style="display:none;">
-                    <label class="font-weight-bold">Tasa BCV (Bs/$)</label>
-                    <input type="number" id="abono_tasa" class="form-control" step="0.01" placeholder="Ej: 36.50" />
-                    <small class="text-muted">Ingresa la tasa del día para convertir el monto</small>
-                </div>
-
-                <input type="hidden" id="abono_cxp_id" />
-            </div> <!-- ✅ CIERRE modal-body -->
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-                <button type="button" class="btn btn-success btn-lg" onclick="confirmarAbono()">
-                    <i class="fas fa-check"></i> Confirmar Abono
-                </button>
-            </div>
-        </div>
+  <div class="pago-form form-dark-premium">
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">1. ¿En qué moneda paga?</label>
+      <div class="btn-group w-100 shadow-sm" role="group">
+        <input type="radio" class="btn-check" name="moneda_pago" id="moneda_usd" checked onchange="actualizarModoMoneda()">
+        <label class="btn btn-outline-success border-2 fw-bold btn-currency-selector" for="moneda_usd"><i class="fas fa-dollar-sign"></i> Dólares</label>
+        
+        <input type="radio" class="btn-check" name="moneda_pago" id="moneda_bs" onchange="actualizarModoMoneda()">
+        <label class="btn btn-outline-info border-2 fw-bold btn-currency-selector" for="moneda_bs"><i class="fas fa-money-bill-wave"></i> Bolívares</label>
+      </div>
     </div>
+
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white" id="label_monto_dinamico">Monto a pagar ($)</label>
+      <div class="input-group input-group-lg shadow-sm">
+        <span class="input-group-text border-0" id="simbolo_moneda" style="background: rgba(255,255,255,0.05); color: #fff;">$</span>
+        <input type="number" id="monto_abono_input" class="form-control form-control-lg fw-bold text-end" step="0.01" placeholder="0.00" oninput="validarMontoDinamico()">
+      </div>
+      <div id="conversion_info" class="mt-2 p-2 rounded-3 text-info fw-bold text-center" style="display:none; background: rgba(52, 152, 219, 0.1);">
+        <i class="fas fa-sync fa-spin me-2"></i> EQUIVALENTE: $<span id="monto_en_usd_equivalente">0.00</span>
+      </div>
+      <div id="alerta_monto_max" class="mt-2 p-2 rounded-3 text-warning small fw-bold text-center" style="display:none; background: rgba(241, 196, 15, 0.1);">
+        ⚠️ EL MONTO SUPERA EL SALDO
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="small opacity-50 mb-2 d-block text-uppercase fw-bold text-white">2. Caja de Origen</label>
+      <select id="abono_caja_select" class="form-select form-select-lg fw-bold">
+        <option value="Caja USD">💵 Caja Principal $</option>
+        <option value="Caja Bs">💴 Caja Principal Bs</option>
+        <option value="Banco">📱 Banco (Transferencia/PM)</option>
+      </select>
+    </div>
+
+    <input type="hidden" id="abono_cxp_id" />
+    <input type="hidden" id="tasa_dia_abono" value="{{ tasa_bcv }}">
+
+    <button id="btn_confirmar_abono" class="btn btn-danger btn-lg w-100 py-3 fw-bold shadow-lg mt-4 rounded-4" onclick="iniciarProcesoAbono()">
+      <i class="fas fa-lock me-2"></i> CONFIRMAR Y PROCESAR
+    </button>
+    
+    <button class="btn btn-link btn-sm w-100 mt-3 text-white-50 text-decoration-none" onclick="toggleAbonoDrawer(false)">
+      CANCELAR OPERACIÓN
+    </button>
+  </div>
 </div>
 
 <script>
@@ -156,153 +166,162 @@
 
     function abrirAbono(cxpId, proveedor, factura, saldo) {
         facturaSeleccionada = cxpId;
-        saldoMaximoUSD = parseFloat(saldo);
+        saldoMaximoUSD = parseFloat(saldo) || 0;
 
         document.getElementById('abono_cxp_id').value = cxpId;
-        document.getElementById('abono_proveedor').textContent = proveedor;
-        document.getElementById('abono_factura').textContent = factura;
-        document.getElementById('abono_saldo').textContent = '$' + saldoMaximoUSD.toFixed(2);
-        document.getElementById('abono_monto').value = saldoMaximoUSD.toFixed(2);
-
-        document.getElementById('abono_monto').style.border = '';
-        document.getElementById('abono_monto').style.color = '';
-        document.getElementById('abono_monto').style.backgroundColor = '';
-        document.getElementById('abono_caja').value = 'Caja USD';
-        document.getElementById('grupo_tasa').style.display = 'none';
-        document.getElementById('label_monto').textContent = 'Monto a Abonar ($)';
-        if (document.getElementById('abono_tasa')) document.getElementById('abono_tasa').value = '{{ tasa_bcv }}';
-
-        const modal = document.getElementById('modalAbonar');
-        modal.classList.add('show');
-        modal.style.display = 'block';
-        document.body.classList.add('modal-open');
-
-        const backdrop = document.createElement('div');
-        backdrop.id = 'modal-backdrop';
-        backdrop.className = 'modal-backdrop fade show';
-        document.body.appendChild(backdrop);
+        document.getElementById('abono_proveedor_nombre').textContent = proveedor;
+        document.getElementById('abono_factura_info').innerHTML = `<strong>FACTURA:</strong> ${factura}`;
+        document.getElementById('abono_deuda_actual').textContent = saldoMaximoUSD.toFixed(2);
+        
+        document.getElementById('monto_abono_input').value = saldoMaximoUSD.toFixed(2);
+        document.getElementById('moneda_usd').checked = true;
+        document.getElementById('abono_caja_select').value = 'Caja USD';
+        
+        actualizarModoMoneda();
+        toggleAbonoDrawer(true);
     }
 
-    function cerrarModal() {
-        const modal = document.getElementById('modalAbonar');
-        modal.classList.remove('show');
-        modal.style.display = 'none';
-        document.body.classList.remove('modal-open');
-        const backdrop = document.getElementById('modal-backdrop');
-        if (backdrop) backdrop.remove();
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-
-        const buscador = document.getElementById("buscador_kalu");
-        if(buscador) {
-            buscador.addEventListener("keyup", function() {
-                const query = this.value.toLowerCase().trim();
-                const rows = document.querySelectorAll("table.table-hover tbody tr");
-                rows.forEach(row => {
-                    row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
-                });
-            });
-        }
-
-        document.getElementById('abono_monto').addEventListener('input', function () {
-            validarMonto(false);
-        });
-
-        document.getElementById('abono_caja').addEventListener('change', function () {
-            let caja = this.value;
-            let inputMonto = document.getElementById('abono_monto');
-            let tasaInput = document.getElementById('abono_tasa');
-            let labelMonto = document.getElementById('label_monto');
-            let grupoTasa = document.getElementById('grupo_tasa');
-
-            if (caja === 'Caja Bs' || caja === 'Banco') {
-                grupoTasa.style.display = 'block';
-                labelMonto.textContent = 'Monto a Abonar (Bs)';
-                let tasa = parseFloat(tasaInput.value || 0);
-                if (tasa > 0) {
-                    inputMonto.value = (saldoMaximoUSD * tasa).toFixed(2);
-                } else {
-                    inputMonto.value = '';
-                    inputMonto.placeholder = 'Ingresa la tasa primero';
-                }
-            } else {
-                grupoTasa.style.display = 'none';
-                labelMonto.textContent = 'Monto a Abonar ($)';
-                inputMonto.value = saldoMaximoUSD.toFixed(2);
-            }
-            validarMonto(false);
-        });
-
-        document.getElementById('abono_tasa').addEventListener('input', function () {
-            let tasa = parseFloat(this.value || 0);
-            let inputMonto = document.getElementById('abono_monto');
-            if (tasa > 0) {
-                inputMonto.value = (saldoMaximoUSD * tasa).toFixed(2);
-            }
-            validarMonto(false);
-        });
-    });
-
-    function validarMonto(mostrarAlerta = true) {
-        let monto = parseFloat(document.getElementById('abono_monto').value) || 0;
-        let caja = document.getElementById('abono_caja').value;
-        let esBolivares = (caja === 'Caja Bs' || caja === 'Banco'); // ✅ CORREGIDO
-        let tasa = parseFloat(document.getElementById('abono_tasa')?.value || 1) || 1;
-        let limiteMaximo = esBolivares ? (saldoMaximoUSD * tasa) : saldoMaximoUSD;
-        let moneda = esBolivares ? 'Bs' : '$';
-        let inputMonto = document.getElementById('abono_monto');
-
-        if (monto > (limiteMaximo + 0.05)) {
-            inputMonto.style.border = '2px solid red';
-            inputMonto.style.color = 'red';
-            inputMonto.style.backgroundColor = '#fff0f0';
-            if (mostrarAlerta) {
-                alert(`⚠️ ¡PAGO ABORTADO!\n\nEl monto (${moneda} ${monto.toFixed(2)}) supera el saldo pendiente.\nMáximo permitido: ${moneda} ${limiteMaximo.toFixed(2)}\n\nCorrige el monto antes de continuar.`);
-            }
-            return false;
+    function toggleAbonoDrawer(show) {
+        const drawer = document.getElementById("panel_abono");
+        const backdrop = document.getElementById("drawer_backdrop");
+        if (show) {
+            drawer.classList.add("active");
+            backdrop.classList.add("active");
+            document.body.style.overflow = "hidden";
         } else {
-            inputMonto.style.border = '2px solid green';
-            inputMonto.style.color = '';
-            inputMonto.style.backgroundColor = '';
-            return true;
+            drawer.classList.remove("active");
+            backdrop.classList.remove("active");
+            document.body.style.overflow = "";
         }
     }
 
-    function confirmarAbono() {
-        if (!validarMonto(true)) return;
+    function actualizarModoMoneda() {
+        const esBs = document.getElementById('moneda_bs').checked;
+        const tasa = parseFloat(document.getElementById('tasa_dia_abono').value || 1);
+        const inputMonto = document.getElementById('monto_abono_input');
+        const labelMonto = document.getElementById('label_monto_dinamico');
+        const simbolo = document.getElementById('simbolo_moneda');
+        const cajaSelect = document.getElementById('abono_caja_select');
+
+        if (esBs) {
+            labelMonto.textContent = 'Monto a pagar (Bs)';
+            simbolo.textContent = 'Bs';
+            inputMonto.value = (saldoMaximoUSD * tasa).toFixed(2);
+            document.getElementById('conversion_info').style.display = 'block';
+            if (cajaSelect.value === 'Caja USD') cajaSelect.value = 'Caja Bs';
+        } else {
+            labelMonto.textContent = 'Monto a pagar ($)';
+            simbolo.textContent = '$';
+            inputMonto.value = saldoMaximoUSD.toFixed(2);
+            document.getElementById('conversion_info').style.display = 'none';
+            if (cajaSelect.value !== 'Caja USD') cajaSelect.value = 'Caja USD';
+        }
+        validarMontoDinamico();
+    }
+
+    function validarMontoDinamico() {
+        const inputMonto = document.getElementById('monto_abono_input');
+        const monto = parseFloat(inputMonto.value) || 0;
+        const esBs = document.getElementById('moneda_bs').checked;
+        const tasa = parseFloat(document.getElementById('tasa_dia_abono').value || 1);
+        
+        let montoUSD = esBs ? (monto / tasa) : monto;
+        
+        if (esBs) {
+            document.getElementById('monto_en_usd_equivalente').textContent = montoUSD.toFixed(2);
+        }
+
+        const alerta = document.getElementById('alerta_monto_max');
+        const btn = document.getElementById('btn_confirmar_abono');
+
+        if (montoUSD > (saldoMaximoUSD + 0.05)) {
+            alerta.style.display = 'block';
+            btn.disabled = true;
+            btn.classList.replace('btn-danger', 'btn-warning');
+        } else {
+            alerta.style.display = 'none';
+            btn.disabled = monto <= 0;
+            btn.classList.replace('btn-warning', 'btn-danger');
+        }
+    }
+
+    function iniciarProcesoAbono() {
+        const montoStr = document.getElementById("monto_abono_input").value;
+        const montoIngresado = parseFloat(montoStr) || 0;
+
+        if (montoIngresado <= 0) {
+            Swal.fire('⚠️ Atención', 'Por favor ingrese un monto válido.', 'warning');
+            return;
+        }
+
+        // Seguridad de Supervisor
+        solicitarPinSupervisor((pin, supervisor) => {
+            procesarAbonoSistema(pin, supervisor);
+        });
+    }
+
+    function procesarAbonoSistema(pin, supervisor) {
+        const btn = document.getElementById('btn_confirmar_abono');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AUTORIZANDO...';
 
         const cxp_id = document.getElementById('abono_cxp_id').value;
-        const monto = parseFloat(document.getElementById('abono_monto').value) || 0;
-        const caja = document.getElementById('abono_caja').value;
-        const tasa = parseFloat(document.getElementById('abono_tasa')?.value || 1) || 1;
-        const moneda = (caja === 'Caja Bs' || caja === 'Banco') ? 'Bs' : 'USD'; // ✅ CORREGIDO
-
-        if (!cxp_id) { alert('⚠️ Factura no seleccionada'); return; }
-        if (monto <= 0) { alert('⚠️ Ingrese un monto válido'); return; }
+        const montoIngresado = parseFloat(document.getElementById('monto_abono_input').value) || 0;
+        const esBs = document.getElementById('moneda_bs').checked;
+        const tasa = parseFloat(document.getElementById('tasa_dia_abono').value || 1);
+        const caja = document.getElementById('abono_caja_select').value;
+        
+        const montoUSD = esBs ? (montoIngresado / tasa) : montoIngresado;
+        const moneda = esBs ? 'Bs' : 'USD';
 
         fetch('/compras/abonar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 cxp_id: cxp_id,
-                monto_usd: monto,
+                monto_usd: montoUSD,
                 caja_origen: caja,
                 moneda: moneda,
-                tasa_bcv: tasa
+                tasa_bcv: tasa,
+                monto_real: montoIngresado,
+                supervisor_pin: pin // Enviamos el PIN para auditoría
             })
         })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    cerrarModal();
-                    alert('✅ Abono registrado correctamente');
-                    location.reload();
-                } else {
-                    alert('❌ Error: ' + data.message);
-                }
-            })
-            .catch(err => alert('❌ Error de conexión: ' + err));
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                toggleAbonoDrawer(false);
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Pago Exitoso!',
+                    text: `Se ha pagado $${montoUSD.toFixed(2)} correctamente.`,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire('❌ Error', data.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-lock me-2"></i> CONFIRMAR Y PROCESAR';
+            }
+        })
+        .catch(err => {
+            Swal.fire('❌ Error', 'Fallo de conexión o error del servidor', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-lock me-2"></i> CONFIRMAR Y PROCESAR';
+        });
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const buscador = document.getElementById("buscador_kalu");
+        if(buscador) {
+            buscador.addEventListener("keyup", function() {
+                const query = this.value.toLowerCase().trim();
+                const rows = document.querySelectorAll("table tbody tr");
+                rows.forEach(row => {
+                    row.style.display = row.textContent.toLowerCase().includes(query) ? "" : "none";
+                });
+            });
+        }
+    });
 </script>
 {% endblock %}

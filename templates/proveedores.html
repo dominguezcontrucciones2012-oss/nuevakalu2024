@@ -46,14 +46,18 @@
             </td>
             <td class="text-center">
               {% if prov.es_productor %}
-              <span class="badge bg-warning text-dark">🧀 Productor</span>
-              {% else %}
+              <div class="badge bg-warning text-dark mb-1 d-block"><i class="fas fa-cheese"></i> Quesero</div>
+              {% endif %}
+              {% if prov.es_obrero %}
+              <div class="badge bg-info text-dark d-block"><i class="fas fa-user-clock"></i> Personal</div>
+              {% endif %}
+              {% if not prov.es_productor and not prov.es_obrero %}
               <span class="text-muted">—</span>
               {% endif %}
             </td>
             <td class="text-center">
               <button class="btn btn-outline-primary btn-sm border-0"
-                onclick="abrirEditarProveedor({{ prov.id }}, '{{ prov.rif }}', '{{ prov.nombre }}', '{{ prov.telefono }}', '{{ prov.direccion }}', '{{ prov.vendedor_nombre }}', '{{ prov.vendedor_telefono }}', {{ 'true' if prov.es_productor else 'false' }})"
+                onclick="abrirEditarProveedor({{ prov.id }}, '{{ prov.rif }}', '{{ prov.nombre }}', '{{ prov.telefono }}', '{{ prov.direccion }}', '{{ prov.vendedor_nombre }}', '{{ prov.vendedor_telefono }}', {{ 'true' if prov.es_productor else 'false' }}, {{ 'true' if prov.es_obrero else 'false' }})"
                 data-bs-toggle="modal" data-bs-target="#modalEditarProveedor">
                 <i class="fas fa-edit"></i>
               </button>
@@ -111,11 +115,19 @@
               <input type="text" name="vendedor_telefono" class="form-control" />
             </div>
           </div>
-          <div class="form-check mt-2 mb-1">
-            <input class="form-check-input" type="checkbox" name="es_productor" id="es_productor" value="1">
-            <label class="form-check-label fw-bold text-warning" for="es_productor">
-              🧀 Es Productor (aparece en Libreta de Productores)
-            </label>
+          <div class="d-flex gap-4 mt-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="es_productor" id="es_productor" value="1">
+              <label class="form-check-label fw-bold text-warning" for="es_productor">
+                🧀 Es Productor Queso
+              </label>
+            </div>
+            <div class="form-check border-start ps-4">
+              <input class="form-check-input" type="checkbox" name="es_obrero" id="es_obrero" value="1">
+              <label class="form-check-label fw-bold text-info" for="es_obrero">
+                👷 Es Personal / Obrero
+              </label>
+            </div>
           </div>
         </div>
         <div class="modal-footer bg-light">
@@ -173,11 +185,19 @@
               <input type="text" name="vendedor_telefono" id="edit_vendedor_telefono" class="form-control" />
             </div>
           </div>
-          <div class="form-check mt-2 mb-1">
-            <input class="form-check-input" type="checkbox" name="es_productor" id="edit_es_productor" value="1">
-            <label class="form-check-label fw-bold text-warning" for="edit_es_productor">
-              🧀 Es Productor (aparece en Libreta de Productores)
-            </label>
+          <div class="d-flex gap-4 mt-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="es_productor" id="edit_es_productor" value="1">
+              <label class="form-check-label fw-bold text-warning" for="edit_es_productor">
+                🧀 Es Productor Queso
+              </label>
+            </div>
+            <div class="form-check border-start ps-4">
+              <input class="form-check-input" type="checkbox" name="es_obrero" id="edit_es_obrero" value="1">
+              <label class="form-check-label fw-bold text-info" for="edit_es_obrero">
+                👷 Es Personal / Obrero
+              </label>
+            </div>
           </div>
         </div>
         <div class="modal-footer bg-light">
@@ -194,7 +214,7 @@
 </div>
 
 <script>
-  function abrirEditarProveedor(id, rif, nombre, telefono, direccion, vendedor_nombre, vendedor_telefono, es_productor) {
+  function abrirEditarProveedor(id, rif, nombre, telefono, direccion, vendedor_nombre, vendedor_telefono, es_productor, es_obrero) {
     document.getElementById("edit_rif").value = rif;
     document.getElementById("edit_nombre").value = nombre;
     document.getElementById("edit_telefono").value = telefono;
@@ -202,6 +222,7 @@
     document.getElementById("edit_vendedor_nombre").value = vendedor_nombre;
     document.getElementById("edit_vendedor_telefono").value = vendedor_telefono;
     document.getElementById("edit_es_productor").checked = es_productor;
+    document.getElementById("edit_es_obrero").checked = es_obrero;
     document.getElementById("formEditarProveedor").action = "/editar_proveedor/" + id;
   }
 

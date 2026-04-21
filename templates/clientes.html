@@ -9,6 +9,34 @@
   </button>
 </div>
 
+<!-- RESUMEN CLIENTES COMPACTO -->
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+            <div class="card-body py-2 px-3 text-center">
+                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">TOTAL DEUDA CLIENTES</small>
+                <span class="fs-4 fw-bold text-danger">${{ "%.2f"|format(total_deuda|default(0)) }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-4 border-success h-100">
+            <div class="card-body py-2 px-3 text-center">
+                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">SALDOS A FAVOR (ADELANTOS)</small>
+                <span class="fs-4 fw-bold text-success">${{ "%.2f"|format(total_adelantos|default(0)) }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 border-start border-4 border-info h-100">
+            <div class="card-body py-2 px-3 text-center">
+                <small class="text-muted text-uppercase fw-bold d-block" style="font-size: 0.7rem;">SALDO NETO REAL</small>
+                <span class="fs-4 fw-bold text-dark">${{ "%.2f"|format((total_deuda or 0) - (total_adelantos or 0)) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ALERTAS DE CUMPLEAÑOS -->
 {% if cumpleaneros %}
 <div class="alert alert-warning shadow-sm border-0 mb-4">
@@ -53,7 +81,7 @@
             <td>
               {% if c.saldo_usd > 0 %}
               <span class="text-danger fw-bold fs-5">
-                ${{ "%.2f"|format(c.saldo_usd) }}
+                ${{ "%.2f"|format(c.saldo_usd|default(0)) }}
               </span>
               {% else %}
               <span class="text-success fw-bold">
@@ -62,21 +90,27 @@
               {% endif %}
             </td>
             <td class="text-center">
+              {% if not c.usuario %}
+              <a href="{{ url_for('usuarios.generar_acceso_cliente', cliente_id=c.id) }}" class="btn btn-outline-dark btn-sm border-0 me-2" title="Crear Acceso Portal">
+                <i class="fas fa-key"></i>
+              </a>
+              {% endif %}
+
               <!-- BOTÓN EDITAR -->
               <a href="/editar_cliente/{{ c.id }}" class="btn btn-outline-primary btn-sm border-0 me-2">
-                <i class="fas fa-edit"></i> Editar
+                <i class="fas fa-edit"></i>
               </a>
 
               <!-- BOTÓN BORRAR -->
               <a href="/eliminar_cliente/{{ c.id }}" class="btn btn-outline-danger btn-sm border-0"
                 onclick="return confirm('¿Seguro que quieres borrar a {{ c.nombre }}?')">
-                <i class="fas fa-trash-alt"></i> Borrar
+                <i class="fas fa-trash-alt"></i>
               </a>
 
               <!-- BOTÓN EDITAR PUNTOS (SIN VALIDACIÓN PARA QUE SALGA SIEMPRE) -->
               <button class="btn btn-outline-warning btn-sm border-0 ms-1"
                 onclick="abrirModalPuntos('{{ c.id }}', '{{ c.nombre }}', {{ c.puntos }})">
-                <i class="fas fa-star"></i> Puntos
+                <i class="fas fa-star"></i>
               </button>
             </td>
           </tr>

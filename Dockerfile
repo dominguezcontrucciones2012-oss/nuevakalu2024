@@ -14,9 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar todo el código
 COPY . .
 
-# Crear carpeta para la base de datos persistente
-RUN mkdir -p /data
+# Carpeta para la base de datos se maneja vía volumen /instace
 
 EXPOSE 5002
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", ":5002", "--workers", "1", "--threads", "8", "--timeout", "0", "--access-logfile", "-", "app:app"]

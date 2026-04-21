@@ -1,18 +1,23 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Cliente, HistorialPago, TasaBCV, MovimientoCaja, PagoReportado, ahora_ve
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import login_required, current_user
+from routes.decorators import staff_required
+from models import db, Cliente, HistorialPago, TasaBCV, MovimientoCaja, PagoReportado, PagoProductor, MovimientoProductor, ahora_ve
 from decimal import Decimal
 from datetime import datetime
+from utils import seguro_decimal
 from sqlalchemy import func
 from routes.contabilidad import registrar_asiento
 from routes.usuarios import crear_acceso_sistema
+import logging
+
+logger = logging.getLogger('KALU.clientes')
 
 clientes_bp = Blueprint('clientes', __name__)
 
 def aplicar_pago_a_ventas(cliente, monto_usd):
     from models import Venta
 
-    monto_restante = Decimal(str(monto_usd or 0))
+    monto_restante = seguro_decimal(monto_usd)
     facturas_aplicadas = []
 
     if monto_restante <= Decimal('0.00'):
@@ -27,7 +32,7 @@ def aplicar_pago_a_ventas(cliente, monto_usd):
         if monto_restante <= Decimal('0.00'):
             break
 
-        saldo_actual = Decimal(str(venta.saldo_pendiente_usd or 0))
+        saldo_actual = seguro_decimal(venta.saldo_pendiente_usd)
         if saldo_actual <= Decimal('0.00'):
             continue
 
@@ -43,9 +48,9 @@ def aplicar_pago_a_ventas(cliente, monto_usd):
 
         facturas_aplicadas.append({
             'venta_id': venta.id,
-            'abonado': float(abono),
-            'saldo_anterior': float(saldo_actual),
-            'saldo_nuevo': float(venta.saldo_pendiente_usd)
+            'abonado': abono,
+            'saldo_anterior': saldo_actual,
+            'saldo_nuevo': venta.saldo_pendiente_usd
         })
 
         monto_restante -= abono
@@ -60,7 +65,7 @@ def aplicar_pago_a_ventas(cliente, monto_usd):
     ).all()
 
     # ✅ CORRECCIÓN: sum() con Decimal('0.00') para evitar error 'int' object has no attribute 'quantize'
-    saldo_sumado = sum((Decimal(str(v.saldo_pendiente_usd or 0)) for v in ventas_fiadas), Decimal('0.00'))
+    saldo_sumado = sum((seguro_decimal(v.saldo_pendiente_usd) for v in ventas_fiadas), Decimal('0.00'))
     
     # Manejar saldos a favor (si el abono superó la deuda)
     if monto_restante > 0:
@@ -77,19 +82,38 @@ def aplicar_pago_a_ventas(cliente, monto_usd):
 
 # ========== LISTA DE CLIENTES ==========
 @clientes_bp.route('/clientes')
+@login_required
+@staff_required
 def lista_clientes():
     todos = Cliente.query.all()
     hoy = datetime.now()
     cumpleaneros = []
+    
+    total_deuda = Decimal('0.00')
+    total_adelantos = Decimal('0.00')
+    
     for c in todos:
+        s_usd = seguro_decimal(c.saldo_usd)
+        if s_usd > 0:
+            total_deuda += s_usd
+        elif s_usd < 0:
+            total_adelantos += abs(s_usd)
+            
         if c.fecha_nacimiento:
             fecha = c.fecha_nacimiento if hasattr(c.fecha_nacimiento, 'day') else None
             if fecha and fecha.day == hoy.day and fecha.month == hoy.month:
                 cumpleaneros.append(c.nombre)
-    return render_template('clientes.html', clientes=todos, cumpleaneros=cumpleaneros)
+                
+    return render_template('clientes.html', 
+                           clientes=todos, 
+                           cumpleaneros=cumpleaneros,
+                           total_deuda=seguro_decimal(total_deuda), 
+                           total_adelantos=seguro_decimal(total_adelantos))
 
 # ========== GUARDAR CLIENTE NUEVO ==========
 @clientes_bp.route('/guardar_cliente', methods=['POST'])
+@login_required
+@staff_required
 def guardar_cliente():
     nombre    = request.form.get('nombre', '').strip()
     cedula    = request.form.get('cedula', '').strip()
@@ -126,6 +150,7 @@ def guardar_cliente():
         crear_acceso_sistema(nuevo, 'cliente')
         
         db.session.commit()
+        logger.info(f"Cliente creado: {nombre} (Cédula: {cedula}) por {current_user.username}")
         return "<script>alert('✅ Cliente y Usuario guardados con éxito\\n🌟 ¡Bienvenido al Club del Vecino con 20 puntos!'); window.location.href='/clientes';</script>"
     except Exception as e:
         db.session.rollback()
@@ -133,6 +158,8 @@ def guardar_cliente():
 
 # ========== EDITAR CLIENTE ==========
 @clientes_bp.route('/editar_cliente/<int:id>')
+@login_required
+@staff_required
 def editar_cliente(id):
     cliente = db.session.get(Cliente, id)
     if not cliente:
@@ -140,6 +167,8 @@ def editar_cliente(id):
     return render_template('editar_cliente.html', cliente=cliente)
 
 @clientes_bp.route('/actualizar_cliente/<int:id>', methods=['POST'])
+@login_required
+@staff_required
 def actualizar_cliente(id):
     cliente = db.session.get(Cliente, id)
     if not cliente:
@@ -174,6 +203,7 @@ def actualizar_cliente(id):
         cliente.direccion = direccion or None
         cliente.fecha_nacimiento = f_nac
         db.session.commit()
+        logger.info(f"Cliente actualizado: {cliente.nombre} (ID: {id}) por {current_user.username}")
         return "<script>alert('Cliente actualizado con éxito'); window.location.href='/clientes';</script>"
     except Exception as e:
         db.session.rollback()
@@ -181,6 +211,8 @@ def actualizar_cliente(id):
 
 # ========== ELIMINAR CLIENTE ==========
 @clientes_bp.route('/eliminar_cliente/<int:id>')
+@login_required
+@staff_required
 def eliminar_cliente(id):
     try:
         from models import Venta, Pedido, PagoReportado, User
@@ -198,6 +230,7 @@ def eliminar_cliente(id):
             # 3. Eliminar el cliente
             db.session.delete(cliente)
             db.session.commit()
+            logger.warning(f"Cliente eliminado: {cliente.nombre} (ID: {id}) por {current_user.username}")
             flash('✅ Cliente eliminado correctamente. Sus ventas pasaron a ser de Consumidor Final.', 'success')
     except Exception as e:
         db.session.rollback()
@@ -206,14 +239,16 @@ def eliminar_cliente(id):
 
 # ========== MOROSOS ==========
 @clientes_bp.route('/morosos')
+@login_required
+@staff_required
 def vista_morosos():
     # Más robusto: Filtra clientes cuya deuda absoluta en USD sea mayor a 0.01
     morosos = Cliente.query.filter(
-        (func.abs(Cliente.saldo_usd) > 0.01) | (func.abs(Cliente.saldo_bs) > 0.1)
+        (func.abs(func.coalesce(Cliente.saldo_usd, 0)) > 0.01) | (func.abs(func.coalesce(Cliente.saldo_bs, 0)) > 0.1)
     ).all()
-    total_deuda_usd = sum(c.saldo_usd for c in morosos if c.saldo_usd > 0)
+    total_deuda_usd = sum(seguro_decimal(c.saldo_usd) for c in morosos if seguro_decimal(c.saldo_usd) > 0)
     tasa = TasaBCV.query.order_by(TasaBCV.fecha.desc()).first()
-    tasa_bcv = Decimal(str(tasa.valor)) if tasa else Decimal('0')
+    tasa_bcv = Decimal(str(tasa.valor)) if tasa and tasa.valor else Decimal('1.0')
     return render_template('morosos.html',
                            morosos=morosos,
                            total=total_deuda_usd,
@@ -221,6 +256,8 @@ def vista_morosos():
 
 # ========== REGISTRAR ABONO (CONECTADO A CAJA) ==========
 @clientes_bp.route('/clientes/abono/<int:id>', methods=['POST'])
+@login_required
+@staff_required
 def registrar_abono(id):
     try:
         cliente = Cliente.query.get_or_404(id)
@@ -233,14 +270,12 @@ def registrar_abono(id):
             return redirect(url_for('clientes.vista_morosos'))
 
         tasa_obj = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
-        tasa = Decimal(str(tasa_obj.valor)) if tasa_obj else Decimal('1.0')
+        tasa = Decimal(str(tasa_obj.valor)) if tasa_obj and tasa_obj.valor else Decimal('1.0')
 
-        if metodo == 'EFECTIVO_USD':
-            monto_usd = monto_input
-            monto_bs = monto_usd * tasa
-        else:
-            monto_bs = monto_input
-            monto_usd = monto_bs / tasa
+        # El backend recibe 'monto_usd' que ya fue convertido correctamente en el frontend,
+        # así que no dependemos del metodo para volver a dividirlo.
+        monto_usd = monto_input
+        monto_bs = monto_usd * tasa
 
         # --- SOLUCIÓN ATÓMICA ---
         monto_usd_dec = Decimal(str(monto_usd)).quantize(Decimal('0.01'))
@@ -300,32 +335,33 @@ def registrar_abono(id):
 
             registrar_asiento(
                 descripcion=f"Cobro de Deuda: {cliente.nombre} | {metodo} | Facturas: {facturas_txt}",
-                tasa=float(tasa),
+                tasa=tasa,
                 referencia_tipo='ABONO_CLIENTE',
                 referencia_id=cliente.id,
                 movimientos=[
                     {
                         'cuenta_codigo': cuenta_destino,
-                        'debe_usd': float(monto_usd) if es_usd else 0,
-                        'haber_usd': 0,
-                        'debe_bs': float(monto_bs) if not es_usd else 0,
-                        'haber_bs': 0
+                        'debe_usd': monto_usd, # ✅ Registrar siempre el equivalente USD
+                        'haber_usd': Decimal('0'),
+                        'debe_bs': monto_bs if not es_usd else Decimal('0'),
+                        'haber_bs': Decimal('0')
                     },
                     {
                         'cuenta_codigo': '1.1.02.01',
-                        'debe_usd': 0,
-                        'haber_usd': float(monto_usd),
-                        'debe_bs': 0,
-                        'haber_bs': float(monto_bs)
+                        'debe_usd': Decimal('0'),
+                        'haber_usd': monto_usd,
+                        'debe_bs': Decimal('0'),
+                        'haber_bs': monto_bs
                     }
                 ],
                 commit=False
             )
         except Exception as e:
-            print(f"⚠️ Error contable en abono (se continúa el proceso): {e}")
+            logger.error(f"Error contable en abono (se continúa el proceso): {e}")
 
         # ÚNICO COMMIT PARA TODO EL PROCESO
         db.session.commit()
+        logger.info(f"Abono registrado para cliente {cliente.nombre}: ${monto_usd} ({metodo})")
 
 
         saldo_nuevo = Decimal(str(cliente.saldo_usd or 0))
@@ -343,6 +379,8 @@ def registrar_abono(id):
 
 # ========== CREAR CLIENTE DESDE EL POS (AJAX) ==========
 @clientes_bp.route('/crear_cliente_pos', methods=['POST'])
+@login_required
+@staff_required
 def crear_cliente_pos():
     data = request.get_json() or {}
     try:
@@ -379,6 +417,7 @@ def crear_cliente_pos():
         crear_acceso_sistema(nuevo, 'cliente')
         
         db.session.commit()
+        logger.info(f"Cliente creado desde POS: {nombre} (Cédula: {cedula}) por {current_user.username}")
 
         return jsonify({'success': True, 'id': nuevo.id,
                         'nombre': nuevo.nombre, 'cedula': nuevo.cedula, 'puntos': 20})
@@ -389,6 +428,8 @@ def crear_cliente_pos():
 
 # ========== HISTORIAL DE ABONOS ==========
 @clientes_bp.route('/historial_abonos')
+@login_required
+@staff_required
 def historial_abonos():
     pagos = HistorialPago.query.order_by(HistorialPago.fecha.desc()).all()
     return render_template('historial_abonos.html', pagos=pagos)
@@ -396,6 +437,7 @@ def historial_abonos():
 # ========== EDITAR PUNTOS (SOLO ADMIN) ==========
 @clientes_bp.route('/actualizar_puntos/<int:id>', methods=['POST'])
 @login_required
+@staff_required
 def actualizar_puntos(id):
     if getattr(current_user, 'role', '').lower() != 'admin':
         return jsonify({'success': False,
@@ -414,6 +456,7 @@ def actualizar_puntos(id):
     try:
         cliente.puntos = nuevos_puntos
         db.session.commit()
+        logger.info(f"Puntos actualizados para cliente {cliente.nombre}: {nuevos_puntos} por {current_user.username}")
         return jsonify({'success': True,
                         'message': f'✅ Puntos de {cliente.nombre} actualizados a {nuevos_puntos}'})
     except Exception as e:
@@ -423,12 +466,13 @@ def actualizar_puntos(id):
 # ========== DETALLES DEUDA (AJAX) ==========
 @clientes_bp.route('/clientes/detalles_deuda/<int:id>')
 @login_required
+@staff_required
 def detalles_deuda(id):
     from models import Venta, HistorialPago, db
     
     # 1. Buscamos TODOS los abonos (Libro Diario / Reportados / Iniciales)
     pagos = HistorialPago.query.filter_by(cliente_id=id).all()
-    abono_total_disponible = float(sum(p.monto_usd for p in pagos)) if pagos else 0.0
+    abono_total_disponible = sum((p.monto_usd for p in pagos), Decimal('0.00'))
 
     # 2. Traemos todas las ventas con deuda, de orden viejo a nuevo
     ventas = Venta.query.filter(
@@ -440,12 +484,12 @@ def detalles_deuda(id):
     cambios_realizados = False
 
     for v in ventas:
-        total_v = float(v.total_usd or 0)
+        total_v = Decimal(str(v.total_usd or 0))
         
         if abono_total_disponible >= total_v:
             # El abono histórico cubre toda esta factura. Curamos el saldo fantasma.
-            if float(v.saldo_pendiente_usd) > 0:
-                v.saldo_pendiente_usd = 0
+            if Decimal(str(v.saldo_pendiente_usd or 0)) > 0:
+                v.saldo_pendiente_usd = Decimal('0.00')
                 cambios_realizados = True
             
             abono_total_disponible -= total_v
@@ -455,25 +499,28 @@ def detalles_deuda(id):
             pago_parcial = abono_total_disponible
             pendiente_real = total_v - pago_parcial
             
-            if abs(float(v.saldo_pendiente_usd or 0) - pendiente_real) > 0.01:
+            if abs(Decimal(str(v.saldo_pendiente_usd or 0)) - pendiente_real) > Decimal('0.01'):
                 v.saldo_pendiente_usd = pendiente_real
                 cambios_realizados = True
             
             abono_total_disponible = 0 
             
+            v_fecha = v.fecha.strftime('%d/%m/%Y %H:%M') if v.fecha else 'S/F'
             detalles.append({
                 'id':         v.id,
-                'fecha':      v.fecha.strftime('%d/%m/%Y %H:%M'),
-                'total_usd':  total_v,
-                'pagado_usd': round(pago_parcial, 2),
-                'pendiente':  round(pendiente_real, 2)
+                'fecha':      v_fecha,
+                'total_usd':  str(total_v.quantize(Decimal('0.01'))),
+                'pagado_usd': str((total_v - pendiente_real).quantize(Decimal('0.01'))),
+                'pendiente':  str(pendiente_real.quantize(Decimal('0.01'))) # String for API
             })
+            # Keep a decimal version for internal sum
+            v._pendiente_dec = pendiente_real
 
     if cambios_realizados:
         db.session.commit()
     
     # Alineamos el cliente general con la realidad de las facturas no pagadas
-    saldo_real_facturas = sum(d['pendiente'] for d in detalles)
+    saldo_real_facturas = sum((v._pendiente_dec for v in ventas if hasattr(v, '_pendiente_dec')), Decimal('0.00'))
     cliente = db.session.get(Cliente, id)
     if cliente:
         # Forzar a cero si es insignificante
@@ -484,7 +531,7 @@ def detalles_deuda(id):
         
         # Sincronizar saldo BS también
         tasa_obj = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
-        tasa = Decimal(str(tasa_obj.valor)) if tasa_obj else Decimal('1.0')
+        tasa = Decimal(str(tasa_obj.valor)) if tasa_obj and tasa_obj.valor else Decimal('1.0')
         cliente.saldo_bs = (cliente.saldo_usd * tasa).quantize(Decimal('0.01'))
         
         db.session.commit()
@@ -494,6 +541,8 @@ def detalles_deuda(id):
 
 # ========== DETALLE FACTURA (AJAX) ==========
 @clientes_bp.route('/clientes/detalle_factura/<int:venta_id>')
+@login_required
+@staff_required
 def detalle_factura(venta_id):
     from models import Venta, DetalleVenta
     venta    = Venta.query.get_or_404(venta_id)
@@ -501,16 +550,17 @@ def detalle_factura(venta_id):
 
     productos = [{
         'nombre':          d.producto.nombre,
-        'cantidad':        float(d.cantidad),
-        'precio_unitario': float(d.precio_unitario_usd),
-        'subtotal':        float(d.cantidad * d.precio_unitario_usd)
+        'cantidad':        str(Decimal(str(d.cantidad)).quantize(Decimal('0.001'))),
+        'precio_unitario': str(Decimal(str(d.precio_unitario_usd)).quantize(Decimal('0.01'))),
+        'subtotal':        str((Decimal(str(d.cantidad)) * Decimal(str(d.precio_unitario_usd))).quantize(Decimal('0.01')))
     } for d in detalles]
 
+    fecha_venta = venta.fecha.strftime('%d/%m/%Y %H:%M') if venta.fecha else 'S/F'
     return jsonify({
         'id':        venta.id,
-        'fecha':     venta.fecha.strftime('%d/%m/%Y %H:%M'),
+        'fecha':     fecha_venta,
         'cliente':   venta.cliente.nombre if venta.cliente else 'Consumidor Final',
-        'total_usd': float(venta.total_usd),
+        'total_usd': str(Decimal(str(venta.total_usd)).quantize(Decimal('0.01'))),
         'productos': productos
     })
 
@@ -532,10 +582,17 @@ def cambiar_estado_pago_reportado(pago_id):
     rol = (getattr(current_user, 'role', '') or '').lower()
     if rol not in ['admin', 'cajero', 'superadmin']:
         flash('⛔ No tienes permiso para cambiar el estado de pagos reportados.', 'danger')
-        return redirect(url_for('clientes.vista_morosos'))
+        return redirect(url_for('clientes.pagos_reportados'))
+
+    pago_id = request.form.get('pago_id')
+    nuevo_estado = request.form.get('estado')
+    
+    if not pago_id or not nuevo_estado:
+        flash("⚠️ Datos incompletos para actualizar el pago.", "warning")
+        return redirect(url_for('clientes.pagos_reportados'))
 
     pago = PagoReportado.query.get_or_404(pago_id)
-    nuevo_estado = (request.form.get('estado') or '').strip().lower()
+    pago.estado = nuevo_estado
 
     estados_validos = ['pendiente', 'aprobado', 'rechazado', 'revisado']
     if nuevo_estado not in estados_validos:
@@ -646,32 +703,33 @@ def cambiar_estado_pago_reportado(pago_id):
 
                 registrar_asiento(
                     descripcion=f"Pago reportado aprobado: {cliente.nombre} | {metodo}",
-                    tasa=float(tasa),
+                    tasa=tasa,
                     referencia_tipo='PAGO_REPORTADO',
                     referencia_id=pago.id,
                     movimientos=[
                         {
                             'cuenta_codigo': cuenta_destino,
-                            'debe_usd': float(monto_usd) if es_usd else 0,
-                            'haber_usd': 0,
-                            'debe_bs': float(monto_bs) if not es_usd else 0,
-                            'haber_bs': 0
+                            'debe_usd': monto_usd, # ✅ SIEMPRE registrar el equivalente USD para balancear
+                            'haber_usd': Decimal('0'),
+                            'debe_bs': monto_bs if not es_usd else Decimal('0'),
+                            'haber_bs': Decimal('0')
                         },
                         {
                             'cuenta_codigo': '1.1.02.01',
-                            'debe_usd': 0,
-                            'haber_usd': float(monto_usd),
-                            'debe_bs': 0,
-                            'haber_bs': float(monto_bs)
+                            'debe_usd': Decimal('0'),
+                            'haber_usd': monto_usd,
+                            'debe_bs': Decimal('0'),
+                            'haber_bs': monto_bs
                         }
                     ]
                 )
             except Exception as e:
-                print(f"⚠️ Error contable en pago reportado (no crítico): {e}")
+                logger.error(f"Error contable en pago reportado (no crítico): {e}")
 
         # Si cambia a pendiente o rechazado, solo cambiar estado
         pago.estado = nuevo_estado
         db.session.commit()
+        logger.info(f"Pago reportado ID {pago_id} marcado como {nuevo_estado} por {current_user.username}")
 
         flash(f'✅ Pago reportado #{pago.id} marcado como "{nuevo_estado}".', 'success')
 
@@ -680,6 +738,116 @@ def cambiar_estado_pago_reportado(pago_id):
         flash(f'❌ Error actualizando estado: {str(e)}', 'danger')
 
     return redirect(url_for('clientes.pagos_reportados'))
+
+@clientes_bp.route('/api/pagos_reportados/<int:pago_id>/estado', methods=['POST'])
+@login_required
+@staff_required
+def api_cambiar_estado_pago(pago_id):
+    nuevo_estado = request.json.get('estado')
+    if not nuevo_estado:
+        return jsonify({'success': False, 'message': 'Estado no proporcionado'}), 400
+    
+    pago = PagoReportado.query.get_or_404(pago_id)
+    if nuevo_estado == 'aprobado' and (pago.estado or '').lower() in ['aprobado', 'revisado']:
+         return jsonify({'success': False, 'message': 'Este pago ya fue aprobado.'})
+
+    try:
+        if nuevo_estado == 'aprobado':
+            tasa_obj = TasaBCV.query.order_by(TasaBCV.id.desc()).first()
+            tasa = Decimal(str(tasa_obj.valor)) if tasa_obj else Decimal('1.0')
+            monto_usd = Decimal(str(pago.monto_usd or 0))
+            monto_bs = Decimal(str(pago.monto_bs or 0))
+            metodo = (pago.metodo_pago or 'PAGO_MOVIL').strip().upper()
+
+            mapa_metodos = {
+                'PAGO MOVIL': 'PAGO_MOVIL', 'PAGO_MOVIL': 'PAGO_MOVIL',
+                'TRANSFERENCIA': 'PAGO_MOVIL', 'TRANSFERENCIA BS': 'PAGO_MOVIL',
+                'EFECTIVO BS': 'EFECTIVO_BS', 'EFECTIVO_BS': 'EFECTIVO_BS',
+                'EFECTIVO USD': 'EFECTIVO_USD', 'EFECTIVO_USD': 'EFECTIVO_USD',
+                'BIOPAGO': 'BIOPAGO', 'DEBITO': 'DEBITO', 'ZELLE': 'ZELLE', 'OTRO': 'OTRO'
+            }
+            metodo = mapa_metodos.get(metodo, metodo)
+            
+            if monto_usd <= 0 and monto_bs > 0: monto_usd = monto_bs / tasa
+            if monto_bs <= 0 and monto_usd > 0: monto_bs = monto_usd * tasa
+
+            # IDENTIFICAR SI ES CLIENTE O PRODUCTOR
+            if pago.cliente_id:
+                cliente = pago.cliente
+                db.session.add(HistorialPago(
+                    cliente_id=cliente.id, monto_usd=monto_usd, monto_bs=monto_bs,
+                    tasa_dia=tasa, metodo_pago=metodo, fecha=ahora_ve()
+                ))
+                aplicar_pago_a_ventas(cliente, monto_usd)
+                cliente.saldo_bs = (cliente.saldo_usd or 0) * tasa
+                entidad_nombre = cliente.nombre
+                cuenta_asiento_cliente = '1.1.02.01' # Cuentas por Cobrar
+            elif pago.proveedor_id:
+                proveedor = pago.proveedor
+                # El productor está "abonando" (pagando su deuda si tiene compra en el POS o devolviendo adelanto)
+                # O simplemente es un abono a su cuenta
+                db.session.add(PagoProductor(
+                    proveedor_id=proveedor.id, monto_usd=monto_usd, 
+                    metodo=metodo, referencia=pago.referencia, 
+                    descripcion=f"Abono reportado portal: {pago.observacion or ''}",
+                    fecha=ahora_ve()
+                ))
+                # Movimiento de Haber (aumenta saldo a favor del productor)
+                db.session.add(MovimientoProductor(
+                    proveedor_id=proveedor.id, tipo='ABONO',
+                    descripcion=f"[DEBUG CALU] Abono Portal | Ref: {pago.referencia or ''}",
+                    haber=monto_usd, 
+                    monto_usd=monto_usd,
+                    saldo_momento=(proveedor.saldo_pendiente_usd + monto_usd),
+                    fecha=ahora_ve()
+                ))
+                proveedor.saldo_pendiente_usd = (proveedor.saldo_pendiente_usd or Decimal('0')) + monto_usd
+                entidad_nombre = f"PROD: {proveedor.nombre}"
+                cuenta_asiento_cliente = '2.1.01.01' # Cuentas por Pagar (Pasivo aumenta)
+            else:
+                return jsonify({'success': False, 'message': 'El pago no tiene ente asociado.'})
+
+            # REGISTRO EN CAJA
+            mapa_caja = {
+                'EFECTIVO_USD': ('Caja USD', monto_usd),
+                'EFECTIVO_BS':  ('Caja Bs',  monto_bs),
+                'PAGO_MOVIL':   ('Banco',    monto_bs),
+                'BIOPAGO':      ('Banco',    monto_bs),
+                'DEBITO':       ('Banco',    monto_bs),
+                'ZELLE':        ('Zelle',    monto_usd),
+            }
+            tipo_caja, monto_caja = mapa_caja.get(metodo, ('Banco', monto_bs))
+            db.session.add(MovimientoCaja(
+                fecha=ahora_ve(), tipo_movimiento='INGRESO', tipo_caja=tipo_caja,
+                categoria='Cobro' if pago.cliente_id else 'Abono Productor', monto=monto_caja, tasa_dia=tasa,
+                descripcion=f"Aprobado (POS): {entidad_nombre} | Ref: {pago.referencia or ''}",
+                modulo_origen='PagosReportados', referencia_id=pago.id, user_id=current_user.id
+            ))
+            
+            # ASIENTO CONTABLE
+            try:
+                mapa_cuentas = {
+                    'EFECTIVO_USD': '1.1.01.01', 'EFECTIVO_BS': '1.1.01.02',
+                    'PAGO_MOVIL': '1.1.01.03', 'BIOPAGO': '1.1.01.04', 'DEBITO': '1.1.01.05'
+                }
+                cuenta_destino = mapa_cuentas.get(metodo, '1.1.01.03')
+                registrar_asiento(
+                    descripcion=f"Aprobado (POS): {entidad_nombre} | {metodo}",
+                    tasa=tasa, referencia_tipo='PAGO_REPORTADO', referencia_id=pago.id,
+                    movimientos=[
+                        {'cuenta_codigo': cuenta_destino, 'debe_usd': monto_usd, 'haber_usd': 0, 'debe_bs': monto_bs if metodo != 'EFECTIVO_USD' else 0, 'haber_bs': 0},
+                        {'cuenta_codigo': cuenta_asiento_cliente, 'debe_usd': 0, 'haber_usd': monto_usd, 'debe_bs': 0, 'haber_bs': monto_bs}
+                    ]
+                )
+            except Exception as ex: logger.error(f"Error contable POS: {ex}")
+
+        pago.estado = nuevo_estado
+        db.session.commit()
+        return jsonify({'success': True, 'message': f'Pago marcado como {nuevo_estado}.'})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error aprobando pago")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @clientes_bp.route('/pagos_reportados/<int:pago_id>/eliminar', methods=['POST'])
 @login_required
@@ -706,10 +874,11 @@ def eliminar_pago_reportado(pago_id):
                 try:
                     os.remove(file_path)
                 except Exception as e:
-                    print(f"⚠️ No se pudo eliminar la imagen física: {e}")
+                    logger.error(f"No se pudo eliminar la imagen física: {e}")
                     
         db.session.delete(pago)
         db.session.commit()
+        logger.warning(f"Pago reportado eliminado: ID {pago_id} por {current_user.username}")
         flash(f'🗑️ Pago reportado #{pago_id} y su imagen eliminados de la base de datos.', 'success')
     except Exception as e:
         db.session.rollback()

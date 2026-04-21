@@ -167,12 +167,14 @@ function verDetallesVenta(id) {
 
         let html = '';
         res.forEach(d => {
-            let subtotal = (d.cantidad * d.precio_unitario).toFixed(2);
+            const p_unit = parseFloat(d.precio_unitario) || 0;
+            const cant = parseFloat(d.cantidad) || 0;
+            const subtotalNum = p_unit * cant;
             html += `<tr>
                 <td><i class="fas fa-tag text-muted me-2"></i>${d.nombre}</td>
-                <td class="text-center">${d.cantidad}</td>
-                <td class="text-end">$${d.precio_unitario.toFixed(2)}</td>
-                <td class="text-end fw-bold">$${subtotal}</td>
+                <td class="text-center">${(parseFloat(cant) || 0).toFixed(2)}</td>
+                <td class="text-end">$${(parseFloat(p_unit) || 0).toFixed(2)}</td>
+                <td class="text-end fw-bold">$${(parseFloat(subtotalNum) || 0).toFixed(2)}</td>
             </tr>`;
         });
         document.getElementById('tabla_detalles_cuerpo').innerHTML = html;

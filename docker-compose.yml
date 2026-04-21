@@ -11,7 +11,7 @@ services:
       # ✅ Monta tu base de datos local directamente en /app/instance/
       # Así Docker y tu app local SIEMPRE usan la misma BD y los mismos usuarios
       # ✅ Usa la base de datos que sí tiene tus datos (la de la carpeta instance)
-      - ./instance/kalu_master.db:/app/instance/kalu_master.db
+      - ./instance:/app/instance
     depends_on: []
 
   cloudflared_real:

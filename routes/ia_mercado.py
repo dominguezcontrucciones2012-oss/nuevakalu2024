@@ -3,6 +3,7 @@ from models import Producto, Venta, Cliente, db, MovimientoCaja
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from decimal import Decimal
+from utils import seguro_decimal
 from flask_login import login_required, current_user
 
 ia_mercado_bp = Blueprint('ia_mercado', __name__)
@@ -30,12 +31,12 @@ def index():
 
     # Convertimos cada movimiento a USD dividiendo entre su tasa
     total_caja_hoy = sum(
-        float(m.monto) / float(m.tasa_dia)
+        (seguro_decimal(m.monto) / seguro_decimal(m.tasa_dia)).quantize(Decimal('0.01'))
         for m in movimientos_hoy
-        if m.tasa_dia and float(m.tasa_dia) > 0
+        if m.tasa_dia and m.tasa_dia > 0
     )
 
-    descuadre = float(total_ventas_hoy) - float(total_caja_hoy)
+    descuadre = seguro_decimal(total_ventas_hoy) - seguro_decimal(total_caja_hoy)
 
     informe_contable = {
         'ventas':    total_ventas_hoy,
@@ -106,12 +107,12 @@ def ia_ajuste_contable():
     try:
         registrar_asiento(
             descripcion="IA: Ajuste automático por diferencia de cambio/redondeo",
-            tasa=1.0,
+            tasa=Decimal('1.0'),
             referencia_tipo='AJUSTE_IA',
             referencia_id=0,
             movimientos=[
-                {'cuenta_codigo': '5.1.01.01', 'debe_usd': 1.0, 'haber_usd': 0, 'debe_bs': 0, 'haber_bs': 0},
-                {'cuenta_codigo': '1.1.01.01', 'debe_usd': 0, 'haber_usd': 1.0, 'debe_bs': 0, 'haber_bs': 0},
+                {'cuenta_codigo': '5.1.01.01', 'debe_usd': Decimal('1.0'), 'haber_usd': Decimal('0'), 'debe_bs': Decimal('0'), 'haber_bs': Decimal('0')},
+                {'cuenta_codigo': '1.1.01.01', 'debe_usd': Decimal('0'), 'haber_usd': Decimal('1.0'), 'debe_bs': Decimal('0'), 'haber_bs': Decimal('0')},
             ]
         )
         db.session.commit()
