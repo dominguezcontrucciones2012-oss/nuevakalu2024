@@ -40,13 +40,9 @@ def allowed_file(filename):
 @portal_bp.route('/mi_deuda')
 @login_required
 def mi_deuda():
-    if current_user.role != 'cliente':
-        flash('⛔ No tienes permiso para entrar al portal de clientes.', 'danger')
-        return redirect(url_for('auth.ingresar'))
-
     if not current_user.cliente_id or not current_user.cliente:
-        flash('⚠️ Tu usuario no está vinculado a ningún cliente.', 'warning')
-        return redirect(url_for('auth.ingresar'))
+        flash('⚠️ Tu usuario no está vinculado a ningún cliente. Contacta al administrador.', 'warning')
+        return redirect(url_for('index'))
 
     cliente = current_user.cliente
 
@@ -84,7 +80,7 @@ def mi_deuda():
 def reportar_pago():
     if current_user.role not in ['cliente', 'productor']:
         flash('⛔ No tienes permiso para reportar pagos.', 'danger')
-        return redirect(url_for('auth.ingresar'))
+        return redirect(url_for('index'))
 
     # Detectar el ente que reporta
     cliente_id = None
@@ -94,13 +90,13 @@ def reportar_pago():
     if current_user.role == 'cliente':
         if not current_user.cliente_id:
             flash('⚠️ Tu usuario no está vinculado a ningún cliente.', 'warning')
-            return redirect(url_for('auth.ingresar'))
+            return redirect(url_for('index'))
         cliente_id = current_user.cliente_id
         redirect_target = 'portal.mi_deuda'
     else: # productor
         if not current_user.proveedor_id:
             flash('⚠️ Tu usuario no está vinculado a ningún productor.', 'warning')
-            return redirect(url_for('auth.ingresar'))
+            return redirect(url_for('index'))
         proveedor_id = current_user.proveedor_id
         redirect_target = 'portal.mi_libreta'
 
@@ -180,17 +176,17 @@ def reportar_pago():
 def mi_libreta():
     if current_user.role != 'productor':
         flash('⛔ No tienes permiso para entrar al portal de productores.', 'danger')
-        return redirect(url_for('auth.ingresar'))
+        return redirect(url_for('index'))
 
     if not current_user.proveedor_id or not current_user.proveedor:
         flash('⚠️ Tu usuario no está vinculado a ningún productor.', 'warning')
-        return redirect(url_for('auth.ingresar'))
+        return redirect(url_for('index'))
 
     proveedor = current_user.proveedor
 
     if not proveedor.es_productor:
         flash('⚠️ Este usuario está vinculado a un proveedor, pero no está marcado como productor.', 'warning')
-        return redirect(url_for('auth.ingresar'))
+        return redirect(url_for('index'))
 
     movimientos = MovimientoProductor.query.filter_by(
         proveedor_id=proveedor.id
