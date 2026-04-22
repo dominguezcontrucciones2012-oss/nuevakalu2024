@@ -402,7 +402,9 @@ def mi_perfil():
             current_user.password = generate_password_hash(password)
             
         db.session.commit()
-        return render_template('mi_perfil.html')
+        flash('✅ Perfil actualizado correctamente.', 'success')
+        
+    return render_template('mi_perfil.html')
 
 @portal_bp.route('/eliminar_pago_reportado/<int:id>', methods=['POST'])
 @login_required
