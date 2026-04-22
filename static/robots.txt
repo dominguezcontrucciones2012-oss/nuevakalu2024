@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /mi_deuda
+Disallow: /mi_libreta
+Disallow: /pos
+Disallow: /admin
+Disallow: /usuarios
+Disallow: /reportes
+Disallow: /historial_ventas
+Disallow: /contabilidad
+Disallow: /herramientas
+Disallow: /google819d8ed7e44847e4.html
