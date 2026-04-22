@@ -140,6 +140,10 @@ def internal_error(error):
     log.error(traceback.format_exc())
     db.session.rollback()
     return render_template('500.html'), 500
+    
+@app.route('/google819d8ed7e44847e4.html')
+def google_verification():
+    return "google-site-verification: google819d8ed7e44847e4.html"
 
 @app.route('/')
 def index():

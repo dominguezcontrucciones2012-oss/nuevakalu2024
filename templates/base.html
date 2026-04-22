@@ -365,42 +365,57 @@
   </style>
   {% endif %}
 
-  <div class="sidebar">
+    <div class="sidebar">
     <img src="/static/logo_antigravity.png" alt="KALUNEVA2024" class="logo-img">
 
-    <div class="menu-label">Módulo de Ventas</div>
-    <a href="/pos"><i class="fas fa-cash-register me-2"></i> PUNTO DE VENTA</a>
-    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
-    <a href="/historial_ventas"><i class="fas fa-receipt me-2"></i> HISTORIAL VENTAS</a>
-    <a href="/clientes"><i class="fas fa-users me-2"></i> CLIENTES</a>
-    {% endif %}
-    <a href="/morosos"><i class="fas fa-user-clock me-2"></i> CUENTAS X COBRAR</a>
+    {% if current_user.role in ['admin', 'dueno', 'supervisor', 'cajero'] %}
+        <div class="menu-label">Módulo de Ventas</div>
+        <a href="/pos"><i class="fas fa-cash-register me-2"></i> PUNTO DE VENTA</a>
+        
+        {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
+        <a href="/historial_ventas"><i class="fas fa-receipt me-2"></i> HISTORIAL VENTAS</a>
+        <a href="/clientes"><i class="fas fa-users me-2"></i> CLIENTES</a>
+        {% endif %}
+        <a href="/morosos"><i class="fas fa-user-clock me-2"></i> CUENTAS X COBRAR</a>
 
-    <div class="menu-label">Inventario y Compras</div>
-    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
-    <a href="/inventario"><i class="fas fa-boxes me-2"></i> INVENTARIO</a>
-    {% endif %}
-    <a href="/compras"><i class="fas fa-shopping-cart me-2"></i> CARGA DE COMPRAS</a>
-    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
-    <a href="/cuentas_por_pagar"><i class="fas fa-file-invoice-dollar me-2"></i> CUENTAS X PAGAR</a>
-    <a href="/proveedores"><i class="fas fa-truck me-2"></i> PROVEEDORES</a>
+        <div class="menu-label">Inventario y Compras</div>
+        {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
+        <a href="/inventario"><i class="fas fa-boxes me-2"></i> INVENTARIO</a>
+        {% endif %}
+        <a href="/compras"><i class="fas fa-shopping-cart me-2"></i> CARGA DE COMPRAS</a>
+        {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
+        <a href="/cuentas_por_pagar"><i class="fas fa-file-invoice-dollar me-2"></i> CUENTAS X PAGAR</a>
+        <a href="/proveedores"><i class="fas fa-truck me-2"></i> PROVEEDORES</a>
+        {% endif %}
+
+        <div class="menu-label">Reportes y Caja</div>
+        <a href="/reporte_cierre"><i class="fas fa-chart-line me-2"></i> CIERRE DIARIO</a>
+        {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
+        <a href="/reportes"><i class="fas fa-chart-bar me-2"></i> ANÁLISIS Y UTILIDAD</a>
+        <a href="{{ url_for('caja.registrar_gasto') }}" class="gasto-link">
+        <i class="fas fa-money-bill-wave me-2"></i> REGISTRAR GASTOS / PAGOS
+        </a>
+        <a href="/contabilidad"><i class="fas fa-book me-2"></i> MOVIMIENTOS CAJA</a>
+        <a href="/ia-mercado"><i class="fas fa-robot me-2"></i> IA MERCADO</a>
+        {% endif %}
+
+        <div class="menu-label">Productores</div>
+        <a href="{{ url_for('productores.libreta') }}">
+        <i class="fas fa-book-open me-2"></i> LIBRETA QUESO
+        </a>
     {% endif %}
 
-    <div class="menu-label">Reportes y Caja</div>
-    <a href="/reporte_cierre"><i class="fas fa-chart-line me-2"></i> CIERRE DIARIO</a>
-    {% if current_user.role in ['admin', 'dueno', 'supervisor'] %}
-    <a href="/reportes"><i class="fas fa-chart-bar me-2"></i> ANÁLISIS Y UTILIDAD</a>
-    <a href="{{ url_for('caja.registrar_gasto') }}" class="gasto-link">
-      <i class="fas fa-money-bill-wave me-2"></i> REGISTRAR GASTOS / PAGOS
-    </a>
-    <a href="/contabilidad"><i class="fas fa-book me-2"></i> MOVIMIENTOS CAJA</a>
-    <a href="/ia-mercado"><i class="fas fa-robot me-2"></i> IA MERCADO</a>
+    {% if current_user.role == 'cliente' %}
+        <div class="menu-label">Mi Cuenta</div>
+        <a href="{{ url_for('portal.mi_deuda') }}"><i class="fas fa-file-invoice-dollar me-2"></i> MI DEUDA</a>
+        <a href="{{ url_for('portal.mi_perfil') }}"><i class="fas fa-user-circle me-2"></i> MI PERFIL</a>
     {% endif %}
 
-    <div class="menu-label">Productores</div>
-    <a href="{{ url_for('productores.libreta') }}">
-      <i class="fas fa-book-open me-2"></i> LIBRETA QUESO
-    </a>
+    {% if current_user.role == 'productor' %}
+        <div class="menu-label">Mi Libreta</div>
+        <a href="{{ url_for('portal.mi_libreta') }}"><i class="fas fa-book-open me-2"></i> MI LIBRETA</a>
+        <a href="{{ url_for('portal.mi_perfil') }}"><i class="fas fa-user-circle me-2"></i> MI PERFIL</a>
+    {% endif %}
 
     {% if current_user.role in ['admin', 'dueno'] %}
     <div class="menu-label" style="color: #f39c12;">Marketing y Portal</div>
