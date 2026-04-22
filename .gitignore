@@ -11,7 +11,7 @@ venv/
 env/
 
 # Environment variables (Temporarily allowed for Cloud Run)
-# .env 
+.env 
 
 # Database (Temporarily allowed for Cloud Run)
 # instance/

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, session
+from flask import Flask, render_template, redirect, url_for, flash, request, session, send_from_directory
 from models import db, TasaBCV, Producto, LiquidacionCiudad, Proveedor, MovimientoProductor, ahora_ve, hoy_ve, User
 from decimal import Decimal
 from sqlalchemy import func, desc
@@ -144,6 +144,10 @@ def internal_error(error):
 @app.route('/google819d8ed7e44847e4.html')
 def google_verification():
     return "google-site-verification: google819d8ed7e44847e4.html"
+
+@app.route('/robots.txt')
+def robots_txt():
+    return send_from_directory(app.static_folder, 'robots.txt')
 
 @app.route('/')
 def index():
