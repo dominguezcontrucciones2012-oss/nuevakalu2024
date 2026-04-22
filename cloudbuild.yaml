@@ -1,0 +1,14 @@
+steps:
+  # 1. Construir la imagen Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/nuevakalu:$COMMIT_SHA', '-t', 'gcr.io/$PROJECT_ID/nuevakalu:latest', '.']
+
+  # 2. Subir la imagen a Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/nuevakalu:$COMMIT_SHA']
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/nuevakalu:latest']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
