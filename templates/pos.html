@@ -327,17 +327,31 @@
       </div>
       
       <div id="display_vuelto" class="mt-3 p-2 rounded-3 text-center d-none" style="background: rgba(0,0,0,0.3);">
-        <div class="small text-info fw-bold text-uppercase mb-1">Entregar Vuelto:</div>
+        <div class="small text-info fw-bold text-uppercase mb-2">Resumen del Vuelto:</div>
+        
+        <div class="row g-2 mb-3">
+          <div class="col-12">
+            <div class="p-2 rounded bg-dark border border-secondary">
+              <label class="small text-white-50 d-block mb-1">¿Cuánto dará en DÓLARES?</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-success border-success text-white fw-bold">$</span>
+                <input type="number" id="vuelto_entregar_usd" class="form-control form-control-sm fw-bold text-end" placeholder="0.00" oninput="calcularVueltoInteligente()">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="row">
           <div class="col-6 border-end border-secondary border-opacity-25">
             <div class="h4 fw-bold text-white mb-0" id="res_vuelto_usd">$0.00</div>
-            <small class="text-white-50">En Dólares</small>
+            <small class="text-white-50">Vuelto Total</small>
           </div>
           <div class="col-6">
-            <div class="h4 fw-bold text-info mb-0" id="res_vuelto_bs">Bs. 0.00</div>
-            <small class="text-white-50">En Bolívares</small>
+            <div class="h4 fw-bold text-warning mb-0" id="res_resto_bs">Bs. 0.00</div>
+            <small class="text-white-50">Resto en Bs</small>
           </div>
         </div>
+        <div class="mt-2 small text-info opacity-75" id="info_vuelto_mixto"></div>
       </div>
       <div class="mt-2">
         <button class="btn btn-sm btn-info w-100 fw-bold" onclick="aplicarBilleteComoPago()">
@@ -1688,14 +1702,24 @@
   function calcularVueltoInteligente() {
     const billete = parseFloat(document.getElementById("vuelto_billete_usd").value) || 0;
     const cobrar = parseFloat(document.getElementById("vuelto_monto_cobrar").value) || 0;
+    const darUsd = parseFloat(document.getElementById("vuelto_entregar_usd").value) || 0;
     const display = document.getElementById("display_vuelto");
     
     if (billete > cobrar) {
-      const vuelto_usd = billete - cobrar;
-      const vuelto_bs = vuelto_usd * tasa_dia;
+      const vuelto_total_usd = billete - cobrar;
+      const resto_usd = vuelto_total_usd - darUsd;
+      const resto_bs = Math.max(0, resto_usd * tasa_dia);
       
-      document.getElementById("res_vuelto_usd").innerText = "$" + vuelto_usd.toFixed(2);
-      document.getElementById("res_vuelto_bs").innerText = "Bs. " + vuelto_bs.toFixed(2);
+      document.getElementById("res_vuelto_usd").innerText = "$" + vuelto_total_usd.toFixed(2);
+      document.getElementById("res_resto_bs").innerText = "Bs. " + resto_bs.toFixed(2);
+      
+      const info = document.getElementById("info_vuelto_mixto");
+      if (darUsd > 0) {
+        info.innerText = `✅ Entrega $${darUsd.toFixed(2)} y el resto en Bs.`;
+      } else {
+        info.innerText = "💡 Si no tiene dólares sueltos, puede darlo todo en Bs.";
+      }
+      
       display.classList.remove("d-none");
     } else {
       display.classList.add("d-none");
