@@ -165,6 +165,16 @@ function procesarVenta(tipo) {
   const pTr = parseFloat(document.getElementById("pago_debito")?.value) || 0;
   const pBio = parseFloat(document.getElementById("pago_bio")?.value) || 0;
 
+  // 🛡️ VALIDACIÓN DE SEGURIDAD KALU: Evitar deudas anónimas
+  const totalPagadoUsd = pUsd + ((pBs + pPm + pTr + pBio) / current_tasa);
+  const faltaDinero = (totalVenta - totalPagadoUsd) > 0.01;
+  const clienteId = document.getElementById("cliente_id").value;
+
+  if (faltaDinero && (!clienteId || clienteId === "" || clienteId === "0")) {
+    alert("⚠️ ¡OPERACIÓN BLOQUEADA!\n\nEsta venta genera una DEUDA y NO ha seleccionado un cliente.\n\nPor favor, busque un cliente o créelo antes de continuar.");
+    return;
+  }
+
   const safeUUID = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
       return crypto.randomUUID();

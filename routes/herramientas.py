@@ -140,3 +140,26 @@ def borrar_venta(venta_id):
         flash(f"❌ Error al borrar venta: {str(e)}", "danger")
 
     return redirect(url_for('herramientas.panel_herramientas'))
+@herramientas_bp.route('/herramientas/baul_huerfanos')
+@login_required
+@solo_dueno
+def baul_huerfanos():
+    from datetime import datetime, timedelta
+    import pytz
+    VE_TZ = pytz.timezone('America/Caracas')
+    limite_7_dias = datetime.now(VE_TZ) - timedelta(days=7)
+    
+    # Buscar todas las ventas fiadas sin cliente
+    huerfanas_todas = Venta.query.filter(Venta.cliente_id == None, Venta.saldo_pendiente_usd > 0).all()
+    
+    viejas = []
+    total_viejo = Decimal('0.00')
+    
+    for v in huerfanas_todas:
+        v_fecha = v.fecha
+        if v_fecha.tzinfo is None: v_fecha = VE_TZ.localize(v_fecha)
+        if v_fecha <= limite_7_dias:
+            viejas.append(v)
+            total_viejo += Decimal(str(v.saldo_pendiente_usd))
+            
+    return render_template('baul_huerfanos.html', ventas=viejas, total=total_viejo)

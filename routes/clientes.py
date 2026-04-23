@@ -243,6 +243,11 @@ def eliminar_cliente(id):
 @staff_required
 def vista_morosos():
     from models import Venta
+    from datetime import datetime, timedelta
+    import pytz
+    
+    VE_TZ = pytz.timezone('America/Caracas')
+    limite_7_dias = datetime.now(VE_TZ) - timedelta(days=7)
     
     # 1. Clientes conocidos con deuda
     morosos = Cliente.query.filter(
@@ -252,21 +257,27 @@ def vista_morosos():
     # 2. CALCULO REAL: Sumamos TODAS las facturas con saldo pendiente (con o sin cliente)
     total_real_ventas = db.session.query(func.sum(Venta.saldo_pendiente_usd)).filter(Venta.saldo_pendiente_usd > 0).scalar() or Decimal('0.00')
     
-    # 3. Detectar deudas huérfanas (sin cliente_id)
-    deuda_huerfana = db.session.query(func.sum(Venta.saldo_pendiente_usd)).filter(Venta.saldo_pendiente_usd > 0, Venta.cliente_id == None).scalar() or Decimal('0.00')
+    # 3. Detectar deudas huérfanas RECIENTES (Últimos 7 días)
+    huerfanas_todas = Venta.query.filter(Venta.saldo_pendiente_usd > 0, Venta.cliente_id == None).all()
+    
+    deuda_huerfana_reciente = Decimal('0.00')
+    for v in huerfanas_todas:
+        v_fecha = v.fecha
+        if v_fecha.tzinfo is None: v_fecha = VE_TZ.localize(v_fecha)
+        if v_fecha > limite_7_dias:
+            deuda_huerfana_reciente += Decimal(str(v.saldo_pendiente_usd))
     
     tasa = TasaBCV.query.order_by(TasaBCV.fecha.desc()).first()
     tasa_bcv = Decimal(str(tasa.valor)) if tasa and tasa.valor else Decimal('1.0')
     
-    # Inyectar la deuda huérfana como un "cliente" ficticio para que aparezca en la lista
-    if deuda_huerfana > 1:
-        # Creamos un objeto temporal para que el template lo pinte
+    # Inyectar SOLO la deuda huérfana RECIENTE en la lista
+    if deuda_huerfana_reciente > 1:
         class OrphanClient:
             id = 0
-            nombre = "⚠️ FACTURAS SIN ASIGNAR (IDENTIFICAR)"
-            telefono = "Ver detalles ->"
-            ultima_compra = "Varias"
-            saldo_usd = deuda_huerfana
+            nombre = "⚠️ DEUDAS SIN NOMBRE (ÚLTIMOS 7 DÍAS)"
+            telefono = "Identificar pronto ->"
+            ultima_compra = "Reciente"
+            saldo_usd = deuda_huerfana_reciente
             
         morosos.insert(0, OrphanClient())
 
@@ -497,10 +508,22 @@ def detalles_deuda(id):
 
     # 2. Traemos todas las ventas con deuda, de orden viejo a nuevo
     if id == 0:
-        ventas = Venta.query.filter(
+        from datetime import datetime, timedelta
+        import pytz
+        VE_TZ = pytz.timezone('America/Caracas')
+        limite_7_dias = datetime.now(VE_TZ) - timedelta(days=7)
+        
+        todas_huerfanas = Venta.query.filter(
             Venta.cliente_id == None,
             Venta.saldo_pendiente_usd > 0
         ).order_by(Venta.fecha.asc()).all()
+        
+        ventas = []
+        for v in todas_huerfanas:
+            v_fecha = v.fecha
+            if v_fecha.tzinfo is None: v_fecha = VE_TZ.localize(v_fecha)
+            if v_fecha > limite_7_dias:
+                ventas.append(v)
     else:
         ventas = Venta.query.filter(
             Venta.cliente_id == id,
