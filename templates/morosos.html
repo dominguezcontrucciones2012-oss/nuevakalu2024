@@ -425,7 +425,8 @@
     const modal = new bootstrap.Modal(document.getElementById("modalFacturas"));
     modal.show();
 
-    fetch("/clientes/detalles_deuda/" + id)
+    const url = (id == '0') ? "/clientes/detalles_deuda/0" : "/clientes/detalles_deuda/" + id;
+    fetch(url)
       .then(r => r.json())
       .then(data => {
         document.getElementById("facturas_loading").style.display = "none";

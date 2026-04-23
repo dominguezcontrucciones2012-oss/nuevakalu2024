@@ -242,16 +242,37 @@ def eliminar_cliente(id):
 @login_required
 @staff_required
 def vista_morosos():
-    # Más robusto: Filtra clientes cuya deuda absoluta en USD sea mayor a 0.01
+    from models import Venta
+    
+    # 1. Clientes conocidos con deuda
     morosos = Cliente.query.filter(
         (func.abs(func.coalesce(Cliente.saldo_usd, 0)) > 0.01) | (func.abs(func.coalesce(Cliente.saldo_bs, 0)) > 0.1)
     ).all()
-    total_deuda_usd = sum(seguro_decimal(c.saldo_usd) for c in morosos if seguro_decimal(c.saldo_usd) > 0)
+    
+    # 2. CALCULO REAL: Sumamos TODAS las facturas con saldo pendiente (con o sin cliente)
+    total_real_ventas = db.session.query(func.sum(Venta.saldo_pendiente_usd)).filter(Venta.saldo_pendiente_usd > 0).scalar() or Decimal('0.00')
+    
+    # 3. Detectar deudas huérfanas (sin cliente_id)
+    deuda_huerfana = db.session.query(func.sum(Venta.saldo_pendiente_usd)).filter(Venta.saldo_pendiente_usd > 0, Venta.cliente_id == None).scalar() or Decimal('0.00')
+    
     tasa = TasaBCV.query.order_by(TasaBCV.fecha.desc()).first()
     tasa_bcv = Decimal(str(tasa.valor)) if tasa and tasa.valor else Decimal('1.0')
+    
+    # Inyectar la deuda huérfana como un "cliente" ficticio para que aparezca en la lista
+    if deuda_huerfana > 1:
+        # Creamos un objeto temporal para que el template lo pinte
+        class OrphanClient:
+            id = 0
+            nombre = "⚠️ FACTURAS SIN ASIGNAR (IDENTIFICAR)"
+            telefono = "Ver detalles ->"
+            ultima_compra = "Varias"
+            saldo_usd = deuda_huerfana
+            
+        morosos.insert(0, OrphanClient())
+
     return render_template('morosos.html',
                            morosos=morosos,
-                           total=total_deuda_usd,
+                           total=total_real_ventas,
                            tasa_bcv=tasa_bcv)
 
 # ========== REGISTRAR ABONO (CONECTADO A CAJA) ==========
@@ -475,10 +496,16 @@ def detalles_deuda(id):
     abono_total_disponible = sum((p.monto_usd for p in pagos), Decimal('0.00'))
 
     # 2. Traemos todas las ventas con deuda, de orden viejo a nuevo
-    ventas = Venta.query.filter(
-        Venta.cliente_id == id,
-        Venta.saldo_pendiente_usd > 0
-    ).order_by(Venta.fecha.asc()).all()
+    if id == 0:
+        ventas = Venta.query.filter(
+            Venta.cliente_id == None,
+            Venta.saldo_pendiente_usd > 0
+        ).order_by(Venta.fecha.asc()).all()
+    else:
+        ventas = Venta.query.filter(
+            Venta.cliente_id == id,
+            Venta.saldo_pendiente_usd > 0
+        ).order_by(Venta.fecha.asc()).all()
 
     detalles = []
     cambios_realizados = False
@@ -521,7 +548,7 @@ def detalles_deuda(id):
     
     # Alineamos el cliente general con la realidad de las facturas no pagadas
     saldo_real_facturas = sum((v._pendiente_dec for v in ventas if hasattr(v, '_pendiente_dec')), Decimal('0.00'))
-    cliente = db.session.get(Cliente, id)
+    cliente = db.session.get(Cliente, id) if id > 0 else None
     if cliente:
         # Forzar a cero si es insignificante
         if abs(saldo_real_facturas) < 0.01:

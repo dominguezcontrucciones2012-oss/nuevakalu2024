@@ -182,14 +182,14 @@ def procesar_venta():
             cliente = Cliente.query.get(int(cliente_id))
 
         # 3. Estado de Fiado y Deuda
-        es_fiado_opcion = data.get('es_fiado', False)
-        # Si el usuario mandó es_fiado=True, forzamos que falte algo (aunque sea 0 si pagó completo, pero es raro)
-        # El problema anterior era que si pagaba completo, falta_usd era 0 y no se registraba deuda.
-        # Si es_fiado es True, la deuda REAL es falta_usd.
-        es_fiado = es_fiado_opcion or (falta_usd > Decimal('0.00'))
+        falta_usd = total_venta - total_pagado
+        if falta_usd < 0.01: falta_usd = Decimal('0.00')
+
+        es_fiado = (data.get('es_fiado') == True) or (falta_usd > 0)
         
-        if es_fiado and not es_productor and not cliente:
-            return jsonify({'success': False, 'message': f'⚠️ Venta a crédito requiere seleccionar un cliente.'})
+        # 🛡️ SEGURIDAD CRÍTICA: Bloquear fiados sin cliente
+        if es_fiado and not cliente and not productor:
+            return jsonify({'success': False, 'message': '⚠️ ERROR CRÍTICO: Las ventas a crédito (FIADO) OBLIGATORIAMENTE requieren seleccionar un Cliente o Productor.'})
 
         # 4. Crear Objeto Venta
         nueva_venta = Venta(

@@ -153,17 +153,31 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function verDetallesVenta(id) {
     fetch(`/detalle_venta/${id}/json`)
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) throw new Error('Error al cargar detalles');
+        return r.json();
+    })
     .then(res => {
-        const modal = new bootstrap.Modal(document.getElementById('modalVenta'));
+        const modalEl = document.getElementById('modalVenta');
+        const modal = new bootstrap.Modal(modalEl);
         document.getElementById('txt_id_venta').innerText = id;
         
-        // Extraer datos de la fila de la tabla
-        const tr = Array.from(document.querySelectorAll("#tabla_ventas tbody tr")).find(row => row.children[0].innerText == id);
+        // Buscar la fila correspondiente
+        const rows = document.querySelectorAll("#tabla_ventas tbody tr");
+        let targetRow = null;
+        for (let row of rows) {
+            if (row.querySelector('td').innerText.trim() == id) {
+                targetRow = row;
+                break;
+            }
+        }
         
-        document.getElementById('txt_cliente').innerText = tr.querySelector('.fw-bold').innerText;
-        document.getElementById('txt_fecha').innerText = tr.children[1].innerText;
-        document.getElementById('txt_total_final').innerText = tr.querySelector('.text-success').innerText;
+        if (targetRow) {
+            const clienteName = targetRow.querySelector('.fw-bold') ? targetRow.querySelector('.fw-bold').innerText : 'Consumidor Final';
+            document.getElementById('txt_cliente').innerText = clienteName;
+            document.getElementById('txt_fecha').innerText = targetRow.children[1].innerText;
+            document.getElementById('txt_total_final').innerText = targetRow.querySelector('.text-success').innerText;
+        }
 
         let html = '';
         res.forEach(d => {
@@ -172,13 +186,17 @@ function verDetallesVenta(id) {
             const subtotalNum = p_unit * cant;
             html += `<tr>
                 <td><i class="fas fa-tag text-muted me-2"></i>${d.nombre}</td>
-                <td class="text-center">${(parseFloat(cant) || 0).toFixed(2)}</td>
-                <td class="text-end">$${(parseFloat(p_unit) || 0).toFixed(2)}</td>
-                <td class="text-end fw-bold">$${(parseFloat(subtotalNum) || 0).toFixed(2)}</td>
+                <td class="text-center">${cant.toFixed(3)}</td>
+                <td class="text-end">$${p_unit.toFixed(2)}</td>
+                <td class="text-end fw-bold">$${subtotalNum.toFixed(2)}</td>
             </tr>`;
         });
         document.getElementById('tabla_detalles_cuerpo').innerHTML = html;
         modal.show();
+    })
+    .catch(err => {
+        console.error(err);
+        alert('⚠️ No se pudo cargar el detalle de esta factura.');
     });
 }
 </script>
